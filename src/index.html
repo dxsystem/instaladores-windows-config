@@ -479,57 +479,45 @@
             return await response.json();
         }
 
-        // Actualizar UI
+        // Funciones de UI
+        function showLoading(message) {
+            const overlay = document.getElementById('loadingOverlay');
+            const text = document.getElementById('loadingText');
+            if (text) text.textContent = message || 'Cargando...';
+            if (overlay) overlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
         function updateUI() {
             // Curso
-            document.getElementById('courseTitle').value = appState.course.title;
-            document.getElementById('courseVideoUrl').value = appState.course.videoUrl;
-            document.getElementById('courseDescription').value = appState.course.description;
+            document.getElementById('courseTitle').value = appState.course.title || '';
+            document.getElementById('courseVideoUrl').value = appState.course.videoUrl || '';
+            document.getElementById('courseDescription').value = appState.course.description || '';
             updateDescriptionPreview();
 
             // Videos
             updateVideosList();
 
             // Aplicaciones
-            updateAppsList('eliteAppsList', appState.apps.elite);
-            updateAppsList('proAppsList', appState.apps.pro);
-            updateAppsList('freeAppsList', appState.apps.free);
-            updateAppsList('requiredAppsList', appState.apps.required);
+            updateAppsList('eliteAppsList', appState.apps.elite || []);
+            updateAppsList('proAppsList', appState.apps.pro || []);
+            updateAppsList('freeAppsList', appState.apps.free || []);
+            updateAppsList('requiredAppsList', appState.apps.required || []);
 
             // JSON Editor
             document.getElementById('jsonEditor').value = JSON.stringify(appState, null, 2);
         }
 
-        // Actualizar estado de la aplicación desde la UI
-        function updateAppState() {
-            appState.course = {
-                title: document.getElementById('courseTitle').value,
-                videoUrl: document.getElementById('courseVideoUrl').value,
-                description: document.getElementById('courseDescription').value
-            };
-
-            // Videos
-            appState.videos = Array.from(document.querySelectorAll('#videosList .video-card')).map(card => ({
-                title: card.querySelector('.video-title').value,
-                url: card.querySelector('.video-url').value,
-                description: card.querySelector('.video-description').value
-            }));
-
-            // Aplicaciones
-            appState.apps = {
-                elite: getAppsFromList('eliteAppsList'),
-                pro: getAppsFromList('proAppsList'),
-                free: getAppsFromList('freeAppsList'),
-                required: getAppsFromList('requiredAppsList')
-            };
-        }
-
-        // Funciones de UI
         function updateVideosList() {
             const container = document.getElementById('videosList');
-            container.innerHTML = '';
+            if (!container) return;
 
-            appState.videos.forEach((video, index) => {
+            container.innerHTML = '';
+            (appState.videos || []).forEach((video, index) => {
                 container.innerHTML += `
                     <div class="card p-3 mb-2 video-card">
                         <div class="row">
@@ -555,9 +543,10 @@
 
         function updateAppsList(containerId, apps) {
             const container = document.getElementById(containerId);
-            container.innerHTML = '';
+            if (!container) return;
 
-            apps.forEach((app, index) => {
+            container.innerHTML = '';
+            (apps || []).forEach((app, index) => {
                 container.innerHTML += `
                     <div class="card p-3 mb-2 app-card">
                         <div class="row">
@@ -677,6 +666,30 @@
         // Event Listeners
         function setupEventListeners() {
             document.getElementById('courseDescription').addEventListener('input', updateDescriptionPreview);
+        }
+
+        // Actualizar estado de la aplicación desde la UI
+        function updateAppState() {
+            appState.course = {
+                title: document.getElementById('courseTitle').value,
+                videoUrl: document.getElementById('courseVideoUrl').value,
+                description: document.getElementById('courseDescription').value
+            };
+
+            // Videos
+            appState.videos = Array.from(document.querySelectorAll('#videosList .video-card')).map(card => ({
+                title: card.querySelector('.video-title').value,
+                url: card.querySelector('.video-url').value,
+                description: card.querySelector('.video-description').value
+            }));
+
+            // Aplicaciones
+            appState.apps = {
+                elite: getAppsFromList('eliteAppsList'),
+                pro: getAppsFromList('proAppsList'),
+                free: getAppsFromList('freeAppsList'),
+                required: getAppsFromList('requiredAppsList')
+            };
         }
 
         // Inicializar la aplicación
