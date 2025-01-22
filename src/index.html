@@ -274,45 +274,80 @@
                 clientId: "20e03e25-902a-407a-af26-bdd674e9fe86",
                 authority: "https://login.microsoftonline.com/95283754-2014-4a1e-9c3a-2ca96bb219f0",
                 redirectUri: "https://dxsystem.github.io/instaladores-windows-config/",
-                navigateToLoginRequestUrl: true
+                navigateToLoginRequestUrl: true,
+                validateAuthority: true
             },
             cache: {
-                cacheLocation: "sessionStorage",
-                storeAuthStateInCookie: true
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: false
+            },
+            system: {
+                allowRedirectInIframe: true,
+                loggerOptions: {
+                    loggerCallback: (level, message, containsPii) => {
+                        if (containsPii) return;
+                        console.log(message);
+                    },
+                    piiLoggingEnabled: false,
+                    logLevel: msal.LogLevel.Verbose
+                }
             }
         };
 
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
-        
         // Configuración de login
         const loginRequest = {
-            scopes: [
-                "https://graph.microsoft.com/Files.ReadWrite.All",
-                "https://graph.microsoft.com/Sites.ReadWrite.All",
-                "https://graph.microsoft.com/User.Read"
-            ],
-            redirectStartPage: window.location.href
+            scopes: ["https://graph.microsoft.com/Files.ReadWrite.All"],
+            prompt: "select_account"
         };
+
+        const tokenRequest = {
+            scopes: ["https://graph.microsoft.com/Files.ReadWrite.All"],
+            forceRefresh: false
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
 
         // Inicialización
         async function initialize() {
             try {
-                // Manejar la redirección después del login
-                await msalInstance.handleRedirectPromise();
-                
-                const accounts = msalInstance.getAllAccounts();
-                if (accounts.length === 0) {
-                    // Usuario no autenticado, iniciar login
-                    await msalInstance.loginRedirect(loginRequest);
-                    return;
+                const currentAccounts = msalInstance.getAllAccounts();
+                if (currentAccounts.length === 0) {
+                    return msalInstance.loginRedirect(loginRequest);
                 }
                 
-                // Usuario autenticado, cargar configuración
-                await loadConfiguration();
-                setupEventListeners();
+                // Usuario ya autenticado
+                const account = currentAccounts[0];
+                const tokenResponse = await msalInstance.acquireTokenSilent({
+                    ...tokenRequest,
+                    account: account
+                });
+                
+                if (tokenResponse) {
+                    await loadConfiguration();
+                    setupEventListeners();
+                }
             } catch (error) {
                 console.error("Error durante la inicialización:", error);
-                alert("Error de autenticación: " + error.message);
+                if (error instanceof msal.InteractionRequiredAuthError) {
+                    return msalInstance.acquireTokenRedirect(tokenRequest);
+                }
+            }
+        }
+
+        // Manejar la redirección
+        msalInstance.handleRedirectPromise()
+            .then(handleResponse)
+            .catch(error => {
+                console.error(error);
+            });
+
+        function handleResponse(response) {
+            if (response !== null) {
+                const account = response.account;
+                msalInstance.setActiveAccount(account);
+                return loadConfiguration();
+            } else {
+                initialize();
             }
         }
 
