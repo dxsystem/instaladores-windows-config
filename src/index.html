@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuración - Instaladores Windows Online (Modo Local)</title>
+    <title>Configuración - Instaladores Windows Online</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -102,7 +102,7 @@
         <!-- Navbar -->
         <nav class="navbar navbar-dark bg-dark mb-4">
             <div class="container-fluid">
-                <span class="navbar-brand">Configuración - Instaladores Windows Online (Modo Local)</span>
+                <span class="navbar-brand">Configuración - Instaladores Windows Online</span>
                 <div class="d-flex">
                     <button class="btn btn-outline-light me-2" onclick="exportConfig()">
                         <i class="fas fa-download"></i> Exportar Config
@@ -248,6 +248,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- MSAL -->
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
 
     <script>
         // Estado global de la aplicación
@@ -266,23 +268,172 @@
             }
         };
 
+        // Configuración de MSAL
+        const msalConfig = {
+            auth: {
+                clientId: "20e03e25-902a-407a-af26-bdd674e9fe86",
+                authority: "https://login.microsoftonline.com/95283754-2014-4a1e-9c3a-2ca96bb219f0",
+                redirectUri: "https://dxsystem.github.io/instaladores-windows-config/",
+                postLogoutRedirectUri: "https://dxsystem.github.io/instaladores-windows-config/"
+            },
+            cache: {
+                cacheLocation: "localStorage",
+                storeAuthStateInCookie: true
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+        
         // Inicialización
-        function initialize() {
-            loadConfiguration();
-            setupEventListeners();
+        async function initialize() {
+            try {
+                // Manejar la redirección después del login
+                await msalInstance.handleRedirectPromise();
+                
+                const accounts = msalInstance.getAllAccounts();
+                if (accounts.length === 0) {
+                    // Usuario no autenticado, iniciar login
+                    await msalInstance.loginRedirect({
+                        scopes: ["https://graph.microsoft.com/Files.ReadWrite.All"]
+                    });
+                    return;
+                }
+                
+                // Usuario autenticado, cargar configuración
+                await loadConfiguration();
+                setupEventListeners();
+            } catch (error) {
+                console.error("Error durante la inicialización:", error);
+                alert("Error de autenticación: " + error.message);
+            }
         }
 
-        // Cargar configuración
-        function loadConfiguration() {
-            const savedConfig = localStorage.getItem('appConfig');
-            if (savedConfig) {
-                try {
-                    appState = JSON.parse(savedConfig);
-                    updateUI();
-                } catch (error) {
-                    console.error('Error al cargar la configuración:', error);
+        // Obtener token de acceso
+        async function getAccessToken() {
+            try {
+                const accounts = msalInstance.getAllAccounts();
+                if (accounts.length === 0) throw new Error("No hay usuario autenticado");
+                
+                const silentRequest = {
+                    scopes: ["https://graph.microsoft.com/Files.ReadWrite.All"],
+                    account: accounts[0]
+                };
+                
+                const response = await msalInstance.acquireTokenSilent(silentRequest);
+                return response.accessToken;
+            } catch (error) {
+                if (error instanceof msal.InteractionRequiredAuthError) {
+                    const response = await msalInstance.acquireTokenRedirect({
+                        scopes: ["https://graph.microsoft.com/Files.ReadWrite.All"]
+                    });
+                    return response.accessToken;
                 }
+                throw error;
             }
+        }
+
+        // Cargar configuración desde SharePoint
+        async function loadConfiguration() {
+            try {
+                showLoading('Cargando configuración...');
+                
+                // Cargar todos los archivos de configuración
+                const [settings, descriptions, appsConfig, eliteApps, freeApps, proApps, requiredApps, users] = await Promise.all([
+                    getFileFromSharePoint('app_settings.json'),
+                    getFileFromSharePoint('app_descriptions.json'),
+                    getFileFromSharePoint('apps_config.json'),
+                    getFileFromSharePoint('elite_apps_config.json'),
+                    getFileFromSharePoint('free_apps_config.json'),
+                    getFileFromSharePoint('pro_apps_config.json'),
+                    getFileFromSharePoint('required_apps_config.json'),
+                    getFileFromSharePoint('users.json')
+                ]);
+                
+                // Actualizar estado global
+                appState = {
+                    course: settings.Course || {},
+                    videos: settings.ImportantVideos || [],
+                    apps: {
+                        elite: eliteApps || [],
+                        pro: proApps || [],
+                        free: freeApps || [],
+                        required: requiredApps || []
+                    }
+                };
+                
+                // Actualizar UI
+                updateUI();
+                hideLoading();
+            } catch (error) {
+                console.error('Error al cargar la configuración:', error);
+                alert('Error al cargar la configuración: ' + error.message);
+                hideLoading();
+            }
+        }
+
+        // Guardar configuración en SharePoint
+        async function saveConfiguration() {
+            try {
+                showLoading('Guardando cambios...');
+                updateAppState();
+                
+                // Preparar datos
+                const settings = {
+                    Course: appState.course,
+                    ImportantVideos: appState.videos
+                };
+                
+                // Guardar todos los archivos
+                await Promise.all([
+                    saveFileToSharePoint('app_settings.json', settings),
+                    saveFileToSharePoint('apps_config.json', appState.apps),
+                    saveFileToSharePoint('elite_apps_config.json', appState.apps.elite),
+                    saveFileToSharePoint('free_apps_config.json', appState.apps.free),
+                    saveFileToSharePoint('pro_apps_config.json', appState.apps.pro),
+                    saveFileToSharePoint('required_apps_config.json', appState.apps.required)
+                ]);
+                
+                hideLoading();
+                alert('Configuración guardada correctamente');
+            } catch (error) {
+                console.error('Error al guardar:', error);
+                alert('Error al guardar la configuración: ' + error.message);
+                hideLoading();
+            }
+        }
+
+        // Funciones de SharePoint
+        async function getFileFromSharePoint(filename) {
+            const accessToken = await getAccessToken();
+            const response = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC:/drive/root:/InstaladoresWindowsCOnline/${filename}:/content`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                }
+            );
+            
+            if (!response.ok) throw new Error(`Error al cargar ${filename}: ${response.statusText}`);
+            return await response.json();
+        }
+
+        async function saveFileToSharePoint(filename, content) {
+            const accessToken = await getAccessToken();
+            const response = await fetch(
+                `https://graph.microsoft.com/v1.0/sites/ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC:/drive/root:/InstaladoresWindowsCOnline/${filename}:/content`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(content)
+                }
+            );
+            
+            if (!response.ok) throw new Error(`Error al guardar ${filename}: ${response.statusText}`);
+            return await response.json();
         }
 
         // Actualizar UI
@@ -304,13 +455,6 @@
 
             // JSON Editor
             document.getElementById('jsonEditor').value = JSON.stringify(appState, null, 2);
-        }
-
-        // Guardar configuración
-        function saveConfiguration() {
-            updateAppState();
-            localStorage.setItem('appConfig', JSON.stringify(appState));
-            alert('Configuración guardada correctamente');
         }
 
         // Actualizar estado de la aplicación desde la UI
