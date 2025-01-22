@@ -274,16 +274,26 @@
                 clientId: "20e03e25-902a-407a-af26-bdd674e9fe86",
                 authority: "https://login.microsoftonline.com/95283754-2014-4a1e-9c3a-2ca96bb219f0",
                 redirectUri: "https://dxsystem.github.io/instaladores-windows-config/",
-                postLogoutRedirectUri: "https://dxsystem.github.io/instaladores-windows-config/"
+                navigateToLoginRequestUrl: true
             },
             cache: {
-                cacheLocation: "localStorage",
+                cacheLocation: "sessionStorage",
                 storeAuthStateInCookie: true
             }
         };
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
         
+        // Configuración de login
+        const loginRequest = {
+            scopes: [
+                "https://graph.microsoft.com/Files.ReadWrite.All",
+                "https://graph.microsoft.com/Sites.ReadWrite.All",
+                "https://graph.microsoft.com/User.Read"
+            ],
+            redirectStartPage: window.location.href
+        };
+
         // Inicialización
         async function initialize() {
             try {
@@ -293,9 +303,7 @@
                 const accounts = msalInstance.getAllAccounts();
                 if (accounts.length === 0) {
                     // Usuario no autenticado, iniciar login
-                    await msalInstance.loginRedirect({
-                        scopes: ["https://graph.microsoft.com/Files.ReadWrite.All"]
-                    });
+                    await msalInstance.loginRedirect(loginRequest);
                     return;
                 }
                 
