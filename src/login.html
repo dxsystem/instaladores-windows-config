@@ -107,8 +107,8 @@
                 try {
                     const user = await auth.login();
                     if (user) {
-                        // Redirigir a la página principal
-                        window.location.href = 'index.html';
+                        // Redirigir a la página de usuarios
+                        window.location.href = 'users.html';
                     }
                 } catch (error) {
                     console.error('Error de login:', error);
@@ -120,7 +120,7 @@
             
             // Verificar si ya hay una sesión activa
             if (auth.isAuthenticated()) {
-                window.location.href = 'index.html';
+                window.location.href = 'users.html';
             }
         });
     </script>
