@@ -10,7 +10,7 @@ class SharePointGraph {
         this.auth = auth;
         this.graphEndpoint = 'https://graph.microsoft.com/v1.0';
         this.siteId = null;
-        this.listId = 'e3e2e8f4-b89c-4798-a9b1-0c53c4011cb5'; // ID fijo de la lista de usuarios
+        this.listId = null; // Lo obtendremos dinámicamente
     }
 
     /**
@@ -32,7 +32,8 @@ class SharePointGraph {
 
         try {
             const token = await this.getAccessToken();
-            const response = await fetch(`${this.graphEndpoint}/sites/root`, {
+            // Usar la URL específica en lugar de /sites/root
+            const response = await fetch(`${this.graphEndpoint}/sites/ldcigroup.sharepoint.com:/sites/instaladoreswindows`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -45,6 +46,7 @@ class SharePointGraph {
 
             const data = await response.json();
             this.siteId = data.id;
+            console.log('ID del sitio encontrado:', this.siteId);
             return this.siteId;
         } catch (error) {
             console.error('Error al obtener el ID del sitio:', error);
@@ -61,9 +63,10 @@ class SharePointGraph {
         try {
             const token = await this.getAccessToken();
             const siteId = await this.getSiteId();
+            const listId = await this.getListId();
             
             let users = [];
-            let nextLink = `${this.graphEndpoint}/sites/${siteId}/lists/${this.listId}/items?expand=fields&top=100`;
+            let nextLink = `${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items?expand=fields&top=100`;
             let page = 1;
             let totalItems = 0;
             

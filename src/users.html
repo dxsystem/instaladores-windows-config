@@ -336,6 +336,13 @@
                         return;
                     }
                     
+                    // Actualizar el nombre de usuario en la interfaz
+                    const currentUserNameElement = document.getElementById('currentUserName');
+                    if (currentUserNameElement && auth.user) {
+                        currentUserNameElement.textContent = auth.user.name || auth.user.username;
+                        console.log("Nombre de usuario actualizado:", auth.user.name || auth.user.username);
+                    }
+                    
                     // Inicializar componentes
                     spGraph = new SharePointGraph(auth);
                     window.spGraph = spGraph; // Hacer disponible globalmente
