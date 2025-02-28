@@ -11,7 +11,7 @@ class SharePointGraph {
         this.graphEndpoint = 'https://graph.microsoft.com/v1.0';
         this.siteUrl = 'ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC:';
         this.folderPath = 'InstaladoresWindowsCOnline';
-        this.listName = 'Usuarios'; // Nombre de la lista en SharePoint
+        this.listName = 'Users'; // Nombre de la lista en SharePoint (debe coincidir con el nombre en SharePointListService.cs)
     }
 
     /**
@@ -64,41 +64,52 @@ class SharePointGraph {
                 
                 if (!listsResponse.ok) {
                     console.error(`Error al obtener listas: ${listsResponse.status} ${listsResponse.statusText}`);
-                    return this.getUsersFromDummyData(); // Usar datos de ejemplo si no podemos acceder a las listas
+                    throw new Error(`Error al obtener listas: ${listsResponse.status}`);
                 }
                 
                 const listsData = await listsResponse.json();
+                console.log('Listas disponibles:', listsData.value.map(list => list.displayName));
+                
                 const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
                 
                 if (!usersList) {
-                    console.warn(`La lista ${this.listName} no existe. Usando datos de ejemplo.`);
-                    return this.getUsersFromDummyData();
+                    console.error(`La lista ${this.listName} no existe.`);
+                    throw new Error(`La lista ${this.listName} no existe.`);
                 }
                 
-                // Obtener los items de la lista
+                console.log(`Lista de usuarios encontrada: ${usersList.displayName} (ID: ${usersList.id})`);
+                
+                // Obtener los items de la lista con expand=fields para obtener todos los campos
                 const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items?expand=fields`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Prefer': 'HonorNonIndexedQueriesWarningMayFailRandomly' // Necesario para consultas no indexadas
                     }
                 });
                 
                 if (!response.ok) {
                     console.error(`Error al obtener items de la lista: ${response.status} ${response.statusText}`);
-                    return this.getUsersFromDummyData();
+                    throw new Error(`Error al obtener items de la lista: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                console.log('Datos de la lista:', data);
                 
-                // Transformar los datos a un formato más amigable
+                // Transformar los datos a un formato más amigable según los campos en SharePointListService.cs
                 const users = data.value.map(item => {
+                    const fields = item.fields;
                     return {
                         id: item.id,
-                        username: item.fields.Title || item.fields.Username || '',
-                        email: item.fields.Email || '',
-                        role: item.fields.Role || 'User',
-                        status: item.fields.Status || 'Active',
-                        lastLogin: item.fields.LastLogin || null
+                        username: fields.Title || fields.Email || '',
+                        email: fields.Email || '',
+                        password: fields.Password || '',
+                        subscriptionType: fields.SubscriptionType || 'Gratuita',
+                        startDate: fields.StartDate || new Date().toISOString(),
+                        endDate: fields.EndDate || new Date().toISOString(),
+                        isActive: fields.IsActive === true || fields.IsActive === 'true',
+                        failedLoginAttempts: fields.FailedLoginAttempts || 0,
+                        status: fields.IsActive === true || fields.IsActive === 'true' ? 'Active' : 'Inactive'
                     };
                 });
                 
@@ -106,103 +117,10 @@ class SharePointGraph {
                 return users;
             } catch (error) {
                 console.error('Error al obtener usuarios de la lista:', error);
-                return this.getUsersFromDummyData();
+                throw error;
             }
         } catch (error) {
             console.error('Error al obtener usuarios de SharePoint:', error);
-            return this.getUsersFromDummyData();
-        }
-    }
-
-    /**
-     * Genera datos de ejemplo para usuarios cuando no se puede acceder a SharePoint
-     * @returns {Array} Lista de usuarios de ejemplo
-     */
-    getUsersFromDummyData() {
-        console.log('Generando datos de ejemplo para usuarios');
-        return [
-            {
-                id: '1',
-                username: 'admin',
-                email: 'admin@example.com',
-                role: 'Admin',
-                status: 'Active',
-                lastLogin: new Date().toISOString()
-            },
-            {
-                id: '2',
-                username: 'usuario1',
-                email: 'usuario1@example.com',
-                role: 'User',
-                status: 'Active',
-                lastLogin: new Date().toISOString()
-            },
-            {
-                id: '3',
-                username: 'usuario2',
-                email: 'usuario2@example.com',
-                role: 'User',
-                status: 'Inactive',
-                lastLogin: null
-            }
-        ];
-    }
-
-    /**
-     * Crea la lista de usuarios en SharePoint si no existe
-     * @param {string} siteId - ID del sitio
-     * @returns {Promise<string>} ID de la lista creada
-     */
-    async createUsersList(siteId) {
-        try {
-            const token = await this.auth.getAccessToken(true);
-            
-            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    displayName: this.listName,
-                    list: {
-                        template: 'genericList'
-                    },
-                    columns: [
-                        {
-                            name: 'Username',
-                            text: {}
-                        },
-                        {
-                            name: 'Email',
-                            text: {}
-                        },
-                        {
-                            name: 'Role',
-                            text: {}
-                        },
-                        {
-                            name: 'Status',
-                            text: {}
-                        },
-                        {
-                            name: 'LastLogin',
-                            dateTime: {}
-                        }
-                    ]
-                })
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Error al crear la lista de usuarios: ${response.status} ${response.statusText} - ${errorText}`);
-            }
-            
-            const data = await response.json();
-            console.log('Lista de usuarios creada correctamente:', data);
-            return data.id;
-        } catch (error) {
-            console.error('Error al crear la lista de usuarios:', error);
             throw error;
         }
     }
@@ -214,15 +132,68 @@ class SharePointGraph {
      */
     async createUser(user) {
         try {
-            // En caso de no poder crear usuarios en SharePoint, simular la creación
-            console.log('Simulando creación de usuario:', user);
+            const token = await this.auth.getAccessToken(true);
+            const siteId = await this.getSiteId();
+            
+            // Obtener la lista de usuarios
+            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!listsResponse.ok) {
+                throw new Error(`Error al obtener listas: ${listsResponse.status}`);
+            }
+            
+            const listsData = await listsResponse.json();
+            const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
+            
+            if (!usersList) {
+                throw new Error(`La lista ${this.listName} no existe.`);
+            }
+            
+            // Crear el usuario en la lista
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    fields: {
+                        Title: user.email, // Campo requerido por SharePoint
+                        Email: user.email,
+                        Password: user.password || '',
+                        SubscriptionType: user.subscriptionType || 'Gratuita',
+                        StartDate: user.startDate || new Date().toISOString(),
+                        EndDate: user.endDate || new Date().toISOString(),
+                        IsActive: user.isActive || true,
+                        FailedLoginAttempts: user.failedLoginAttempts || 0
+                    }
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error al crear usuario: ${response.status} - ${errorText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Usuario creado correctamente:', data);
+            
             return {
-                id: Date.now().toString(),
-                username: user.username,
+                id: data.id,
+                username: user.email,
                 email: user.email,
-                role: user.role || 'User',
-                status: user.status || 'Active',
-                lastLogin: user.lastLogin || new Date().toISOString()
+                password: user.password,
+                subscriptionType: user.subscriptionType,
+                startDate: user.startDate,
+                endDate: user.endDate,
+                isActive: user.isActive,
+                failedLoginAttempts: user.failedLoginAttempts,
+                status: user.isActive ? 'Active' : 'Inactive'
             };
         } catch (error) {
             console.error('Error al crear usuario:', error);
@@ -238,15 +209,66 @@ class SharePointGraph {
      */
     async updateUser(id, userData) {
         try {
-            // En caso de no poder actualizar usuarios en SharePoint, simular la actualización
-            console.log('Simulando actualización de usuario:', id, userData);
+            const token = await this.auth.getAccessToken(true);
+            const siteId = await this.getSiteId();
+            
+            // Obtener la lista de usuarios
+            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!listsResponse.ok) {
+                throw new Error(`Error al obtener listas: ${listsResponse.status}`);
+            }
+            
+            const listsData = await listsResponse.json();
+            const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
+            
+            if (!usersList) {
+                throw new Error(`La lista ${this.listName} no existe.`);
+            }
+            
+            // Actualizar el usuario en la lista
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items/${id}/fields`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    Title: userData.email, // Campo requerido por SharePoint
+                    Email: userData.email,
+                    Password: userData.password || '',
+                    SubscriptionType: userData.subscriptionType || 'Gratuita',
+                    StartDate: userData.startDate || new Date().toISOString(),
+                    EndDate: userData.endDate || new Date().toISOString(),
+                    IsActive: userData.isActive || true,
+                    FailedLoginAttempts: userData.failedLoginAttempts || 0
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error al actualizar usuario: ${response.status} - ${errorText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Usuario actualizado correctamente:', data);
+            
             return {
                 id: id,
-                username: userData.username,
+                username: userData.email,
                 email: userData.email,
-                role: userData.role,
-                status: userData.status,
-                lastLogin: userData.lastLogin || new Date().toISOString()
+                password: userData.password,
+                subscriptionType: userData.subscriptionType,
+                startDate: userData.startDate,
+                endDate: userData.endDate,
+                isActive: userData.isActive,
+                failedLoginAttempts: userData.failedLoginAttempts,
+                status: userData.isActive ? 'Active' : 'Inactive'
             };
         } catch (error) {
             console.error('Error al actualizar usuario:', error);
@@ -261,8 +283,41 @@ class SharePointGraph {
      */
     async deleteUser(id) {
         try {
-            // En caso de no poder eliminar usuarios en SharePoint, simular la eliminación
-            console.log('Simulando eliminación de usuario:', id);
+            const token = await this.auth.getAccessToken(true);
+            const siteId = await this.getSiteId();
+            
+            // Obtener la lista de usuarios
+            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!listsResponse.ok) {
+                throw new Error(`Error al obtener listas: ${listsResponse.status}`);
+            }
+            
+            const listsData = await listsResponse.json();
+            const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
+            
+            if (!usersList) {
+                throw new Error(`La lista ${this.listName} no existe.`);
+            }
+            
+            // Eliminar el usuario de la lista
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error al eliminar usuario: ${response.status}`);
+            }
+            
+            console.log('Usuario eliminado correctamente:', id);
             return true;
         } catch (error) {
             console.error('Error al eliminar usuario:', error);
