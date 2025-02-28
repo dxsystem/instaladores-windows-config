@@ -9,10 +9,18 @@ class SharePointAuth {
                 clientId: '20e03e25-902a-407a-af26-bdd674e9fe86',
                 authority: 'https://login.microsoftonline.com/95283754-2014-4a1e-9c3a-2ca96bb219f0',
                 redirectUri: 'https://dxsystem.github.io/instaladores-windows-config/src/users.html',
+                navigateToLoginRequestUrl: true
             },
             cache: {
                 cacheLocation: 'localStorage',
-                storeAuthStateInCookie: true
+                storeAuthStateInCookie: false // Cambiar a false para SPA
+            },
+            system: {
+                allowRedirectInIframe: true,
+                windowHashTimeout: 60000,
+                iframeHashTimeout: 6000,
+                loadFrameTimeout: 0,
+                asyncPopups: false
             }
         };
 
@@ -41,12 +49,17 @@ class SharePointAuth {
     async checkExistingSession() {
         try {
             // Intentar manejar cualquier respuesta de redirección pendiente
-            const redirectResponse = await this.msalInstance.handleRedirectPromise();
-            if (redirectResponse) {
+            const response = await this.msalInstance.handleRedirectPromise()
+                .catch(error => {
+                    console.error('Error al manejar la redirección:', error);
+                    return null;
+                });
+
+            if (response) {
                 this._isAuthenticated = true;
-                this.user = redirectResponse.account;
+                this.user = response.account;
                 console.log('Login por redirección exitoso para:', this.user.username);
-                return redirectResponse;
+                return response;
             }
             
             // Verificar si hay cuentas en caché
@@ -61,6 +74,8 @@ class SharePointAuth {
         } catch (error) {
             console.error('Error al verificar sesión existente:', error);
             return null;
+        } finally {
+            this._loginInProgress = false;
         }
     }
 
@@ -88,38 +103,27 @@ class SharePointAuth {
             // Marcar que hay un login en progreso
             this._loginInProgress = true;
 
-            // Usar redirección en lugar de popup para evitar problemas de interacción
-            console.log('Iniciando proceso de login con redirección...');
-            
-            // Configurar la redirección
+            // Configurar la solicitud de login
             const request = {
                 scopes: this.graphScopes.read,
                 prompt: 'select_account',
                 redirectUri: 'https://dxsystem.github.io/instaladores-windows-config/src/users.html'
             };
-            
-            // Usar loginRedirect
-            await this.msalInstance.loginRedirect(request);
-            
-            // No se llegará a este punto debido a la redirección
-            return null;
-        } catch (error) {
-            // Si hay un error de popup bloqueado, intentar con redirección
-            if (error.name === 'PopupBlockedError') {
-                console.warn('Popup bloqueado, intentando con redirección...');
-                this._loginInProgress = false; // Restablecer flag de login en progreso
-                const request = {
-                    scopes: this.graphScopes.read,
-                    prompt: 'select_account',
-                    redirectUri: 'https://dxsystem.github.io/instaladores-windows-config/src/users.html'
-                };
+
+            try {
+                // Intentar login con redirección
+                console.log('Iniciando proceso de login con redirección...');
                 await this.msalInstance.loginRedirect(request);
-                return null;
+                return null; // No se llegará a este punto debido a la redirección
+            } catch (error) {
+                console.error('Error durante el login:', error);
+                this._loginInProgress = false;
+                throw error;
             }
-            
+        } catch (error) {
             console.error('Error durante el login:', error);
-            this._loginInProgress = false; // Restablecer flag de login en progreso
-            throw new Error('No se pudo iniciar sesión: ' + error.message);
+            this._loginInProgress = false;
+            throw error;
         }
     }
 
