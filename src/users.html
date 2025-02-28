@@ -277,12 +277,58 @@
         const loadingProgressBar = document.getElementById('loadingProgressBar');
         const loadingProgressText = document.getElementById('loadingProgressText');
         
+        // Funciones auxiliares
+        function showLoading(show) {
+            if (show) {
+                loadingState.classList.remove('d-none');
+            } else {
+                loadingState.classList.add('d-none');
+            }
+        }
+        
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
+            }, 5000);
+        }
+        
+        function updateUserCount() {
+            const total = userManager.users.length;
+            const filtered = userManager.filteredUsers.length;
+            
+            totalUserCount.textContent = total;
+            filteredUserCount.textContent = filtered;
+            userCount.textContent = `${filtered} de ${total}`;
+        }
+        
+        function updateLoadingProgress(current, total, message) {
+            const percentage = Math.round((current / total) * 100);
+            loadingProgressBar.style.width = `${percentage}%`;
+            loadingProgressBar.setAttribute('aria-valuenow', percentage);
+            loadingProgressText.textContent = message || `Cargando ${current} de ${total} usuarios...`;
+        }
+        
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', async function() {
             try {
+                console.log("Inicializando la aplicación...");
+                
                 // Inicializar autenticación
                 auth = new SharePointAuth();
+                console.log("SharePointAuth creado:", auth);
+                
                 await auth.initialize();
+                console.log("Auth inicializado:", auth.isAuthenticated());
                 
                 // Verificar si el usuario está autenticado
                 if (!auth.isAuthenticated()) {
@@ -337,29 +383,11 @@
             if (progress) {
                 const percent = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
                 loadingProgressBar.style.width = `${percent}%`;
+                loadingProgressBar.setAttribute('aria-valuenow', percent);
                 loadingProgressText.textContent = progress.message || `Cargando ${progress.loaded} de ${progress.total} usuarios...`;
             }
         }
         
-        // Actualizar contador de usuarios
-        function updateUserCount() {
-            const totalUsers = userManager.users.length;
-            const filteredUsers = userManager.filteredUsers.length;
-            
-            userCount.textContent = totalUsers;
-            totalUserCount.textContent = totalUsers;
-            filteredUserCount.textContent = filteredUsers || totalUsers;
-        }
-        
-        // Mostrar/ocultar estado de carga
-        function showLoading(show) {
-            if (show) {
-                loadingState.classList.remove('d-none');
-            } else {
-                loadingState.classList.add('d-none');
-            }
-        }
-
         // Renderizar tabla de usuarios
         function renderUserTable(users) {
             userTableBody.innerHTML = '';
@@ -609,7 +637,6 @@
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
-            
             alertContainer.appendChild(alertDiv);
             
             // Auto-cerrar después de 5 segundos
