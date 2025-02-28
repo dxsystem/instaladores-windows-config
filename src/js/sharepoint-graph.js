@@ -34,12 +34,14 @@ class SharePointGraph {
             const token = await this.getAccessToken();
             
             // Intentar diferentes formatos de URL para encontrar el sitio
+            // Usando la URL correcta proporcionada por el usuario
             const possibleUrls = [
-                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com:/sites/instaladoreswindows:`,
-                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com,2,d68e63f9-ab95-4b9a-9e60-a9e2e8c0a995:/sites/instaladoreswindows:`,
-                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com/sites/instaladoreswindows`,
-                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com`,
-                `${this.graphEndpoint}/sites?search=instaladoreswindows`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC/InstaladoresWindowsCOnline:`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC:`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com,2,d68e63f9-ab95-4b9a-9e60-a9e2e8c0a995:/sites/InstaladoresWindowsC/InstaladoresWindowsCOnline:`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com/sites/InstaladoresWindowsC/InstaladoresWindowsCOnline`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com/sites/InstaladoresWindowsC`,
+                `${this.graphEndpoint}/sites?search=InstaladoresWindowsC`,
                 `${this.graphEndpoint}/sites/root`
             ];
             
@@ -60,10 +62,10 @@ class SharePointGraph {
                         const data = await response.json();
                         // Para búsquedas que devuelven múltiples sitios
                         if (data.value && Array.isArray(data.value) && data.value.length > 0) {
-                            // Buscar el sitio que contenga 'instaladoreswindows' en su nombre o URL
+                            // Buscar el sitio que contenga 'InstaladoresWindowsC' en su nombre o URL
                             const targetSite = data.value.find(site => 
-                                (site.name && site.name.toLowerCase().includes('instaladoreswindows')) ||
-                                (site.webUrl && site.webUrl.toLowerCase().includes('instaladoreswindows'))
+                                (site.name && site.name.toLowerCase().includes('instaladoreswindowsc')) ||
+                                (site.webUrl && site.webUrl.toLowerCase().includes('instaladoreswindowsc'))
                             ) || data.value[0]; // Si no encuentra, usar el primero
                             
                             this.siteId = targetSite.id;
