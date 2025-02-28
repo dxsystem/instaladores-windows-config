@@ -325,31 +325,35 @@
                 
                 // Inicializar autenticación
                 auth = new SharePointAuth();
-                console.log("SharePointAuth creado:", auth);
                 
-                await auth.initialize();
-                console.log("Auth inicializado:", auth.isAuthenticated());
-                
-                // Verificar si el usuario está autenticado
-                if (!auth.isAuthenticated()) {
-                    window.location.href = 'login.html';
-                    return;
+                try {
+                    // Verificar si hay una respuesta de redirección o una sesión existente
+                    await auth.initialize();
+                    
+                    // Verificar si el usuario está autenticado
+                    if (!auth.isAuthenticated()) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    // Inicializar componentes
+                    spGraph = new SharePointGraph(auth);
+                    window.spGraph = spGraph; // Hacer disponible globalmente
+                    
+                    userManager = new UserManager(spGraph);
+                    window.userManager = userManager; // Hacer disponible globalmente
+                    
+                    // Inicializar la interfaz
+                    await userManager.loadUsers();
+                    userManager.renderUsers();
+                    
+                    // Configurar eventos
+                    setupEventListeners();
+                    
+                } catch (error) {
+                    console.error('Error al inicializar la aplicación:', error);
+                    showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);
                 }
-                
-                // Inicializar componentes
-                spGraph = new SharePointGraph(auth);
-                window.spGraph = spGraph; // Hacer disponible globalmente
-                
-                userManager = new UserManager(spGraph);
-                window.userManager = userManager; // Hacer disponible globalmente
-                
-                // Inicializar la interfaz
-                await userManager.loadUsers();
-                userManager.renderUsers();
-                
-                // Configurar eventos
-                setupEventListeners();
-                
             } catch (error) {
                 console.error('Error al inicializar la aplicación:', error);
                 showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);

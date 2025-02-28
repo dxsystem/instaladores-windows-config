@@ -8,7 +8,7 @@ class SharePointAuth {
             auth: {
                 clientId: '20e03e25-902a-407a-af26-bdd674e9fe86',
                 authority: 'https://login.microsoftonline.com/95283754-2014-4a1e-9c3a-2ca96bb219f0',
-                redirectUri: window.location.href,
+                redirectUri: 'https://dxsystem.github.io/instaladores-windows-config/src/users.html',
             },
             cache: {
                 cacheLocation: 'localStorage',
@@ -91,14 +91,15 @@ class SharePointAuth {
             // Usar redirección en lugar de popup para evitar problemas de interacción
             console.log('Iniciando proceso de login con redirección...');
             
-            // Guardar la URL actual para redirigir después del login
-            sessionStorage.setItem('loginRedirectUrl', window.location.href);
-            
-            // Usar loginRedirect en lugar de loginPopup
-            this.msalInstance.loginRedirect({
+            // Configurar la redirección
+            const request = {
                 scopes: this.graphScopes.read,
-                prompt: 'select_account'
-            });
+                prompt: 'select_account',
+                redirectUri: 'https://dxsystem.github.io/instaladores-windows-config/src/users.html'
+            };
+            
+            // Usar loginRedirect
+            await this.msalInstance.loginRedirect(request);
             
             // No se llegará a este punto debido a la redirección
             return null;
@@ -107,10 +108,12 @@ class SharePointAuth {
             if (error.name === 'PopupBlockedError') {
                 console.warn('Popup bloqueado, intentando con redirección...');
                 this._loginInProgress = false; // Restablecer flag de login en progreso
-                this.msalInstance.loginRedirect({
+                const request = {
                     scopes: this.graphScopes.read,
-                    prompt: 'select_account'
-                });
+                    prompt: 'select_account',
+                    redirectUri: 'https://dxsystem.github.io/instaladores-windows-config/src/users.html'
+                };
+                await this.msalInstance.loginRedirect(request);
                 return null;
             }
             
