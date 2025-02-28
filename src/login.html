@@ -112,7 +112,14 @@
                     }
                 } catch (error) {
                     console.error('Error de login:', error);
-                    alert('Error al iniciar sesión: ' + error.message);
+                    
+                    // Mensaje de error más amigable para el usuario
+                    let errorMessage = error.message;
+                    if (errorMessage.includes('interaction_in_progress')) {
+                        errorMessage = 'Ya hay un proceso de inicio de sesión en curso. Por favor, espere un momento o recargue la página.';
+                    }
+                    
+                    alert('Error al iniciar sesión: ' + errorMessage);
                     loginButton.disabled = false;
                     loginStatus.classList.add('d-none');
                 }

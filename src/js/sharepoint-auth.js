@@ -28,6 +28,7 @@ class SharePointAuth {
         // Inicializar estado
         this._isAuthenticated = false;
         this.user = null;
+        this._loginInProgress = false; // Flag para controlar si hay un login en progreso
 
         // Verificar si hay una sesión existente
         this.checkExistingSession();
@@ -56,6 +57,15 @@ class SharePointAuth {
                 console.log('Usuario ya autenticado:', this.user.username);
                 return this.user;
             }
+            
+            // Evitar múltiples intentos de login simultáneos
+            if (this._loginInProgress) {
+                console.log('Ya hay un proceso de login en curso...');
+                throw new Error('Ya hay un proceso de login en curso. Por favor, espere a que termine.');
+            }
+            
+            // Marcar que hay un login en progreso
+            this._loginInProgress = true;
 
             // Intentar login con popup
             console.log('Iniciando proceso de login...');
@@ -68,12 +78,14 @@ class SharePointAuth {
                 this._isAuthenticated = true;
                 this.user = loginResponse.account;
                 console.log('Login exitoso para:', this.user.username);
+                this._loginInProgress = false; // Restablecer flag de login en progreso
                 return this.user;
             }
         } catch (error) {
             // Si hay un error de popup bloqueado, intentar con redirección
             if (error.name === 'PopupBlockedError') {
                 console.warn('Popup bloqueado, intentando con redirección...');
+                this._loginInProgress = false; // Restablecer flag de login en progreso
                 this.msalInstance.loginRedirect({
                     scopes: this.graphScopes.read,
                     prompt: 'select_account'
@@ -82,6 +94,7 @@ class SharePointAuth {
             }
             
             console.error('Error durante el login:', error);
+            this._loginInProgress = false; // Restablecer flag de login en progreso
             throw new Error('No se pudo iniciar sesión: ' + error.message);
         }
     }
@@ -175,12 +188,21 @@ class SharePointAuth {
             
             // Si no hay sesión, intentar login
             if (!this._isAuthenticated) {
-                await this.login();
+                try {
+                    await this.login();
+                } catch (loginError) {
+                    // Si hay un error de login, registrarlo pero continuar
+                    console.warn('Error durante el login automático:', loginError);
+                    // Asegurarse de que el flag de login en progreso se restablezca
+                    this._loginInProgress = false;
+                }
             }
             
             return this._isAuthenticated;
         } catch (error) {
             console.error('Error al inicializar la autenticación:', error);
+            // Asegurarse de que el flag de login en progreso se restablezca
+            this._loginInProgress = false;
             return false;
         }
     }
