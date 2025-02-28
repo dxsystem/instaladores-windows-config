@@ -38,7 +38,9 @@ class SharePointGraph {
                 `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com:/sites/instaladoreswindows:`,
                 `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com,2,d68e63f9-ab95-4b9a-9e60-a9e2e8c0a995:/sites/instaladoreswindows:`,
                 `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com/sites/instaladoreswindows`,
-                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com`
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com`,
+                `${this.graphEndpoint}/sites?search=instaladoreswindows`,
+                `${this.graphEndpoint}/sites/root`
             ];
             
             console.log('Intentando encontrar el sitio...');
@@ -46,7 +48,7 @@ class SharePointGraph {
             // Probar cada URL hasta encontrar una que funcione
             for (const url of possibleUrls) {
                 try {
-                    console.log('Probando URL:', url);
+                    console.log('Intentando obtener sitio con URL:', url);
                     const response = await fetch(url, {
                         headers: {
                             'Authorization': `Bearer ${token}`,
@@ -56,11 +58,22 @@ class SharePointGraph {
                     
                     if (response.ok) {
                         const data = await response.json();
-                        this.siteId = data.id;
-                        console.log('ID del sitio encontrado:', this.siteId);
-                        return this.siteId;
-                    } else {
-                        console.log(`URL ${url} falló con estado ${response.status}`);
+                        // Para búsquedas que devuelven múltiples sitios
+                        if (data.value && Array.isArray(data.value) && data.value.length > 0) {
+                            // Buscar el sitio que contenga 'instaladoreswindows' en su nombre o URL
+                            const targetSite = data.value.find(site => 
+                                (site.name && site.name.toLowerCase().includes('instaladoreswindows')) ||
+                                (site.webUrl && site.webUrl.toLowerCase().includes('instaladoreswindows'))
+                            ) || data.value[0]; // Si no encuentra, usar el primero
+                            
+                            this.siteId = targetSite.id;
+                            console.log('ID del sitio encontrado:', this.siteId);
+                            return this.siteId;
+                        } else if (data.id) {
+                            this.siteId = data.id;
+                            console.log('ID del sitio encontrado:', this.siteId);
+                            return this.siteId;
+                        }
                     }
                 } catch (urlError) {
                     console.log(`Error al probar URL ${url}:`, urlError.message);
@@ -80,73 +93,10 @@ class SharePointGraph {
      * @returns {Promise<string>} ID de la lista
      */
     async getListId() {
-        if (this.listId) {
-            return this.listId;
-        }
-
-        try {
-            const token = await this.getAccessToken();
-            const siteId = await this.getSiteId();
-            
-            console.log('Buscando lista de usuarios...');
-            
-            // Primero, obtener todas las listas para depuración
-            const allListsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (allListsResponse.ok) {
-                const allListsData = await allListsResponse.json();
-                console.log('Listas disponibles:', allListsData.value.map(list => ({ 
-                    name: list.displayName, 
-                    id: list.id 
-                })));
-                
-                // Buscar lista que contenga "usuario" en su nombre (insensible a mayúsculas/minúsculas)
-                const userList = allListsData.value.find(list => 
-                    list.displayName.toLowerCase().includes('usuario')
-                );
-                
-                if (userList) {
-                    this.listId = userList.id;
-                    console.log('Lista de usuarios encontrada:', userList.displayName, 'con ID:', this.listId);
-                    return this.listId;
-                }
-            }
-            
-            // Si no encontramos la lista por nombre, intentar con nombres específicos
-            const possibleListNames = ['Usuarios', 'Users', 'Lista de Usuarios', 'User List'];
-            
-            for (const listName of possibleListNames) {
-                try {
-                    const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists?$filter=displayName eq '${listName}'`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.value && data.value.length > 0) {
-                            this.listId = data.value[0].id;
-                            console.log(`Lista '${listName}' encontrada con ID:`, this.listId);
-                            return this.listId;
-                        }
-                    }
-                } catch (listError) {
-                    console.log(`Error al buscar lista '${listName}':`, listError.message);
-                }
-            }
-            
-            throw new Error('No se encontró la lista de usuarios');
-        } catch (error) {
-            console.error('Error al obtener el ID de la lista:', error);
-            throw new Error(`Error al obtener el ID de la lista: ${error.message}`);
-        }
+        // Usar directamente el ID de lista proporcionado
+        this.listId = "3d452065-b0e1-4f9b-932b-36212fac8632";
+        console.log('Usando ID de lista de usuarios específico:', this.listId);
+        return this.listId;
     }
 
     /**
