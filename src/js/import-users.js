@@ -29,25 +29,21 @@ class UserImporter {
     
     // Inicializa el importador
     initialize() {
-        this.sharepointGraph = new SharePointGraph();
-        this.userManager = new UserManager();
-        this.initializeEventListeners();
-    }
-
-    initializeEventListeners() {
-        // Evento para cargar archivo Excel
-        this.uploadButton.addEventListener('click', () => this.handleFileUpload());
+        // Inicializar servicios
+        this.userManager = window.userManager || new UserManager();
         
-        // Eventos para selección de usuarios
+        // Configurar eventos
+        this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        this.uploadButton.addEventListener('click', () => this.fileInput.click());
+        this.importButton.addEventListener('click', () => this.importSelectedUsers());
         this.selectAllCheckbox.addEventListener('change', (e) => this.handleSelectAllChange(e));
         this.selectAllButton.addEventListener('click', () => this.selectAll(true));
         this.deselectAllButton.addEventListener('click', () => this.selectAll(false));
         
-        // Evento para importar usuarios seleccionados
-        this.importButton.addEventListener('click', () => this.importSelectedUsers());
-        
-        // Evento para descargar plantilla
-        this.downloadTemplateButton.addEventListener('click', () => this.downloadTemplate());
+        // Configurar evento para descargar plantilla
+        if (this.downloadTemplateButton) {
+            this.downloadTemplateButton.addEventListener('click', () => this.downloadTemplate());
+        }
     }
 
     // Maneja la carga del archivo Excel
@@ -530,6 +526,7 @@ class UserImporter {
 
 // Inicializar la clase cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    const userImporter = new UserImporter();
-    userImporter.initialize();
+    // La inicialización ahora se maneja en el script de import-users.html
+    // para asegurar que la autenticación esté lista
+    // window.userImporter = new UserImporter();
 });
