@@ -8,7 +8,7 @@ class SharePointAuth {
             auth: {
                 clientId: '20e03e25-902a-407a-af26-bdd674e9fe86',
                 authority: 'https://login.microsoftonline.com/95283754-2014-4a1e-9c3a-2ca96bb219f0',
-                redirectUri: window.location.origin + window.location.pathname,
+                redirectUri: window.location.href,
             },
             cache: {
                 cacheLocation: 'localStorage',
@@ -93,7 +93,7 @@ class SharePointAuth {
         try {
             const logoutRequest = {
                 account: this.msalInstance.getAccountByUsername(this.user.username),
-                postLogoutRedirectUri: window.location.origin,
+                postLogoutRedirectUri: window.location.href,
             };
             
             this.msalInstance.logoutRedirect(logoutRequest);
