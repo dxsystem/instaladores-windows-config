@@ -12,6 +12,7 @@ class SharePointGraph {
         this.siteUrl = 'ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC:';
         this.folderPath = 'InstaladoresWindowsCOnline';
         this.listName = 'Users'; // Nombre de la lista en SharePoint (debe coincidir con el nombre en SharePointListService.cs)
+        this.listId = '3d452065-b0e1-4f9b-932b-36212fac8632'; // ID de la lista obtenido del log
     }
 
     /**
@@ -52,35 +53,12 @@ class SharePointGraph {
             const token = await this.auth.getAccessToken();
             const siteId = await this.getSiteId();
             
-            // Intentar obtener la lista de usuarios
+            // Usar directamente el ID de la lista que conocemos
             try {
-                // Primero verificar si la lista existe
-                const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!listsResponse.ok) {
-                    console.error(`Error al obtener listas: ${listsResponse.status} ${listsResponse.statusText}`);
-                    throw new Error(`Error al obtener listas: ${listsResponse.status}`);
-                }
-                
-                const listsData = await listsResponse.json();
-                console.log('Listas disponibles:', listsData.value.map(list => list.displayName));
-                
-                const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
-                
-                if (!usersList) {
-                    console.error(`La lista ${this.listName} no existe.`);
-                    throw new Error(`La lista ${this.listName} no existe.`);
-                }
-                
-                console.log(`Lista de usuarios encontrada: ${usersList.displayName} (ID: ${usersList.id})`);
+                console.log(`Usando ID de lista conocido: ${this.listId}`);
                 
                 // Obtener los items de la lista con expand=fields para obtener todos los campos
-                const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items?expand=fields`, {
+                const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${this.listId}/items?expand=fields`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
@@ -101,15 +79,13 @@ class SharePointGraph {
                     const fields = item.fields;
                     return {
                         id: item.id,
-                        username: fields.Title || fields.Email || '',
                         email: fields.Email || '',
                         password: fields.Password || '',
                         subscriptionType: fields.SubscriptionType || 'Gratuita',
                         startDate: fields.StartDate || new Date().toISOString(),
                         endDate: fields.EndDate || new Date().toISOString(),
                         isActive: fields.IsActive === true || fields.IsActive === 'true',
-                        failedLoginAttempts: fields.FailedLoginAttempts || 0,
-                        status: fields.IsActive === true || fields.IsActive === 'true' ? 'Active' : 'Inactive'
+                        failedLoginAttempts: fields.FailedLoginAttempts || 0
                     };
                 });
                 
@@ -135,27 +111,11 @@ class SharePointGraph {
             const token = await this.auth.getAccessToken(true);
             const siteId = await this.getSiteId();
             
-            // Obtener la lista de usuarios
-            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            // Usar directamente el ID de la lista que conocemos
+            const listId = this.listId;
             
-            if (!listsResponse.ok) {
-                throw new Error(`Error al obtener listas: ${listsResponse.status}`);
-            }
-            
-            const listsData = await listsResponse.json();
-            const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
-            
-            if (!usersList) {
-                throw new Error(`La lista ${this.listName} no existe.`);
-            }
-            
-            // Crear el usuario en la lista
-            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items`, {
+            // Crear el nuevo usuario
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -163,37 +123,37 @@ class SharePointGraph {
                 },
                 body: JSON.stringify({
                     fields: {
-                        Title: user.email, // Campo requerido por SharePoint
-                        Email: user.email,
-                        Password: user.password || '',
-                        SubscriptionType: user.subscriptionType || 'Gratuita',
-                        StartDate: user.startDate || new Date().toISOString(),
-                        EndDate: user.endDate || new Date().toISOString(),
-                        IsActive: user.isActive || true,
-                        FailedLoginAttempts: user.failedLoginAttempts || 0
+                        Title: user.Email, // Usar el email como título
+                        Email: user.Email,
+                        Password: user.Password,
+                        SubscriptionType: user.SubscriptionType,
+                        StartDate: user.StartDate,
+                        EndDate: user.EndDate,
+                        IsActive: user.IsActive,
+                        FailedLoginAttempts: user.FailedLoginAttempts || 0
                     }
                 })
             });
             
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`Error al crear usuario: ${response.status} - ${errorText}`);
+                console.error('Error al crear usuario:', errorText);
+                throw new Error(`Error al crear usuario: ${response.status}`);
             }
             
             const data = await response.json();
-            console.log('Usuario creado correctamente:', data);
+            console.log('Usuario creado:', data);
             
+            // Devolver el usuario en el formato esperado
             return {
                 id: data.id,
-                username: user.email,
-                email: user.email,
-                password: user.password,
-                subscriptionType: user.subscriptionType,
-                startDate: user.startDate,
-                endDate: user.endDate,
-                isActive: user.isActive,
-                failedLoginAttempts: user.failedLoginAttempts,
-                status: user.isActive ? 'Active' : 'Inactive'
+                email: data.fields.Email,
+                password: data.fields.Password,
+                subscriptionType: data.fields.SubscriptionType,
+                startDate: data.fields.StartDate,
+                endDate: data.fields.EndDate,
+                isActive: data.fields.IsActive === true || data.fields.IsActive === 'true',
+                failedLoginAttempts: data.fields.FailedLoginAttempts || 0
             };
         } catch (error) {
             console.error('Error al crear usuario:', error);
@@ -212,63 +172,67 @@ class SharePointGraph {
             const token = await this.auth.getAccessToken(true);
             const siteId = await this.getSiteId();
             
-            // Obtener la lista de usuarios
-            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
+            // Usar directamente el ID de la lista que conocemos
+            const listId = this.listId;
+            
+            // Preparar los campos a actualizar
+            const fields = {
+                Title: userData.Email, // Usar el email como título
+                Email: userData.Email,
+                SubscriptionType: userData.SubscriptionType,
+                StartDate: userData.StartDate,
+                EndDate: userData.EndDate,
+                IsActive: userData.IsActive,
+                FailedLoginAttempts: userData.FailedLoginAttempts || 0
+            };
+            
+            // Añadir la contraseña solo si se proporciona
+            if (userData.Password) {
+                fields.Password = userData.Password;
+            }
+            
+            // Actualizar el usuario
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items/${id}/fields`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'If-Match': '*' // Ignorar conflictos de concurrencia
+                },
+                body: JSON.stringify(fields)
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error al actualizar usuario:', errorText);
+                throw new Error(`Error al actualizar usuario: ${response.status}`);
+            }
+            
+            // Obtener el usuario actualizado
+            const getUserResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items/${id}?expand=fields`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
             
-            if (!listsResponse.ok) {
-                throw new Error(`Error al obtener listas: ${listsResponse.status}`);
+            if (!getUserResponse.ok) {
+                throw new Error(`Error al obtener usuario actualizado: ${getUserResponse.status}`);
             }
             
-            const listsData = await listsResponse.json();
-            const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
+            const data = await getUserResponse.json();
+            console.log('Usuario actualizado:', data);
             
-            if (!usersList) {
-                throw new Error(`La lista ${this.listName} no existe.`);
-            }
-            
-            // Actualizar el usuario en la lista
-            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items/${id}/fields`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    Title: userData.email, // Campo requerido por SharePoint
-                    Email: userData.email,
-                    Password: userData.password || '',
-                    SubscriptionType: userData.subscriptionType || 'Gratuita',
-                    StartDate: userData.startDate || new Date().toISOString(),
-                    EndDate: userData.endDate || new Date().toISOString(),
-                    IsActive: userData.isActive || true,
-                    FailedLoginAttempts: userData.failedLoginAttempts || 0
-                })
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Error al actualizar usuario: ${response.status} - ${errorText}`);
-            }
-            
-            const data = await response.json();
-            console.log('Usuario actualizado correctamente:', data);
-            
+            // Devolver el usuario en el formato esperado
             return {
-                id: id,
-                username: userData.email,
-                email: userData.email,
-                password: userData.password,
-                subscriptionType: userData.subscriptionType,
-                startDate: userData.startDate,
-                endDate: userData.endDate,
-                isActive: userData.isActive,
-                failedLoginAttempts: userData.failedLoginAttempts,
-                status: userData.isActive ? 'Active' : 'Inactive'
+                id: data.id,
+                email: data.fields.Email,
+                password: data.fields.Password || '',
+                subscriptionType: data.fields.SubscriptionType,
+                startDate: data.fields.StartDate,
+                endDate: data.fields.EndDate,
+                isActive: data.fields.IsActive === true || data.fields.IsActive === 'true',
+                failedLoginAttempts: data.fields.FailedLoginAttempts || 0
             };
         } catch (error) {
             console.error('Error al actualizar usuario:', error);
@@ -286,38 +250,26 @@ class SharePointGraph {
             const token = await this.auth.getAccessToken(true);
             const siteId = await this.getSiteId();
             
-            // Obtener la lista de usuarios
-            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            // Usar directamente el ID de la lista que conocemos
+            const listId = this.listId;
             
-            if (!listsResponse.ok) {
-                throw new Error(`Error al obtener listas: ${listsResponse.status}`);
-            }
-            
-            const listsData = await listsResponse.json();
-            const usersList = listsData.value.find(list => list.name === this.listName || list.displayName === this.listName);
-            
-            if (!usersList) {
-                throw new Error(`La lista ${this.listName} no existe.`);
-            }
-            
-            // Eliminar el usuario de la lista
-            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${usersList.id}/items/${id}`, {
+            // Eliminar el usuario
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'If-Match': '*' // Ignorar conflictos de concurrencia
                 }
             });
             
-            if (!response.ok) {
+            if (!response.ok && response.status !== 204) { // 204 No Content es éxito para DELETE
+                const errorText = await response.text();
+                console.error('Error al eliminar usuario:', errorText);
                 throw new Error(`Error al eliminar usuario: ${response.status}`);
             }
             
-            console.log('Usuario eliminado correctamente:', id);
+            console.log(`Usuario con ID ${id} eliminado correctamente`);
             return true;
         } catch (error) {
             console.error('Error al eliminar usuario:', error);
