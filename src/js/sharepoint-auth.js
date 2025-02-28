@@ -64,6 +64,9 @@ class SharePointAuth {
                 throw new Error('Ya hay un proceso de login en curso. Por favor, espere a que termine.');
             }
             
+            // Limpiar cualquier interacción pendiente antes de intentar el login
+            this.clearPendingInteractions();
+            
             // Marcar que hay un login en progreso
             this._loginInProgress = true;
 
@@ -183,6 +186,9 @@ class SharePointAuth {
      */
     async initialize() {
         try {
+            // Limpiar cualquier interacción pendiente
+            this.clearPendingInteractions();
+            
             // Verificar si hay una sesión existente
             this.checkExistingSession();
             
@@ -213,6 +219,34 @@ class SharePointAuth {
      */
     isAuthenticated() {
         return this._isAuthenticated;
+    }
+
+    /**
+     * Limpia cualquier interacción de autenticación pendiente
+     * Esta función intenta resolver el error "interaction_in_progress"
+     */
+    clearPendingInteractions() {
+        try {
+            // Intentar acceder a la API interna de MSAL para limpiar interacciones pendientes
+            if (this.msalInstance && this.msalInstance.browserStorage) {
+                // Limpiar el estado de interacción en localStorage
+                localStorage.removeItem('msal.interaction.status');
+                
+                // Intentar limpiar otras claves relacionadas con interacciones
+                const keys = Object.keys(localStorage);
+                for (const key of keys) {
+                    if (key.startsWith('msal.interaction') || 
+                        key.startsWith('msal.browser.interaction') ||
+                        key.includes('interaction.status')) {
+                        localStorage.removeItem(key);
+                    }
+                }
+                
+                console.log('Interacciones pendientes limpiadas');
+            }
+        } catch (error) {
+            console.warn('Error al limpiar interacciones pendientes:', error);
+        }
     }
 }
 
