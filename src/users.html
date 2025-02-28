@@ -281,7 +281,7 @@
         document.addEventListener('DOMContentLoaded', async function() {
             try {
                 // Inicializar autenticación
-                auth = new Auth();
+                auth = new SharePointAuth();
                 await auth.initialize();
                 
                 // Verificar si el usuario está autenticado

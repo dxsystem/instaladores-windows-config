@@ -1,8 +1,6 @@
 // Clase para manejar la importación de usuarios desde Excel
 class UserImporter {
     constructor() {
-        this.sharepointGraph = new SharePointGraph();
-        this.userManager = new UserManager();
         this.users = [];
         this.selectedUsers = new Set();
         
@@ -20,8 +18,6 @@ class UserImporter {
         this.selectAllButton = document.getElementById('selectAllButton');
         this.deselectAllButton = document.getElementById('deselectAllButton');
         this.downloadTemplateButton = document.getElementById('downloadTemplateButton');
-        
-        // Contadores
         this.selectedCount = document.getElementById('selectedCount');
         this.totalCount = document.getElementById('totalCount');
         this.successCount = document.getElementById('successCount');
@@ -29,7 +25,12 @@ class UserImporter {
         this.errorCount = document.getElementById('errorCount');
         this.errorList = document.getElementById('errorList');
         this.errorDetails = document.getElementById('errorDetails');
-        
+    }
+    
+    // Inicializa el importador
+    initialize() {
+        this.sharepointGraph = new SharePointGraph();
+        this.userManager = new UserManager();
         this.initializeEventListeners();
     }
 
@@ -530,4 +531,5 @@ class UserImporter {
 // Inicializar la clase cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     const userImporter = new UserImporter();
+    userImporter.initialize();
 });

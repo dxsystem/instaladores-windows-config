@@ -243,5 +243,36 @@
     
     <!-- Import Users JS -->
     <script src="js/import-users.js"></script>
+    
+    <script>
+        // Variables globales
+        let auth, spGraph, userManager, userImporter;
+        
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Inicializar autenticación
+                auth = new SharePointAuth();
+                await auth.initialize();
+                
+                // Verificar si el usuario está autenticado
+                if (!auth.isAuthenticated()) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                // Inicializar componentes
+                spGraph = new SharePointGraph();
+                userManager = new UserManager();
+                userImporter = new UserImporter();
+                
+                // Inicializar la interfaz
+                userImporter.initialize();
+                
+            } catch (error) {
+                console.error('Error al inicializar la aplicación:', error);
+                alert(`Error al inicializar la aplicación: ${error.message}`);
+            }
+        });
+    </script>
 </body>
 </html>
