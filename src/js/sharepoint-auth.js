@@ -26,7 +26,7 @@ class SharePointAuth {
         };
 
         // Inicializar estado
-        this.isAuthenticated = false;
+        this._isAuthenticated = false;
         this.user = null;
 
         // Verificar si hay una sesión existente
@@ -39,7 +39,7 @@ class SharePointAuth {
     checkExistingSession() {
         const accounts = this.msalInstance.getAllAccounts();
         if (accounts.length > 0) {
-            this.isAuthenticated = true;
+            this._isAuthenticated = true;
             this.user = accounts[0];
             console.log('Sesión existente encontrada para:', this.user.username);
         }
@@ -52,7 +52,7 @@ class SharePointAuth {
     async login() {
         try {
             // Si ya hay una sesión, no es necesario hacer login de nuevo
-            if (this.isAuthenticated) {
+            if (this._isAuthenticated) {
                 console.log('Usuario ya autenticado:', this.user.username);
                 return this.user;
             }
@@ -65,7 +65,7 @@ class SharePointAuth {
             });
 
             if (loginResponse) {
-                this.isAuthenticated = true;
+                this._isAuthenticated = true;
                 this.user = loginResponse.account;
                 console.log('Login exitoso para:', this.user.username);
                 return this.user;
@@ -113,7 +113,7 @@ class SharePointAuth {
             const scopes = writeAccess ? this.graphScopes.write : this.graphScopes.read;
             
             // Verificar si hay una sesión activa
-            if (!this.isAuthenticated) {
+            if (!this._isAuthenticated) {
                 console.log('No hay sesión activa, iniciando login...');
                 await this.login();
             }
@@ -165,11 +165,40 @@ class SharePointAuth {
     }
 
     /**
+     * Inicializa la autenticación y verifica la sesión
+     * @returns {Promise<boolean>} True si el usuario está autenticado
+     */
+    async initialize() {
+        try {
+            // Verificar si hay una sesión existente
+            this.checkExistingSession();
+            
+            // Si no hay sesión, intentar login
+            if (!this._isAuthenticated) {
+                await this.login();
+            }
+            
+            return this._isAuthenticated;
+        } catch (error) {
+            console.error('Error al inicializar la autenticación:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Verifica si el usuario está autenticado
+     * @returns {boolean} True si el usuario está autenticado
+     */
+    isAuthenticated() {
+        return this._isAuthenticated;
+    }
+
+    /**
      * Verifica si el usuario está autenticado
      * @returns {boolean} true si está autenticado, false en caso contrario
      */
     isUserAuthenticated() {
-        return this.isAuthenticated;
+        return this._isAuthenticated;
     }
 }
 
