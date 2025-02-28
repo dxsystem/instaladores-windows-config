@@ -261,9 +261,14 @@
                 }
                 
                 // Inicializar componentes
-                spGraph = new SharePointGraph();
-                userManager = new UserManager();
+                spGraph = new SharePointGraph(auth);
+                window.spGraph = spGraph; // Hacer disponible globalmente
+                
+                userManager = new UserManager(spGraph);
+                window.userManager = userManager; // Hacer disponible globalmente
+                
                 userImporter = new UserImporter();
+                window.userImporter = userImporter; // Hacer disponible globalmente
                 
                 // Inicializar la interfaz
                 userImporter.initialize();

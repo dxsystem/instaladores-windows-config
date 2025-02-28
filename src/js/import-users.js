@@ -30,7 +30,7 @@ class UserImporter {
     // Inicializa el importador
     initialize() {
         // Inicializar servicios
-        this.userManager = window.userManager || new UserManager();
+        this.userManager = window.userManager || new UserManager(window.spGraph);
         
         // Configurar eventos
         this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
