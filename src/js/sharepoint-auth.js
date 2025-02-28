@@ -36,13 +36,31 @@ class SharePointAuth {
 
     /**
      * Verifica si hay una sesión existente y actualiza el estado
+     * @returns {Promise<Object|null>} Información del usuario si se procesa una redirección
      */
-    checkExistingSession() {
-        const accounts = this.msalInstance.getAllAccounts();
-        if (accounts.length > 0) {
-            this._isAuthenticated = true;
-            this.user = accounts[0];
-            console.log('Sesión existente encontrada para:', this.user.username);
+    async checkExistingSession() {
+        try {
+            // Intentar manejar cualquier respuesta de redirección pendiente
+            const redirectResponse = await this.msalInstance.handleRedirectPromise();
+            if (redirectResponse) {
+                this._isAuthenticated = true;
+                this.user = redirectResponse.account;
+                console.log('Login por redirección exitoso para:', this.user.username);
+                return redirectResponse;
+            }
+            
+            // Verificar si hay cuentas en caché
+            const accounts = this.msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                this._isAuthenticated = true;
+                this.user = accounts[0];
+                console.log('Sesión existente encontrada para:', this.user.username);
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error al verificar sesión existente:', error);
+            return null;
         }
     }
 
@@ -70,20 +88,20 @@ class SharePointAuth {
             // Marcar que hay un login en progreso
             this._loginInProgress = true;
 
-            // Intentar login con popup
-            console.log('Iniciando proceso de login...');
-            const loginResponse = await this.msalInstance.loginPopup({
+            // Usar redirección en lugar de popup para evitar problemas de interacción
+            console.log('Iniciando proceso de login con redirección...');
+            
+            // Guardar la URL actual para redirigir después del login
+            sessionStorage.setItem('loginRedirectUrl', window.location.href);
+            
+            // Usar loginRedirect en lugar de loginPopup
+            this.msalInstance.loginRedirect({
                 scopes: this.graphScopes.read,
                 prompt: 'select_account'
             });
-
-            if (loginResponse) {
-                this._isAuthenticated = true;
-                this.user = loginResponse.account;
-                console.log('Login exitoso para:', this.user.username);
-                this._loginInProgress = false; // Restablecer flag de login en progreso
-                return this.user;
-            }
+            
+            // No se llegará a este punto debido a la redirección
+            return null;
         } catch (error) {
             // Si hay un error de popup bloqueado, intentar con redirección
             if (error.name === 'PopupBlockedError') {
@@ -189,11 +207,16 @@ class SharePointAuth {
             // Limpiar cualquier interacción pendiente
             this.clearPendingInteractions();
             
-            // Verificar si hay una sesión existente
-            this.checkExistingSession();
+            // Verificar si hay una sesión existente o respuesta de redirección
+            const redirectResponse = await this.checkExistingSession();
             
-            // Si no hay sesión, intentar login
-            if (!this._isAuthenticated) {
+            // Si hay una respuesta de redirección, ya estamos autenticados
+            if (redirectResponse) {
+                return true;
+            }
+            
+            // Si no hay sesión y no estamos en la página de login, intentar login
+            if (!this._isAuthenticated && !window.location.href.includes('login.html')) {
                 try {
                     await this.login();
                 } catch (loginError) {
