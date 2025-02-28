@@ -30,51 +30,40 @@ class SharePointGraph {
             return this.siteId;
         }
 
-        // Intentar con diferentes formatos de URL para encontrar el sitio correcto
-        const possibleUrls = [
-            // Formato 1: dominio,guid
-            `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com,d68e63f9-ab95-4995-b5cb-b0718a995`,
-            // Formato 2: dominio:/sites/nombre
-            `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com:/sites/instaladoreswindows`,
-            // Formato 3: dominio/sites/nombre
-            `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com/sites/instaladoreswindows`,
-            // Formato 4: buscar por nombre de sitio
-            `${this.graphEndpoint}/sites?search=instaladoreswindows`,
-            // Formato 5: sitio raíz
-            `${this.graphEndpoint}/sites/root`
-        ];
-
         try {
             const token = await this.getAccessToken();
             
-            // Intentar cada URL hasta encontrar una que funcione
+            // Intentar diferentes formatos de URL para encontrar el sitio
+            const possibleUrls = [
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com:/sites/instaladoreswindows:`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com,2,d68e63f9-ab95-4b9a-9e60-a9e2e8c0a995:/sites/instaladoreswindows:`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com/sites/instaladoreswindows`,
+                `${this.graphEndpoint}/sites/ldcigroup.sharepoint.com`
+            ];
+            
+            console.log('Intentando encontrar el sitio...');
+            
+            // Probar cada URL hasta encontrar una que funcione
             for (const url of possibleUrls) {
                 try {
-                    console.log('Intentando obtener sitio con URL:', url);
+                    console.log('Probando URL:', url);
                     const response = await fetch(url, {
                         headers: {
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
                         }
                     });
-
+                    
                     if (response.ok) {
                         const data = await response.json();
-                        
-                        // Para el caso de búsqueda, tomamos el primer resultado
-                        if (url.includes('?search=') && data.value && data.value.length > 0) {
-                            this.siteId = data.value[0].id;
-                            console.log('ID del sitio encontrado (búsqueda):', this.siteId);
-                            return this.siteId;
-                        } else if (data.id) {
-                            this.siteId = data.id;
-                            console.log('ID del sitio encontrado:', this.siteId);
-                            return this.siteId;
-                        }
+                        this.siteId = data.id;
+                        console.log('ID del sitio encontrado:', this.siteId);
+                        return this.siteId;
+                    } else {
+                        console.log(`URL ${url} falló con estado ${response.status}`);
                     }
                 } catch (urlError) {
-                    console.warn(`Error con URL ${url}:`, urlError);
-                    // Continuar con la siguiente URL
+                    console.log(`Error al probar URL ${url}:`, urlError.message);
                 }
             }
             
@@ -99,62 +88,61 @@ class SharePointGraph {
             const token = await this.getAccessToken();
             const siteId = await this.getSiteId();
             
-            // Intentar primero obtener todas las listas
-            console.log('Obteniendo listas del sitio...');
-            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
+            console.log('Buscando lista de usuarios...');
+            
+            // Primero, obtener todas las listas para depuración
+            const allListsResponse = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
-
-            if (!listsResponse.ok) {
-                throw new Error(`Error al obtener listas: ${listsResponse.status} ${listsResponse.statusText}`);
-            }
-
-            const listsData = await listsResponse.json();
-            console.log('Listas encontradas:', listsData.value.length);
             
-            // Buscar la lista por nombre (puede ser "Usuarios" o cualquier variante)
-            const possibleNames = ['Usuarios', 'Users', 'Usuario', 'User'];
-            
-            for (const name of possibleNames) {
-                const list = listsData.value.find(l => 
-                    l.displayName.toLowerCase() === name.toLowerCase() || 
-                    l.name.toLowerCase() === name.toLowerCase()
+            if (allListsResponse.ok) {
+                const allListsData = await allListsResponse.json();
+                console.log('Listas disponibles:', allListsData.value.map(list => ({ 
+                    name: list.displayName, 
+                    id: list.id 
+                })));
+                
+                // Buscar lista que contenga "usuario" en su nombre (insensible a mayúsculas/minúsculas)
+                const userList = allListsData.value.find(list => 
+                    list.displayName.toLowerCase().includes('usuario')
                 );
                 
-                if (list) {
-                    this.listId = list.id;
-                    console.log(`Lista "${list.displayName}" encontrada con ID:`, this.listId);
+                if (userList) {
+                    this.listId = userList.id;
+                    console.log('Lista de usuarios encontrada:', userList.displayName, 'con ID:', this.listId);
                     return this.listId;
                 }
             }
             
-            // Si no encontramos por nombre exacto, buscar por coincidencia parcial
-            for (const list of listsData.value) {
-                console.log(`Lista encontrada: ${list.displayName} (${list.id})`);
-                
-                // Si parece ser una lista de usuarios, usarla
-                if (list.displayName.toLowerCase().includes('user') || 
-                    list.displayName.toLowerCase().includes('usuario') ||
-                    list.name.toLowerCase().includes('user') ||
-                    list.name.toLowerCase().includes('usuario')) {
+            // Si no encontramos la lista por nombre, intentar con nombres específicos
+            const possibleListNames = ['Usuarios', 'Users', 'Lista de Usuarios', 'User List'];
+            
+            for (const listName of possibleListNames) {
+                try {
+                    const response = await fetch(`${this.graphEndpoint}/sites/${siteId}/lists?$filter=displayName eq '${listName}'`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
                     
-                    this.listId = list.id;
-                    console.log(`Lista de usuarios encontrada por coincidencia parcial: ${list.displayName} (${this.listId})`);
-                    return this.listId;
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.value && data.value.length > 0) {
+                            this.listId = data.value[0].id;
+                            console.log(`Lista '${listName}' encontrada con ID:`, this.listId);
+                            return this.listId;
+                        }
+                    }
+                } catch (listError) {
+                    console.log(`Error al buscar lista '${listName}':`, listError.message);
                 }
             }
             
-            // Si no encontramos ninguna lista que parezca de usuarios, usar la primera lista
-            if (listsData.value.length > 0) {
-                this.listId = listsData.value[0].id;
-                console.log(`Usando primera lista disponible: ${listsData.value[0].displayName} (${this.listId})`);
-                return this.listId;
-            }
-            
-            throw new Error('No se encontró ninguna lista en el sitio');
+            throw new Error('No se encontró la lista de usuarios');
         } catch (error) {
             console.error('Error al obtener el ID de la lista:', error);
             throw new Error(`Error al obtener el ID de la lista: ${error.message}`);
