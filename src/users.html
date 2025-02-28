@@ -290,17 +290,19 @@
                     return;
                 }
                 
-                // Inicializar SharePointGraph
+                // Inicializar componentes
                 spGraph = new SharePointGraph(auth);
+                window.spGraph = spGraph; // Hacer disponible globalmente
                 
-                // Inicializar UserManager
                 userManager = new UserManager(spGraph);
+                window.userManager = userManager; // Hacer disponible globalmente
+                
+                // Inicializar la interfaz
+                await userManager.loadUsers();
+                userManager.renderUsers();
                 
                 // Configurar eventos
                 setupEventListeners();
-                
-                // Cargar usuarios
-                await loadUsers();
                 
             } catch (error) {
                 console.error('Error al inicializar la aplicación:', error);
@@ -314,7 +316,7 @@
                 showLoading(true);
                 
                 // Inicializar UserManager y cargar usuarios
-                await userManager.initialize(updateLoadingProgress);
+                await userManager.loadUsers();
                 
                 // Actualizar contador de usuarios
                 updateUserCount();
