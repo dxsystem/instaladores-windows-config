@@ -69,12 +69,12 @@ class UserManager {
     }
 
     /**
-     * Obtiene un usuario por su nombre de usuario
-     * @param {string} username - Nombre de usuario
+     * Obtiene un usuario por su email
+     * @param {string} email - Email del usuario
      * @returns {Object|null} Usuario encontrado o null si no existe
      */
-    getUserByUsername(username) {
-        return this.users.find(user => user.username === username) || null;
+    getUserByEmail(email) {
+        return this.users.find(user => user.email === email) || null;
     }
 
     /**
@@ -85,26 +85,33 @@ class UserManager {
     async createUser(userData) {
         try {
             // Validar datos del usuario
-            if (!userData.username || !userData.email) {
-                throw new Error('El nombre de usuario y el email son obligatorios');
+            if (!userData.email) {
+                throw new Error('El email es obligatorio');
             }
             
-            // Verificar si ya existe un usuario con el mismo nombre
-            if (this.getUserByUsername(userData.username)) {
-                throw new Error(`Ya existe un usuario con el nombre ${userData.username}`);
+            // Verificar si ya existe un usuario con el mismo email
+            if (this.getUserByEmail(userData.email)) {
+                throw new Error(`Ya existe un usuario con el email ${userData.email}`);
             }
             
             // Crear usuario en SharePoint
-            const newUser = await this.spGraph.createUser(userData);
+            const newUser = await this.spGraph.createUser({
+                Email: userData.email,
+                Password: userData.password || '',
+                SubscriptionType: userData.subscriptionType || 'Gratuita',
+                StartDate: userData.startDate || new Date().toISOString(),
+                EndDate: userData.endDate || new Date().toISOString(),
+                IsActive: userData.isActive === undefined ? true : userData.isActive,
+                FailedLoginAttempts: 0
+            });
             
             // Añadir a la lista local
             this.users.push(newUser);
             
-            console.log('Usuario creado:', newUser);
             return newUser;
         } catch (error) {
             console.error('Error al crear usuario:', error);
-            throw error;
+            throw new Error(`Error al crear usuario: ${error.message}`);
         }
     }
 
@@ -119,11 +126,34 @@ class UserManager {
             // Verificar si el usuario existe
             const existingUser = this.getUserById(id);
             if (!existingUser) {
-                throw new Error(`No se encontró un usuario con el ID ${id}`);
+                throw new Error(`No se encontró el usuario con ID ${id}`);
+            }
+            
+            // Verificar si el email ya está en uso por otro usuario
+            if (userData.email !== existingUser.email) {
+                const userWithSameEmail = this.getUserByEmail(userData.email);
+                if (userWithSameEmail && userWithSameEmail.id !== id) {
+                    throw new Error(`El email ${userData.email} ya está en uso por otro usuario`);
+                }
+            }
+            
+            // Preparar datos para actualizar
+            const updateData = {
+                Email: userData.email,
+                SubscriptionType: userData.subscriptionType || existingUser.subscriptionType || 'Gratuita',
+                StartDate: userData.startDate || existingUser.startDate,
+                EndDate: userData.endDate || existingUser.endDate,
+                IsActive: userData.isActive === undefined ? existingUser.isActive : userData.isActive,
+                FailedLoginAttempts: existingUser.failedLoginAttempts || 0
+            };
+            
+            // Solo actualizar la contraseña si se proporciona una nueva
+            if (userData.password) {
+                updateData.Password = userData.password;
             }
             
             // Actualizar usuario en SharePoint
-            const updatedUser = await this.spGraph.updateUser(id, userData);
+            const updatedUser = await this.spGraph.updateUser(id, updateData);
             
             // Actualizar en la lista local
             const index = this.users.findIndex(user => user.id === id);
@@ -131,25 +161,24 @@ class UserManager {
                 this.users[index] = updatedUser;
             }
             
-            console.log('Usuario actualizado:', updatedUser);
             return updatedUser;
         } catch (error) {
             console.error('Error al actualizar usuario:', error);
-            throw error;
+            throw new Error(`Error al actualizar usuario: ${error.message}`);
         }
     }
 
     /**
      * Elimina un usuario
      * @param {string} id - ID del usuario
-     * @returns {Promise<boolean>} true si se eliminó correctamente
+     * @returns {Promise<void>}
      */
     async deleteUser(id) {
         try {
             // Verificar si el usuario existe
             const existingUser = this.getUserById(id);
             if (!existingUser) {
-                throw new Error(`No se encontró un usuario con el ID ${id}`);
+                throw new Error(`No se encontró el usuario con ID ${id}`);
             }
             
             // Eliminar usuario en SharePoint
@@ -158,45 +187,11 @@ class UserManager {
             // Eliminar de la lista local
             this.users = this.users.filter(user => user.id !== id);
             
-            console.log('Usuario eliminado:', id);
-            return true;
+            console.log(`Usuario con ID ${id} eliminado correctamente`);
         } catch (error) {
             console.error('Error al eliminar usuario:', error);
-            throw error;
+            throw new Error(`Error al eliminar usuario: ${error.message}`);
         }
-    }
-
-    /**
-     * Refresca la lista de usuarios desde SharePoint
-     * @returns {Promise<Array>} Lista actualizada de usuarios
-     */
-    async refreshUsers() {
-        try {
-            this.isLoading = true;
-            this.error = null;
-            
-            await this.loadUsersFromSharePoint();
-            
-            this.isLoading = false;
-            return this.users;
-        } catch (error) {
-            this.isLoading = false;
-            this.error = error.message;
-            console.error('Error al refrescar usuarios:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Obtiene el estado actual del gestor de usuarios
-     * @returns {Object} Estado actual
-     */
-    getStatus() {
-        return {
-            isLoading: this.isLoading,
-            error: this.error,
-            userCount: this.users.length
-        };
     }
 }
 

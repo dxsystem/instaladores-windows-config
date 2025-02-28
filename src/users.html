@@ -84,11 +84,11 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Usuario</th>
                                 <th>Email</th>
-                                <th>Rol</th>
+                                <th>Tipo de Suscripción</th>
+                                <th>Fecha Inicio</th>
+                                <th>Fecha Fin</th>
                                 <th>Estado</th>
-                                <th>Último Acceso</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -99,10 +99,10 @@
                 </div>
                 <div id="emptyState" class="text-center my-4 d-none">
                     <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
-                    <p class="mt-2">No hay usuarios registrados</p>
-                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal">
+                    <p class="mt-2 text-muted">No hay usuarios registrados</p>
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal">
                         <i class="bi bi-person-plus me-1"></i>
-                        Añadir Usuario
+                        Añadir Primer Usuario
                     </button>
                 </div>
             </div>
@@ -120,29 +120,40 @@
                 <div class="modal-body">
                     <form id="userForm">
                         <input type="hidden" id="userId">
+                        
                         <div class="mb-3">
-                            <label for="username" class="form-label">Nombre de Usuario</label>
-                            <input type="text" class="form-control" id="username" required>
+                            <label for="userEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="userEmail" required>
                         </div>
+                        
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" required>
+                            <label for="userPassword" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="userPassword">
+                            <div class="form-text">Dejar en blanco para mantener la contraseña actual (al editar)</div>
                         </div>
+                        
                         <div class="mb-3">
-                            <label for="role" class="form-label">Rol</label>
-                            <select class="form-select" id="role">
-                                <option value="Admin">Administrador</option>
-                                <option value="User" selected>Usuario</option>
-                                <option value="Guest">Invitado</option>
+                            <label for="userSubscriptionType" class="form-label">Tipo de Suscripción</label>
+                            <select class="form-select" id="userSubscriptionType" required>
+                                <option value="Gratuita">Gratuita</option>
+                                <option value="PRO">PRO</option>
+                                <option value="ELITE">ELITE</option>
                             </select>
                         </div>
+                        
                         <div class="mb-3">
-                            <label for="status" class="form-label">Estado</label>
-                            <select class="form-select" id="status">
-                                <option value="Active" selected>Activo</option>
-                                <option value="Inactive">Inactivo</option>
-                                <option value="Pending">Pendiente</option>
-                            </select>
+                            <label for="userStartDate" class="form-label">Fecha de Inicio</label>
+                            <input type="date" class="form-control" id="userStartDate" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="userEndDate" class="form-label">Fecha de Fin</label>
+                            <input type="date" class="form-control" id="userEndDate" required>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="userIsActive" checked>
+                            <label class="form-check-label" for="userIsActive">Usuario Activo</label>
                         </div>
                     </form>
                 </div>
@@ -154,50 +165,20 @@
         </div>
     </div>
 
-    <!-- Modal de Confirmación -->
-    <div class="modal fade" id="confirmModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirmar Eliminación</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>¿Estás seguro de que deseas eliminar al usuario <strong id="deleteUserName"></strong>?</p>
-                    <p class="text-danger">Esta acción no se puede deshacer.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteButton">Eliminar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
     <script src="js/sharepoint-auth.js"></script>
     <script src="js/sharepoint-graph.js"></script>
     <script src="js/user-manager.js"></script>
+    
     <script>
         // Variables globales
         let auth;
         let spGraph;
         let userManager;
-        let userToDelete = null;
-
-        // Elementos del DOM
-        const loadingState = document.getElementById('loadingState');
-        const emptyState = document.getElementById('emptyState');
-        const userTableBody = document.getElementById('userTableBody');
-        const userCount = document.getElementById('userCount');
-        const currentUserName = document.getElementById('currentUserName');
-        const alertContainer = document.getElementById('alertContainer');
-        const userForm = document.getElementById('userForm');
-        const userModal = new bootstrap.Modal(document.getElementById('userModal'));
-        const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
-
+        let userModal;
+        
         // Inicialización
         document.addEventListener('DOMContentLoaded', async function() {
             try {
@@ -217,6 +198,7 @@
                 // Inicializar componentes
                 spGraph = new SharePointGraph(auth);
                 userManager = new UserManager(spGraph);
+                userModal = new bootstrap.Modal(document.getElementById('userModal'));
                 
                 // Cargar usuarios
                 await loadUsers();
@@ -263,37 +245,35 @@
             users.forEach(user => {
                 const row = document.createElement('tr');
                 
-                // Formatear fecha de último acceso
-                let lastLoginText = 'Nunca';
-                if (user.lastLogin) {
-                    const date = new Date(user.lastLogin);
-                    lastLoginText = date.toLocaleString();
+                // Formatear fechas
+                let startDate = 'No definida';
+                let endDate = 'No definida';
+                
+                if (user.startDate) {
+                    const date = new Date(user.startDate);
+                    startDate = date.toLocaleDateString();
+                }
+                
+                if (user.endDate) {
+                    const date = new Date(user.endDate);
+                    endDate = date.toLocaleDateString();
                 }
                 
                 // Determinar clase para el estado
-                let statusClass = '';
-                switch (user.status) {
-                    case 'Active': statusClass = 'text-success'; break;
-                    case 'Inactive': statusClass = 'text-danger'; break;
-                    case 'Pending': statusClass = 'text-warning'; break;
-                }
+                let statusClass = user.isActive ? 'text-success' : 'text-danger';
+                let statusText = user.isActive ? 'Activo' : 'Inactivo';
                 
                 row.innerHTML = `
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <div class="user-avatar me-2">${user.username.charAt(0).toUpperCase()}</div>
-                            ${user.username}
-                        </div>
-                    </td>
                     <td>${user.email}</td>
-                    <td>${user.role}</td>
-                    <td><span class="${statusClass}">${user.status}</span></td>
-                    <td>${lastLoginText}</td>
+                    <td>${user.subscriptionType || 'Gratuita'}</td>
+                    <td>${startDate}</td>
+                    <td>${endDate}</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary edit-user" data-id="${user.id}">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger delete-user" data-id="${user.id}" data-username="${user.username}">
+                        <button class="btn btn-sm btn-outline-danger delete-user" data-id="${user.id}" data-email="${user.email}">
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
@@ -302,7 +282,7 @@
                 userTableBody.appendChild(row);
             });
             
-            // Configurar eventos para los botones de editar y eliminar
+            // Añadir eventos a los botones de acción
             document.querySelectorAll('.edit-user').forEach(button => {
                 button.addEventListener('click', handleEditUser);
             });
@@ -315,29 +295,29 @@
         // Configurar eventos
         function setupEventListeners() {
             // Botón de actualizar
-            document.getElementById('refreshButton').addEventListener('click', loadUsers);
+            refreshButton.addEventListener('click', loadUsers);
             
             // Botón de nuevo usuario
-            document.getElementById('newUserButton').addEventListener('click', () => {
+            newUserButton.addEventListener('click', function() {
                 resetUserForm();
-                document.getElementById('userModalTitle').textContent = 'Nuevo Usuario';
+                userModalTitle.textContent = 'Nuevo Usuario';
             });
             
             // Botón de guardar usuario
-            document.getElementById('saveUserButton').addEventListener('click', handleSaveUser);
-            
-            // Botón de confirmar eliminación
-            document.getElementById('confirmDeleteButton').addEventListener('click', async () => {
-                if (userToDelete) {
-                    await deleteUser(userToDelete);
-                    confirmModal.hide();
-                }
-            });
+            saveUserButton.addEventListener('click', handleSaveUser);
             
             // Botón de cerrar sesión
-            document.getElementById('logoutButton').addEventListener('click', () => {
+            logoutButton.addEventListener('click', function() {
                 auth.logout();
             });
+            
+            // Establecer fechas por defecto
+            const today = new Date();
+            const sixMonthsLater = new Date(today);
+            sixMonthsLater.setMonth(today.getMonth() + 6);
+            
+            userStartDate.valueAsDate = today;
+            userEndDate.valueAsDate = sixMonthsLater;
         }
 
         // Manejar edición de usuario
@@ -346,13 +326,21 @@
             const user = userManager.getUserById(userId);
             
             if (user) {
-                document.getElementById('userId').value = user.id;
-                document.getElementById('username').value = user.username;
-                document.getElementById('email').value = user.email;
-                document.getElementById('role').value = user.role;
-                document.getElementById('status').value = user.status;
+                userId.value = user.id;
+                userEmail.value = user.email;
+                userPassword.value = '';
+                userSubscriptionType.value = user.subscriptionType || 'Gratuita';
+                userIsActive.checked = user.isActive;
                 
-                document.getElementById('userModalTitle').textContent = 'Editar Usuario';
+                if (user.startDate) {
+                    userStartDate.valueAsDate = new Date(user.startDate);
+                }
+                
+                if (user.endDate) {
+                    userEndDate.valueAsDate = new Date(user.endDate);
+                }
+                
+                userModalTitle.textContent = 'Editar Usuario';
                 userModal.show();
             }
         }
@@ -360,41 +348,43 @@
         // Manejar eliminación de usuario
         function handleDeleteUser(event) {
             const userId = event.currentTarget.dataset.id;
-            const username = event.currentTarget.dataset.username;
+            const userEmail = event.currentTarget.dataset.email;
             
-            userToDelete = userId;
-            document.getElementById('deleteUserName').textContent = username;
-            confirmModal.show();
+            if (confirm(`¿Estás seguro de que deseas eliminar al usuario ${userEmail}?`)) {
+                deleteUser(userId);
+            }
         }
 
         // Manejar guardado de usuario
         async function handleSaveUser() {
             try {
-                const userId = document.getElementById('userId').value;
+                // Obtener datos del formulario
                 const userData = {
-                    username: document.getElementById('username').value,
-                    email: document.getElementById('email').value,
-                    role: document.getElementById('role').value,
-                    status: document.getElementById('status').value
+                    id: userId.value,
+                    email: userEmail.value,
+                    password: userPassword.value,
+                    subscriptionType: userSubscriptionType.value,
+                    startDate: userStartDate.valueAsDate.toISOString(),
+                    endDate: userEndDate.valueAsDate.toISOString(),
+                    isActive: userIsActive.checked
                 };
                 
-                if (!userData.username || !userData.email) {
-                    showAlert('warning', 'El nombre de usuario y el email son obligatorios');
-                    return;
-                }
+                let result;
                 
-                if (userId) {
+                if (userData.id) {
                     // Actualizar usuario existente
-                    await userManager.updateUser(userId, userData);
-                    showAlert('success', `Usuario ${userData.username} actualizado correctamente`);
+                    result = await userManager.updateUser(userData.id, userData);
+                    showAlert('success', `Usuario ${userData.email} actualizado correctamente`);
                 } else {
                     // Crear nuevo usuario
-                    await userManager.createUser(userData);
-                    showAlert('success', `Usuario ${userData.username} creado correctamente`);
+                    result = await userManager.createUser(userData);
+                    showAlert('success', `Usuario ${userData.email} creado correctamente`);
                 }
                 
+                // Cerrar modal y recargar usuarios
                 userModal.hide();
                 await loadUsers();
+                
             } catch (error) {
                 console.error('Error al guardar usuario:', error);
                 showAlert('danger', `Error al guardar usuario: ${error.message}`);
@@ -415,28 +405,32 @@
 
         // Resetear formulario de usuario
         function resetUserForm() {
-            document.getElementById('userId').value = '';
-            document.getElementById('username').value = '';
-            document.getElementById('email').value = '';
-            document.getElementById('role').value = 'User';
-            document.getElementById('status').value = 'Active';
+            userForm.reset();
+            userId.value = '';
+            
+            const today = new Date();
+            const sixMonthsLater = new Date(today);
+            sixMonthsLater.setMonth(today.getMonth() + 6);
+            
+            userStartDate.valueAsDate = today;
+            userEndDate.valueAsDate = sixMonthsLater;
         }
 
         // Mostrar alerta
         function showAlert(type, message) {
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type} alert-dismissible fade show`;
-            alert.innerHTML = `
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
             
-            alertContainer.appendChild(alert);
+            alertContainer.appendChild(alertDiv);
             
             // Auto-cerrar después de 5 segundos
             setTimeout(() => {
-                alert.classList.remove('show');
-                setTimeout(() => alert.remove(), 150);
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
             }, 5000);
         }
     </script>
