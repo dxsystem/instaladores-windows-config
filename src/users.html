@@ -51,6 +51,10 @@
                 <p class="text-muted">Administra los usuarios que tienen acceso al sistema</p>
             </div>
             <div class="col-auto">
+                <a href="import-users.html" class="btn btn-outline-success me-2">
+                    <i class="bi bi-file-earmark-excel me-1"></i>
+                    Importar Usuarios
+                </a>
                 <button id="refreshButton" class="btn btn-outline-primary me-2">
                     <i class="bi bi-arrow-clockwise me-1"></i>
                     Actualizar
@@ -71,6 +75,70 @@
                 <span class="visually-hidden">Cargando...</span>
             </div>
             <p class="mt-2">Cargando usuarios desde SharePoint...</p>
+            <div class="progress mt-3" style="height: 10px;">
+                <div id="loadingProgressBar" class="progress-bar progress-striped" role="progressbar" style="width: 0%"></div>
+            </div>
+            <p id="loadingProgressText" class="mt-2">Preparando...</p>
+        </div>
+
+        <!-- Barra de búsqueda y filtros -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-search me-2"></i>Buscar y Filtrar Usuarios
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Búsqueda por texto -->
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="searchInput" class="form-control" placeholder="Buscar por email o nombre...">
+                            <button id="searchButton" class="btn btn-primary">Buscar</button>
+                            <button id="resetButton" class="btn btn-outline-secondary">Resetear</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtro por tipo de suscripción -->
+                    <div class="col-md-3">
+                        <select id="subscriptionFilter" class="form-select">
+                            <option value="Todos">Todos los tipos</option>
+                            <option value="Gratuita">Gratuita</option>
+                            <option value="Básica">Básica</option>
+                            <option value="Premium">Premium</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Filtro por estado -->
+                    <div class="col-md-3">
+                        <select id="statusFilter" class="form-select">
+                            <option value="Todos">Todos los estados</option>
+                            <option value="Activo">Activos</option>
+                            <option value="Inactivo">Inactivos</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Filtros por fecha -->
+                    <div class="col-md-6">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="startDateFilter" class="form-label small">Fecha inicio desde:</label>
+                                <input type="date" id="startDateFilter" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label for="endDateFilter" class="form-label small">Fecha fin hasta:</label>
+                                <input type="date" id="endDateFilter" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contador de resultados -->
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-end align-items-end h-100">
+                            <span class="text-muted">Resultados: <span id="filteredUserCount">0</span> de <span id="totalUserCount">0</span> usuarios</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Tabla de usuarios -->
@@ -174,66 +242,118 @@
     
     <script>
         // Variables globales
-        let auth;
-        let spGraph;
-        let userManager;
-        let userModal;
+        let auth, spGraph, userManager;
         
-        // Inicialización
+        // Referencias DOM
+        const userTableBody = document.getElementById('userTableBody');
+        const refreshButton = document.getElementById('refreshButton');
+        const newUserButton = document.getElementById('newUserButton');
+        const saveUserButton = document.getElementById('saveUserButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const loadingState = document.getElementById('loadingState');
+        const alertContainer = document.getElementById('alertContainer');
+        const userCount = document.getElementById('userCount');
+        const userForm = document.getElementById('userForm');
+        const userId = document.getElementById('userId');
+        const userEmail = document.getElementById('userEmail');
+        const userPassword = document.getElementById('userPassword');
+        const userSubscriptionType = document.getElementById('userSubscriptionType');
+        const userStartDate = document.getElementById('userStartDate');
+        const userEndDate = document.getElementById('userEndDate');
+        const userIsActive = document.getElementById('userIsActive');
+        const userModalTitle = document.getElementById('userModalTitle');
+        const userModal = new bootstrap.Modal(document.getElementById('userModal'));
+        
+        // Referencias DOM para búsqueda y filtros
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const resetButton = document.getElementById('resetButton');
+        const subscriptionFilter = document.getElementById('subscriptionFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const startDateFilter = document.getElementById('startDateFilter');
+        const endDateFilter = document.getElementById('endDateFilter');
+        const filteredUserCount = document.getElementById('filteredUserCount');
+        const totalUserCount = document.getElementById('totalUserCount');
+        const loadingProgressBar = document.getElementById('loadingProgressBar');
+        const loadingProgressText = document.getElementById('loadingProgressText');
+        
+        // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', async function() {
             try {
                 // Inicializar autenticación
-                auth = new SharePointAuth();
+                auth = new Auth();
+                await auth.initialize();
                 
-                // Verificar si hay una sesión activa
-                if (!auth.isUserAuthenticated()) {
-                    window.location.href = 'login.html';
+                // Verificar si el usuario está autenticado
+                if (!auth.isAuthenticated()) {
+                    window.location.href = 'index.html';
                     return;
                 }
                 
-                // Mostrar nombre del usuario actual
-                const currentUser = auth.getCurrentUser();
-                currentUserName.textContent = currentUser.name || currentUser.username;
-                
-                // Inicializar componentes
+                // Inicializar SharePointGraph
                 spGraph = new SharePointGraph(auth);
-                userManager = new UserManager(spGraph);
-                userModal = new bootstrap.Modal(document.getElementById('userModal'));
                 
-                // Cargar usuarios
-                await loadUsers();
+                // Inicializar UserManager
+                userManager = new UserManager(spGraph);
                 
                 // Configurar eventos
                 setupEventListeners();
+                
+                // Cargar usuarios
+                await loadUsers();
                 
             } catch (error) {
                 console.error('Error al inicializar la aplicación:', error);
                 showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);
             }
         });
-
+        
         // Cargar usuarios
         async function loadUsers() {
             try {
-                loadingState.classList.remove('d-none');
-                emptyState.classList.add('d-none');
-                userTableBody.innerHTML = '';
+                showLoading(true);
                 
-                await userManager.initialize();
+                // Inicializar UserManager y cargar usuarios
+                await userManager.initialize(updateLoadingProgress);
                 
-                const users = userManager.getAllUsers();
-                userCount.textContent = users.length;
+                // Actualizar contador de usuarios
+                updateUserCount();
                 
-                if (users.length === 0) {
-                    emptyState.classList.remove('d-none');
-                } else {
-                    renderUserTable(users);
-                }
+                // Renderizar tabla de usuarios
+                renderUserTable(userManager.getAllUsers());
                 
-                loadingState.classList.add('d-none');
+                showLoading(false);
             } catch (error) {
                 console.error('Error al cargar usuarios:', error);
                 showAlert('danger', `Error al cargar usuarios: ${error.message}`);
+                showLoading(false);
+            }
+        }
+        
+        // Actualizar progreso de carga
+        function updateLoadingProgress(progress) {
+            if (progress) {
+                const percent = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
+                loadingProgressBar.style.width = `${percent}%`;
+                loadingProgressText.textContent = progress.message || `Cargando ${progress.loaded} de ${progress.total} usuarios...`;
+            }
+        }
+        
+        // Actualizar contador de usuarios
+        function updateUserCount() {
+            const totalUsers = userManager.users.length;
+            const filteredUsers = userManager.filteredUsers.length;
+            
+            userCount.textContent = totalUsers;
+            totalUserCount.textContent = totalUsers;
+            filteredUserCount.textContent = filteredUsers || totalUsers;
+        }
+        
+        // Mostrar/ocultar estado de carga
+        function showLoading(show) {
+            if (show) {
+                loadingState.classList.remove('d-none');
+            } else {
                 loadingState.classList.add('d-none');
             }
         }
@@ -241,6 +361,13 @@
         // Renderizar tabla de usuarios
         function renderUserTable(users) {
             userTableBody.innerHTML = '';
+            
+            if (users.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="6" class="text-center">No se encontraron usuarios</td>';
+                userTableBody.appendChild(row);
+                return;
+            }
             
             users.forEach(user => {
                 const row = document.createElement('tr');
@@ -318,6 +445,62 @@
             
             userStartDate.valueAsDate = today;
             userEndDate.valueAsDate = sixMonthsLater;
+            
+            // Eventos para búsqueda y filtros
+            searchButton.addEventListener('click', applySearchAndFilters);
+            
+            // Búsqueda al presionar Enter
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applySearchAndFilters();
+                }
+            });
+            
+            // Cambios en los filtros
+            subscriptionFilter.addEventListener('change', applySearchAndFilters);
+            statusFilter.addEventListener('change', applySearchAndFilters);
+            startDateFilter.addEventListener('change', applySearchAndFilters);
+            endDateFilter.addEventListener('change', applySearchAndFilters);
+            
+            // Botón de resetear filtros
+            resetButton.addEventListener('click', resetSearchAndFilters);
+        }
+        
+        // Aplicar búsqueda y filtros
+        function applySearchAndFilters() {
+            const searchTerm = searchInput.value.trim();
+            const filters = {
+                subscriptionType: subscriptionFilter.value,
+                status: statusFilter.value,
+                startDateFrom: startDateFilter.value ? new Date(startDateFilter.value) : null,
+                endDateTo: endDateFilter.value ? new Date(endDateFilter.value) : null
+            };
+            
+            // Aplicar búsqueda
+            userManager.searchUsers(searchTerm);
+            
+            // Aplicar filtros
+            userManager.applyFilters(filters);
+            
+            // Actualizar contador y tabla
+            updateUserCount();
+            renderUserTable(userManager.getAllUsers());
+        }
+        
+        // Resetear búsqueda y filtros
+        function resetSearchAndFilters() {
+            searchInput.value = '';
+            subscriptionFilter.value = 'Todos';
+            statusFilter.value = 'Todos';
+            startDateFilter.value = '';
+            endDateFilter.value = '';
+            
+            // Resetear filtros en el UserManager
+            userManager.resetFilters();
+            
+            // Actualizar contador y tabla
+            updateUserCount();
+            renderUserTable(userManager.getAllUsers());
         }
 
         // Manejar edición de usuario
