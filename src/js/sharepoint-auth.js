@@ -192,14 +192,6 @@ class SharePointAuth {
     isAuthenticated() {
         return this._isAuthenticated;
     }
-
-    /**
-     * Verifica si el usuario está autenticado
-     * @returns {boolean} true si está autenticado, false en caso contrario
-     */
-    isUserAuthenticated() {
-        return this._isAuthenticated;
-    }
 }
 
 // Exportar la clase para su uso en otros archivos
