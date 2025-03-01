@@ -458,44 +458,55 @@ class UserManager {
     /**
      * Renderiza la tabla de usuarios
      */
-    renderUsers() {
+    renderUserTable() {
         const userTableBody = document.getElementById('userTableBody');
-        if (!userTableBody) return;
         
+        if (!userTableBody) {
+            console.warn('No se encontró el elemento userTableBody');
+            return;
+        }
+        
+        // Limpiar tabla
         userTableBody.innerHTML = '';
         
-        const usersToRender = this.filteredUsers.length > 0 ? this.filteredUsers : this.users;
-        
-        if (usersToRender.length === 0) {
+        // Si no hay usuarios filtrados, mostrar mensaje
+        if (this.filteredUsers.length === 0) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td colspan="7" class="text-center">No hay usuarios para mostrar</td>
-            `;
+            tr.innerHTML = `<td colspan="6" class="text-center">No se encontraron usuarios</td>`;
             userTableBody.appendChild(tr);
             return;
         }
         
-        usersToRender.forEach(user => {
+        // Renderizar usuarios filtrados
+        this.filteredUsers.forEach(user => {
             const tr = document.createElement('tr');
             
-            // Determinar si el usuario está activo
-            const isActive = user.isActive;
-            const statusBadge = isActive 
-                ? '<span class="badge bg-success">Activo</span>' 
-                : '<span class="badge bg-danger">Inactivo</span>';
-            
             // Formatear fechas
-            const startDate = new Date(user.startDate).toLocaleDateString();
-            const endDate = new Date(user.endDate).toLocaleDateString();
+            let startDate = 'No definida';
+            let endDate = 'No definida';
+            
+            if (user.startDate) {
+                const date = new Date(user.startDate);
+                startDate = date.toLocaleDateString();
+            }
+            
+            if (user.endDate) {
+                const date = new Date(user.endDate);
+                endDate = date.toLocaleDateString();
+            }
+            
+            // Determinar clase para el estado
+            let statusClass = user.isActive ? 'text-success' : 'text-danger';
+            let statusText = user.isActive ? 'Activo' : 'Inactivo';
             
             tr.innerHTML = `
                 <td>${user.email}</td>
-                <td>${user.subscriptionType}</td>
+                <td>${user.subscriptionType || 'Gratuita'}</td>
                 <td>${startDate}</td>
                 <td>${endDate}</td>
-                <td>${statusBadge}</td>
+                <td><span class="${statusClass}">${statusText}</span></td>
                 <td>
-                    <button class="btn btn-sm btn-primary edit-user" data-id="${user.id}">
+                    <button class="btn btn-sm btn-outline-primary edit-user" data-id="${user.id}">
                         <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-sm btn-danger delete-user" data-id="${user.id}">
@@ -507,30 +518,8 @@ class UserManager {
             userTableBody.appendChild(tr);
         });
         
-        // Configurar eventos para los botones de editar y eliminar
-        this.setupUserTableEvents();
-    }
-    
-    /**
-     * Configura los eventos de la tabla de usuarios
-     */
-    setupUserTableEvents() {
-        const editButtons = document.querySelectorAll('.edit-user');
-        const deleteButtons = document.querySelectorAll('.delete-user');
-        
-        editButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const userId = e.currentTarget.getAttribute('data-id');
-                console.log(`Click en botón editar para usuario ID: ${userId}`);
-            });
-        });
-        
-        deleteButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const userId = e.currentTarget.getAttribute('data-id');
-                console.log(`Click en botón eliminar para usuario ID: ${userId}`);
-            });
-        });
+        // Ya no llamamos a setupUserTableEvents aquí
+        // Los event listeners se configuran en users.html
     }
 }
 
