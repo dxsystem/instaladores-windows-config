@@ -546,12 +546,10 @@
 
         // Manejar edición de usuario
         function handleEditUser(event) {
-            const userIdValue = event.currentTarget.dataset.id;
-            console.log(`Editando usuario con ID: ${userIdValue}`);
-            const user = userManager.getUserById(userIdValue);
+            const userId = event.currentTarget.dataset.id;
+            const user = userManager.getUserById(userId);
             
             if (user) {
-                console.log(`Usuario encontrado para editar:`, user);
                 userId.value = user.id;
                 userEmail.value = user.email;
                 userPassword.value = '';
@@ -568,9 +566,6 @@
                 
                 userModalTitle.textContent = 'Editar Usuario';
                 userModal.show();
-            } else {
-                console.error(`No se encontró el usuario con ID: ${userIdValue}`);
-                showAlert('danger', `No se encontró el usuario con ID: ${userIdValue}`);
             }
         }
 
@@ -601,12 +596,10 @@
                 let result;
                 
                 if (userData.id) {
-                    console.log(`Actualizando usuario existente con ID: ${userData.id}`);
-                    // Actualizar usuario existente - ahora pasamos un solo objeto
+                    // Actualizar usuario existente
                     result = await userManager.updateUser(userData);
                     showAlert('success', `Usuario ${userData.email} actualizado correctamente`);
                 } else {
-                    console.log(`Creando nuevo usuario: ${userData.email}`);
                     // Crear nuevo usuario
                     result = await userManager.createUser(userData);
                     showAlert('success', `Usuario ${userData.email} creado correctamente`);

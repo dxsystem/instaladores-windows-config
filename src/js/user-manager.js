@@ -266,9 +266,9 @@ class UserManager {
     }
 
     /**
-     * Crea un nuevo usuario
+     * Crea un nuevo usuario o actualiza uno existente si ya existe con el mismo email
      * @param {Object} userData - Datos del usuario
-     * @returns {Promise<Object>} Usuario creado
+     * @returns {Promise<Object>} Usuario creado o actualizado
      */
     async createUser(userData) {
         try {
@@ -277,10 +277,22 @@ class UserManager {
                 throw new Error('El email es obligatorio');
             }
             
+            console.log(`Intentando crear/actualizar usuario: ${userData.email}`);
+            
             // Verificar si ya existe un usuario con el mismo email
-            if (this.getUserByEmail(userData.email)) {
-                throw new Error(`Ya existe un usuario con el email ${userData.email}`);
+            const existingUser = this.getUserByEmail(userData.email);
+            
+            if (existingUser) {
+                console.log(`Ya existe un usuario con el email ${userData.email}, ID: ${existingUser.id}. Actualizando...`);
+                
+                // Actualizar el usuario existente
+                return await this.updateUser({
+                    ...userData,
+                    id: existingUser.id
+                });
             }
+            
+            console.log(`Creando nuevo usuario: ${userData.email}`);
             
             // Crear usuario en SharePoint
             const newUser = await this.spGraph.createUser({
@@ -289,8 +301,7 @@ class UserManager {
                 SubscriptionType: userData.subscriptionType || 'Gratuita',
                 StartDate: userData.startDate || new Date().toISOString(),
                 EndDate: userData.endDate || new Date().toISOString(),
-                IsActive: userData.isActive === undefined ? true : userData.isActive,
-                FailedLoginAttempts: 0
+                IsActive: userData.isActive === undefined ? true : userData.isActive
             });
             
             // Añadir a la lista local
@@ -394,13 +405,12 @@ class UserManager {
             await this.spGraph.deleteUser(id);
             
             // Eliminar de la lista local
-            const index = this.users.findIndex(user => user.id === id);
-            if (index !== -1) {
-                this.users.splice(index, 1);
-            }
+            this.users = this.users.filter(user => user.id !== id);
             
             // Actualizar lista filtrada
             this.applyFiltersAndSearch();
+            
+            console.log(`Usuario con ID ${id} eliminado correctamente`);
         } catch (error) {
             console.error('Error al eliminar usuario:', error);
             throw new Error(`Error al eliminar usuario: ${error.message}`);
@@ -495,6 +505,31 @@ class UserManager {
             `;
             
             userTableBody.appendChild(tr);
+        });
+        
+        // Configurar eventos para los botones de editar y eliminar
+        this.setupUserTableEvents();
+    }
+    
+    /**
+     * Configura los eventos de la tabla de usuarios
+     */
+    setupUserTableEvents() {
+        const editButtons = document.querySelectorAll('.edit-user');
+        const deleteButtons = document.querySelectorAll('.delete-user');
+        
+        editButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const userId = e.currentTarget.getAttribute('data-id');
+                this.editUser(userId);
+            });
+        });
+        
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const userId = e.currentTarget.getAttribute('data-id');
+                this.deleteUser(userId);
+            });
         });
     }
 }
