@@ -15,10 +15,13 @@ class SharePointGraph {
 
     /**
      * Obtiene un token de acceso para Microsoft Graph
+     * @param {boolean} writeAccess - Si se requiere acceso de escritura
      * @returns {Promise<string>} Token de acceso
      */
-    async getAccessToken() {
-        return await this.auth.getAccessToken();
+    async getAccessToken(writeAccess = false) {
+        const scopes = writeAccess ? this.auth.graphScopes.write : this.auth.graphScopes.read;
+        console.log('SharePointGraph: solicitando token con scopes:', scopes);
+        return await this.auth.getAccessToken(scopes);
     }
 
     /**
@@ -296,13 +299,61 @@ class SharePointGraph {
     }
 
     /**
+     * Obtiene usuarios de SharePoint según un filtro OData
+     * @param {string} filter - Filtro OData para la consulta
+     * @returns {Promise<Array>} Lista de usuarios que coinciden con el filtro
+     */
+    async getUsersByFilter(filter) {
+        try {
+            if (!this.siteId) {
+                await this.getSiteId();
+            }
+            
+            if (!this.listId) {
+                await this.getListId();
+            }
+            
+            // Construir URL con el filtro
+            let url = `${this.graphEndpoint}/sites/${this.siteId}/lists/${this.listId}/items`;
+            if (filter) {
+                url += `?$filter=${encodeURIComponent(filter)}`;
+            }
+            
+            // Obtener token de acceso
+            const accessToken = await this.getAccessToken();
+            
+            // Realizar la solicitud
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Error ${response.status}: ${errorData.error ? errorData.error.message : 'Error desconocido'}`);
+            }
+            
+            const data = await response.json();
+            
+            // Procesar los resultados
+            return this._processUserItems(data.value || []);
+        } catch (error) {
+            console.error('Error al obtener usuarios por filtro:', error);
+            return [];
+        }
+    }
+
+    /**
      * Crea un nuevo usuario en SharePoint
      * @param {Object} userData - Datos del usuario
      * @returns {Promise<Object>} Usuario creado
      */
     async createUser(userData) {
         try {
-            const token = await this.getAccessToken();
+            const token = await this.getAccessToken(true);
             const siteId = await this.getSiteId();
             
             // Validar datos obligatorios
@@ -359,7 +410,7 @@ class SharePointGraph {
      */
     async updateUser(id, userData) {
         try {
-            const token = await this.getAccessToken();
+            const token = await this.getAccessToken(true);
             const siteId = await this.getSiteId();
             
             // Validar ID
@@ -428,7 +479,7 @@ class SharePointGraph {
      */
     async deleteUser(id) {
         try {
-            const token = await this.getAccessToken();
+            const token = await this.getAccessToken(true);
             const siteId = await this.getSiteId();
             
             // Validar ID

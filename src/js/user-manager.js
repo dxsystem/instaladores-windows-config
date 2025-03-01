@@ -148,6 +148,79 @@ class UserManager {
     }
 
     /**
+     * Busca un usuario por su email (consulta a SharePoint)
+     * @param {string} email - Email del usuario
+     * @returns {Promise<Object|null>} Usuario encontrado o null si no existe
+     */
+    async findUserByEmail(email) {
+        try {
+            if (!email) return null;
+            
+            // Primero buscar en la caché local
+            const cachedUser = this.getUserByEmail(email);
+            if (cachedUser) return cachedUser;
+            
+            // Si no está en caché, buscar en SharePoint
+            const filter = `fields/Email eq '${email}'`;
+            const users = await this.spGraph.getUsersByFilter(filter);
+            
+            return users && users.length > 0 ? users[0] : null;
+        } catch (error) {
+            console.error(`Error al buscar usuario por email ${email}:`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * Busca múltiples usuarios por sus emails (consulta a SharePoint)
+     * @param {Array<string>} emails - Lista de emails de usuarios
+     * @returns {Promise<Array<Object>>} Lista de usuarios encontrados
+     */
+    async findUsersByEmails(emails) {
+        try {
+            if (!emails || emails.length === 0) return [];
+            
+            // Filtrar emails vacíos y duplicados
+            const uniqueEmails = [...new Set(emails.filter(email => email))];
+            
+            // Buscar primero en la caché local
+            const result = [];
+            const emailsToSearch = [];
+            
+            uniqueEmails.forEach(email => {
+                const cachedUser = this.getUserByEmail(email);
+                if (cachedUser) {
+                    result.push(cachedUser);
+                } else {
+                    emailsToSearch.push(email);
+                }
+            });
+            
+            // Si todos los usuarios están en caché, retornar inmediatamente
+            if (emailsToSearch.length === 0) return result;
+            
+            // Construir filtro para buscar los emails restantes
+            // Limitamos a 10 emails por consulta para evitar URLs demasiado largas
+            const batchSize = 10;
+            for (let i = 0; i < emailsToSearch.length; i += batchSize) {
+                const batch = emailsToSearch.slice(i, i + batchSize);
+                const filterParts = batch.map(email => `fields/Email eq '${email}'`);
+                const filter = filterParts.join(' or ');
+                
+                const users = await this.spGraph.getUsersByFilter(filter);
+                if (users && users.length > 0) {
+                    result.push(...users);
+                }
+            }
+            
+            return result;
+        } catch (error) {
+            console.error(`Error al buscar usuarios por emails:`, error);
+            return [];
+        }
+    }
+
+    /**
      * Crea un nuevo usuario
      * @param {Object} userData - Datos del usuario
      * @returns {Promise<Object>} Usuario creado
