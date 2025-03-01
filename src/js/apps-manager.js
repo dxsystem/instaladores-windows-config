@@ -137,9 +137,6 @@ async function loadApps() {
             
             // Ordenar por nombre
             allApps.sort((a, b) => a.name.localeCompare(b.name));
-            
-            // Guardar la configuración inicial
-            await syncApps();
         } else {
             // Usar la configuración existente y actualizar con información de los archivos
             console.log('Usando configuración existente y actualizando con información de archivos');
@@ -210,9 +207,6 @@ async function loadApps() {
                 
                 // Ordenar por nombre
                 allApps.sort((a, b) => a.name.localeCompare(b.name));
-                
-                // Guardar la configuración actualizada
-                await syncApps();
             }
         }
         
