@@ -624,6 +624,99 @@ class SharePointGraph {
             throw new Error(`Error al eliminar usuario: ${error.message}`);
         }
     }
+
+    /**
+     * Obtiene el contenido de un archivo desde SharePoint
+     * @param {string} fileName - Nombre del archivo a obtener
+     * @returns {Promise<string>} Contenido del archivo
+     */
+    async getFileContent(fileName) {
+        try {
+            console.log(`Obteniendo contenido del archivo: ${fileName}`);
+            
+            // Asegurarse de que tenemos el siteId
+            if (!this.siteId) {
+                await this.getSiteId();
+            }
+            
+            // Obtener token de acceso
+            const token = await this.getAccessToken();
+            
+            // Construir la URL para obtener el archivo
+            const url = `${this.graphEndpoint}/sites/${this.siteId}/drive/root:/${fileName}:/content`;
+            
+            console.log(`URL para obtener archivo: ${url}`);
+            
+            // Realizar la petición
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'text/plain'
+                }
+            });
+            
+            if (!response.ok) {
+                console.error(`Error al obtener archivo: ${response.status} ${response.statusText}`);
+                return null;
+            }
+            
+            // Obtener el contenido como texto
+            const content = await response.text();
+            console.log(`Contenido obtenido correctamente (${content.length} bytes)`);
+            
+            return content;
+        } catch (error) {
+            console.error(`Error al obtener contenido del archivo ${fileName}:`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * Guarda el contenido de un archivo en SharePoint
+     * @param {string} fileName - Nombre del archivo a guardar
+     * @param {string} content - Contenido del archivo
+     * @returns {Promise<boolean>} True si se guardó correctamente
+     */
+    async saveFileContent(fileName, content) {
+        try {
+            console.log(`Guardando contenido en el archivo: ${fileName}`);
+            
+            // Asegurarse de que tenemos el siteId
+            if (!this.siteId) {
+                await this.getSiteId();
+            }
+            
+            // Obtener token de acceso con permisos de escritura
+            const token = await this.getAccessToken(true);
+            
+            // Construir la URL para guardar el archivo
+            const url = `${this.graphEndpoint}/sites/${this.siteId}/drive/root:/${fileName}:/content`;
+            
+            console.log(`URL para guardar archivo: ${url}`);
+            
+            // Realizar la petición
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: content
+            });
+            
+            if (!response.ok) {
+                console.error(`Error al guardar archivo: ${response.status} ${response.statusText}`);
+                return false;
+            }
+            
+            console.log(`Archivo guardado correctamente`);
+            return true;
+        } catch (error) {
+            console.error(`Error al guardar contenido en el archivo ${fileName}:`, error);
+            return false;
+        }
+    }
 }
 
 // Exportar la clase para su uso en otros archivos
