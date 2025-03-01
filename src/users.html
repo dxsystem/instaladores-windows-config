@@ -166,7 +166,7 @@
                             <div class="col-md-3">
                                 <div class="card bg-primary bg-opacity-10">
                                     <div class="card-body p-2 text-center">
-                                        <h6 class="card-title mb-0">Elite</h6>
+                                        <h6 class="card-title mb-0">ELITE</h6>
                                         <h3 id="eliteUserCount" class="mb-0">0</h3>
                                     </div>
                                 </div>
@@ -198,8 +198,8 @@
                         <select id="subscriptionFilter" class="form-select">
                             <option value="Todos">Todos los tipos</option>
                             <option value="Gratuita">Gratuita</option>
-                            <option value="Básica">Básica</option>
-                            <option value="Premium">Premium</option>
+                            <option value="ELITE">ELITE</option>
+                            <option value="PRO">PRO</option>
                         </select>
                     </div>
                     
@@ -579,61 +579,7 @@
                 downloadUsersModal.show();
             });
             
-            document.getElementById('downloadUsersButtonConfirm').addEventListener('click', function() {
-                const downloadUsersModal = bootstrap.Modal.getInstance(document.getElementById('downloadUsersModal'));
-                downloadUsersModal.hide();
-                
-                // Mostrar loader
-                showLoading(true);
-                
-                try {
-                    // Obtener todos los usuarios
-                    const users = userManager.getAllUsers();
-                    
-                    // Crear encabezados
-                    const headers = ['Email', 'Tipo de Suscripción', 'Fecha Inicio', 'Fecha Fin', 'Estado'];
-                    
-                    // Crear filas de datos
-                    const rows = users.map(user => {
-                        // Formatear fechas
-                        let startDate = user.startDate ? new Date(user.startDate).toLocaleDateString() : '';
-                        let endDate = user.endDate ? new Date(user.endDate).toLocaleDateString() : '';
-                        let status = user.isActive ? 'Activo' : 'Inactivo';
-                        
-                        return [
-                            user.email || '',
-                            user.subscriptionType || 'Gratuita',
-                            startDate,
-                            endDate,
-                            status
-                        ].join(',');
-                    });
-                    
-                    // Unir encabezados y filas
-                    const csv = [headers.join(',')].concat(rows).join('\n');
-                    
-                    // Crear blob y descargar
-                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const filename = `usuarios_${timestamp}.csv`;
-                    
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', filename);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    
-                    // Mostrar mensaje de éxito
-                    showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
-                } catch (error) {
-                    console.error('Error al descargar usuarios:', error);
-                    showAlert('danger', `Error al descargar usuarios: ${error.message}`);
-                } finally {
-                    showLoading(false);
-                }
-            });
+            document.getElementById('downloadUsersButtonConfirm').addEventListener('click', downloadUsers);
         }
         
         // Aplicar búsqueda y filtros
@@ -829,6 +775,76 @@
             }, 5000);
         }
         
+        // Descargar usuarios
+        function downloadUsers() {
+            // Cerrar el modal de descarga
+            const downloadUsersModal = bootstrap.Modal.getInstance(document.getElementById('downloadUsersModal'));
+            if (downloadUsersModal) {
+                downloadUsersModal.hide();
+            }
+            
+            try {
+                showLoading(true);
+                
+                const users = userManager.getAllUsers();
+                if (!users || users.length === 0) {
+                    showAlert('warning', 'No hay usuarios para descargar');
+                    showLoading(false);
+                    return;
+                }
+                
+                // Definir encabezados
+                const headers = ['Email', 'Tipo de Suscripción', 'Fecha Inicio', 'Fecha Fin', 'Estado'];
+                
+                // Crear filas
+                const rows = users.map(user => {
+                    // Formatear fechas
+                    let startDate = user.startDate ? new Date(user.startDate).toLocaleDateString() : '';
+                    let endDate = user.endDate ? new Date(user.endDate).toLocaleDateString() : '';
+                    let status = user.isActive ? 'Activo' : 'Inactivo';
+                    
+                    return [
+                        user.email || '',
+                        user.subscriptionType || 'Gratuita',
+                        startDate,
+                        endDate,
+                        status
+                    ].join(',');
+                });
+                
+                // Unir encabezados y filas
+                const csv = [headers.join(',')].concat(rows).join('\n');
+                
+                // Crear blob y descargar
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `usuarios_${timestamp}.csv`;
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', filename);
+                document.body.appendChild(link);
+                
+                // Ocultar el loader antes de hacer clic en el enlace
+                showLoading(false);
+                
+                // Descargar el archivo
+                link.click();
+                
+                // Limpiar
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url); // Liberar la URL para evitar fugas de memoria
+                
+                // Mostrar mensaje de éxito
+                showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
+            } catch (error) {
+                console.error('Error al descargar usuarios:', error);
+                showAlert('danger', `Error al descargar usuarios: ${error.message}`);
+                showLoading(false);
+            }
+        }
+        
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', async function() {
             try {
@@ -862,12 +878,30 @@
                     window.userManager = userManager; // Hacer disponible globalmente
                     
                     // Inicializar la interfaz
-                    await userManager.loadUsers();
+                    showLoading(true); // Mostrar loader antes de cargar usuarios
+                    await userManager.loadUsers(progress => {
+                        if (progress) {
+                            const percentage = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
+                            loadingProgressBar.style.width = `${percentage}%`;
+                            loadingProgressBar.setAttribute('aria-valuenow', percentage);
+                            loadingProgressText.textContent = progress.message || `Cargando ${progress.loaded} de ${progress.total} usuarios...`;
+                        }
+                    });
+                    
+                    // Renderizar tabla de usuarios
                     renderUserTable(userManager.getAllUsers());
+                    
+                    // Actualizar contador de usuarios después de cargar todos los usuarios
+                    updateUserCount();
                     
                     // Configurar eventos
                     setupEventListeners();
                     
+                    // Ocultar loader después de completar la carga
+                    showLoading(false);
+                    
+                    // Mostrar mensaje de éxito
+                    showAlert('success', `Se han cargado ${userManager.users.length} usuarios correctamente.`);
                 } catch (error) {
                     console.error('Error al inicializar la aplicación:', error);
                     showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);
