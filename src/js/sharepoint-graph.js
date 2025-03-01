@@ -111,6 +111,11 @@ class SharePointGraph {
      */
     async getUsers(progressCallback) {
         try {
+            // Inicializar variables
+            let page = 1;
+            let users = [];
+            let totalItems = 0;
+            
             // Función para reportar progreso
             const reportProgress = (loaded, total, message) => {
                 if (typeof progressCallback === 'function') {
@@ -132,10 +137,7 @@ class SharePointGraph {
             reportProgress(20, 100, 'Obteniendo ID de la lista...');
             const listId = await this.getListId();
             
-            let users = [];
             let nextLink = `${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items?expand=fields&top=100`;
-            let page = 1;
-            let totalItems = 0;
             
             reportProgress(30, 100, 'Iniciando carga de usuarios...');
             
