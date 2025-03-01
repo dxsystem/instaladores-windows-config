@@ -596,10 +596,12 @@
                 let result;
                 
                 if (userData.id) {
-                    // Actualizar usuario existente
-                    result = await userManager.updateUser(userData.id, userData);
+                    console.log(`Actualizando usuario existente con ID: ${userData.id}`);
+                    // Actualizar usuario existente - ahora pasamos un solo objeto
+                    result = await userManager.updateUser(userData);
                     showAlert('success', `Usuario ${userData.email} actualizado correctamente`);
                 } else {
+                    console.log(`Creando nuevo usuario: ${userData.email}`);
                     // Crear nuevo usuario
                     result = await userManager.createUser(userData);
                     showAlert('success', `Usuario ${userData.email} creado correctamente`);
