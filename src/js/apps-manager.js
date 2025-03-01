@@ -743,40 +743,50 @@ async function loadRequiredApps() {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
-        // Inicializar listas
-        availableApps = [...allApps];
-        requiredApps = [];
-        
         // Obtener el contenido del archivo de configuración de aplicaciones obligatorias
         let requiredAppsContent;
         try {
             requiredAppsContent = await spGraph.getFileContent('required_apps_config.json');
-            
-            if (requiredAppsContent) {
-                const requiredAppsConfig = JSON.parse(requiredAppsContent);
-                
-                // Procesar las aplicaciones obligatorias
-                if (requiredAppsConfig.requiredApps && requiredAppsConfig.requiredApps.length > 0) {
-                    // Obtener IDs de aplicaciones obligatorias
-                    const requiredAppIds = requiredAppsConfig.requiredApps.map(app => app.id);
-                    
-                    // Filtrar aplicaciones obligatorias
-                    requiredApps = allApps.filter(app => requiredAppIds.includes(app.id));
-                    
-                    // Filtrar aplicaciones disponibles
-                    availableApps = allApps.filter(app => !requiredAppIds.includes(app.id));
-                }
-            }
         } catch (error) {
             console.warn('No se encontró el archivo de configuración de aplicaciones obligatorias:', error);
             // Continuar con listas vacías
+            requiredAppsContent = JSON.stringify({ requiredApps: [] });
         }
         
-        // Actualizar listas
+        // Parsear la configuración
+        const requiredAppsConfig = JSON.parse(requiredAppsContent || '{"requiredApps":[]}');
+        
+        // Limpiar las colecciones
+        availableApps = [];
+        requiredApps = [];
+        
+        // Obtener IDs de aplicaciones obligatorias
+        const requiredAppIds = requiredAppsConfig.requiredApps?.map(app => app.id || app) || [];
+        
+        // Distribuir las aplicaciones entre las dos listas
+        allApps.forEach(app => {
+            // Verificar si la aplicación está en la lista de obligatorias
+            if (requiredAppIds.includes(app.id)) {
+                // Marcar como seleccionada y agregar a obligatorias
+                app.isSelected = true;
+                requiredApps.push(app);
+            } else {
+                // Marcar como no seleccionada y agregar a disponibles
+                app.isSelected = false;
+                availableApps.push(app);
+            }
+        });
+        
+        // Ordenar las listas por nombre
+        availableApps.sort((a, b) => a.name.localeCompare(b.name));
+        requiredApps.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Actualizar listas en la interfaz
         updateAvailableAppsList();
         updateRequiredAppsList();
         
         // Actualizar contadores
+        updateListCounters();
         updateCounters();
         
         updateLoadingProgress(100);
@@ -939,16 +949,16 @@ async function saveRequiredApps() {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
+        // Obtener los IDs de las aplicaciones obligatorias
+        const requiredAppIds = requiredApps.map(app => app.id);
+        
         // Crear objeto de configuración
         const requiredAppsConfig = {
             lastUpdate: new Date().toISOString(),
-            requiredApps: requiredApps.map(app => ({
-                id: app.id,
-                name: app.name,
-                fileName: app.fileName,
-                installationOrder: app.installationOrder
-            }))
+            requiredApps: requiredAppIds
         };
+        
+        updateLoadingProgress(50);
         
         // Convertir a JSON
         const requiredAppsJson = JSON.stringify(requiredAppsConfig, null, 2);
