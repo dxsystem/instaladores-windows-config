@@ -521,14 +521,14 @@ class UserManager {
         editButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const userId = e.currentTarget.getAttribute('data-id');
-                this.editUser(userId);
+                console.log(`Click en botón editar para usuario ID: ${userId}`);
             });
         });
         
         deleteButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const userId = e.currentTarget.getAttribute('data-id');
-                this.deleteUser(userId);
+                console.log(`Click en botón eliminar para usuario ID: ${userId}`);
             });
         });
     }
