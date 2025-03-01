@@ -111,15 +111,6 @@ class SharePointGraph {
      */
     async getUsers(progressCallback) {
         try {
-            const token = await this.getAccessToken();
-            const siteId = await this.getSiteId();
-            const listId = await this.getListId();
-            
-            let users = [];
-            let nextLink = `${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items?expand=fields&top=100`;
-            let page = 1;
-            let totalItems = 0;
-            
             // Función para reportar progreso
             const reportProgress = (loaded, total, message) => {
                 if (typeof progressCallback === 'function') {
@@ -132,7 +123,21 @@ class SharePointGraph {
                 }
             };
             
-            reportProgress(0, 0, 'Iniciando carga de usuarios...');
+            reportProgress(0, 100, 'Obteniendo token de acceso...');
+            const token = await this.getAccessToken();
+            
+            reportProgress(10, 100, 'Obteniendo ID del sitio...');
+            const siteId = await this.getSiteId();
+            
+            reportProgress(20, 100, 'Obteniendo ID de la lista...');
+            const listId = await this.getListId();
+            
+            let users = [];
+            let nextLink = `${this.graphEndpoint}/sites/${siteId}/lists/${listId}/items?expand=fields&top=100`;
+            let page = 1;
+            let totalItems = 0;
+            
+            reportProgress(30, 100, 'Iniciando carga de usuarios...');
             
             // Obtener primera página para determinar el total aproximado
             const initialResponse = await fetch(nextLink, {
@@ -158,18 +163,24 @@ class SharePointGraph {
             }
             
             // Procesar primera página
+            reportProgress(40, 100, `Procesando página 1 de usuarios...`);
             const firstPageUsers = this._processUserItems(initialData.value);
             users = users.concat(firstPageUsers);
             
-            reportProgress(users.length, totalItems, `Cargados ${users.length} de aproximadamente ${totalItems} usuarios...`);
+            reportProgress(50, 100, `Cargados ${users.length} de aproximadamente ${totalItems} usuarios...`);
             
             // Obtener páginas adicionales si existen
             nextLink = initialData['@odata.nextLink'];
             
+            let progressIncrement = 40; // Del 50% al 90% para la carga de páginas adicionales
+            let pagesEstimate = nextLink ? Math.ceil(totalItems / itemsPerPage) : 1;
+            let progressPerPage = pagesEstimate > 1 ? progressIncrement / (pagesEstimate - 1) : 0;
+            
             while (nextLink) {
                 page++;
                 
-                reportProgress(users.length, totalItems, `Cargando página ${page}...`);
+                let currentProgress = 50 + ((page - 1) * progressPerPage);
+                reportProgress(Math.min(90, Math.round(currentProgress)), 100, `Cargando página ${page} de ${pagesEstimate}...`);
                 
                 const response = await fetch(nextLink, {
                     headers: {
@@ -189,15 +200,28 @@ class SharePointGraph {
                 // Actualizar total si es necesario
                 if (data['@odata.count'] && data['@odata.count'] > totalItems) {
                     totalItems = data['@odata.count'];
+                    pagesEstimate = Math.ceil(totalItems / itemsPerPage);
+                    progressPerPage = pagesEstimate > 1 ? progressIncrement / (pagesEstimate - 1) : 0;
                 }
                 
-                reportProgress(users.length, totalItems, `Cargados ${users.length} de aproximadamente ${totalItems} usuarios...`);
+                currentProgress = 50 + (page * progressPerPage);
+                reportProgress(Math.min(90, Math.round(currentProgress)), 100, `Cargados ${users.length} de aproximadamente ${totalItems} usuarios...`);
                 
                 // Actualizar nextLink para la siguiente iteración
                 nextLink = data['@odata.nextLink'];
             }
             
-            reportProgress(users.length, users.length, `Carga completada: ${users.length} usuarios`);
+            reportProgress(95, 100, `Finalizando procesamiento de ${users.length} usuarios...`);
+            
+            // Ordenar usuarios por email
+            users.sort((a, b) => {
+                if (a.email && b.email) {
+                    return a.email.localeCompare(b.email);
+                }
+                return 0;
+            });
+            
+            reportProgress(100, 100, `Carga completada: ${users.length} usuarios`);
             
             return users;
         } catch (error) {

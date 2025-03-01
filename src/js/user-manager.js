@@ -38,7 +38,7 @@ class UserManager {
             this.error = null;
             
             // Cargar usuarios directamente desde SharePoint
-            await this.loadUsersFromSharePoint(progressCallback);
+            await this.loadUsers(progressCallback);
             
             this.isLoading = false;
             console.log('UserManager inicializado correctamente');
@@ -55,7 +55,50 @@ class UserManager {
      * @returns {Promise<Array>} Lista de usuarios
      */
     async loadUsers(progressCallback) {
-        return this.loadUsersFromSharePoint(progressCallback);
+        try {
+            // Limpiar errores previos
+            this.error = null;
+            
+            // Mostrar mensaje de carga
+            if (typeof updateLoadingProgress === 'function') {
+                updateLoadingProgress({
+                    loaded: 0,
+                    total: 100,
+                    message: 'Conectando con SharePoint...'
+                });
+            }
+            
+            // Obtener usuarios desde SharePoint
+            const users = await this.spGraph.getUsers(progress => {
+                if (typeof updateLoadingProgress === 'function') {
+                    updateLoadingProgress(progress);
+                }
+            });
+            
+            // Actualizar lista de usuarios
+            this.users = users.map(user => {
+                return {
+                    id: user.id,
+                    email: user.email,
+                    password: '',
+                    subscriptionType: user.subscriptionType || 'Gratuita',
+                    startDate: user.startDate,
+                    endDate: user.endDate,
+                    isActive: user.isActive === undefined ? true : user.isActive,
+                    failedLoginAttempts: user.failedLoginAttempts || 0
+                };
+            });
+            
+            // Aplicar filtros
+            this.applyFiltersAndSearch();
+            
+            console.log(`Se cargaron ${this.users.length} usuarios desde SharePoint`);
+            return this.users;
+        } catch (error) {
+            console.error('Error al cargar usuarios desde SharePoint:', error);
+            this.error = `Error al cargar usuarios: ${error.message}`;
+            return [];
+        }
     }
 
     /**
