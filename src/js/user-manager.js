@@ -394,12 +394,13 @@ class UserManager {
             await this.spGraph.deleteUser(id);
             
             // Eliminar de la lista local
-            this.users = this.users.filter(user => user.id !== id);
+            const index = this.users.findIndex(user => user.id === id);
+            if (index !== -1) {
+                this.users.splice(index, 1);
+            }
             
             // Actualizar lista filtrada
             this.applyFiltersAndSearch();
-            
-            console.log(`Usuario con ID ${id} eliminado correctamente`);
         } catch (error) {
             console.error('Error al eliminar usuario:', error);
             throw new Error(`Error al eliminar usuario: ${error.message}`);
@@ -494,31 +495,6 @@ class UserManager {
             `;
             
             userTableBody.appendChild(tr);
-        });
-        
-        // Configurar eventos para los botones de editar y eliminar
-        this.setupUserTableEvents();
-    }
-    
-    /**
-     * Configura los eventos de la tabla de usuarios
-     */
-    setupUserTableEvents() {
-        const editButtons = document.querySelectorAll('.edit-user');
-        const deleteButtons = document.querySelectorAll('.delete-user');
-        
-        editButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const userId = e.currentTarget.getAttribute('data-id');
-                this.editUser(userId);
-            });
-        });
-        
-        deleteButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const userId = e.currentTarget.getAttribute('data-id');
-                this.deleteUser(userId);
-            });
         });
     }
 }
