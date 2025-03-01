@@ -86,14 +86,13 @@ async function loadApps() {
         showLoading('Cargando aplicaciones...');
         updateLoadingProgress(20);
         
-        // Obtener aplicaciones desde SharePoint
-        const graphClient = await getGraphClient();
-        if (!graphClient) {
-            throw new Error('No se pudo obtener el cliente de Graph');
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
         // Obtener la configuración ELITE (todas las aplicaciones)
-        const eliteConfig = await getEliteConfig(graphClient);
+        const eliteConfig = await getEliteConfig();
         if (!eliteConfig || !eliteConfig.applications) {
             throw new Error('No se pudo obtener la configuración de aplicaciones');
         }
@@ -141,17 +140,19 @@ async function loadApps() {
 /**
  * Obtiene la configuración ELITE desde SharePoint
  */
-async function getEliteConfig(graphClient) {
+async function getEliteConfig() {
     try {
-        // Obtener el archivo de configuración ELITE
-        const eliteConfigFile = await graphClient.api('/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/root:/elite_apps_config.json').get();
-        
-        if (!eliteConfigFile) {
-            throw new Error('No se pudo encontrar el archivo de configuración ELITE');
+        // Usar el cliente de Graph global
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
-        // Obtener el contenido del archivo
-        const configContent = await graphClient.api(`/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/items/${eliteConfigFile.id}/content`).get();
+        // Obtener el contenido del archivo de configuración ELITE
+        const configContent = await spGraph.getFileContent('elite_apps_config.json');
+        
+        if (!configContent) {
+            throw new Error('No se pudo obtener el contenido del archivo de configuración ELITE');
+        }
         
         return JSON.parse(configContent);
     } catch (error) {
@@ -340,23 +341,23 @@ function showError(message) {
 }
 
 /**
- * Carga las descripciones de aplicaciones
+ * Carga las descripciones de aplicaciones desde SharePoint
  */
 async function loadDescriptions() {
     try {
         showLoading('Cargando descripciones de aplicaciones...');
         updateLoadingProgress(20);
         
-        // Obtener cliente de Graph
-        const graphClient = await getGraphClient();
-        if (!graphClient) {
-            throw new Error('No se pudo obtener el cliente de Graph');
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
-        // Obtener el archivo de descripciones
-        const descriptionsFile = await graphClient.api('/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/root:/app_descriptions.json').get();
-        
-        if (!descriptionsFile) {
+        // Obtener el contenido del archivo de descripciones
+        let descriptionsContent;
+        try {
+            descriptionsContent = await spGraph.getFileContent('app_descriptions.json');
+        } catch (error) {
             // Si no existe, crear un objeto vacío
             allDescriptions = [];
             updateDescriptionsTable();
@@ -365,8 +366,14 @@ async function loadDescriptions() {
             return true;
         }
         
-        // Obtener el contenido del archivo
-        const descriptionsContent = await graphClient.api(`/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/items/${descriptionsFile.id}/content`).get();
+        if (!descriptionsContent) {
+            // Si no hay contenido, crear un objeto vacío
+            allDescriptions = [];
+            updateDescriptionsTable();
+            updateLoadingProgress(100);
+            hideLoading();
+            return true;
+        }
         
         const descriptionsConfig = JSON.parse(descriptionsContent);
         
@@ -589,10 +596,9 @@ async function saveAllDescriptions() {
         showLoading('Guardando descripciones...');
         updateLoadingProgress(20);
         
-        // Obtener cliente de Graph
-        const graphClient = await getGraphClient();
-        if (!graphClient) {
-            throw new Error('No se pudo obtener el cliente de Graph');
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
         // Crear objeto de configuración
@@ -613,7 +619,7 @@ async function saveAllDescriptions() {
         const descriptionsJson = JSON.stringify(descriptionsConfig, null, 2);
         
         // Subir archivo
-        await uploadFileContent(graphClient, 'app_descriptions.json', descriptionsJson);
+        await spGraph.saveFileContent('app_descriptions.json', descriptionsJson);
         
         updateLoadingProgress(100);
         hideLoading();
@@ -629,43 +635,45 @@ async function saveAllDescriptions() {
 }
 
 /**
- * Carga las aplicaciones obligatorias
+ * Carga las aplicaciones obligatorias desde SharePoint
  */
 async function loadRequiredApps() {
     try {
         showLoading('Cargando aplicaciones obligatorias...');
         updateLoadingProgress(20);
         
-        // Obtener cliente de Graph
-        const graphClient = await getGraphClient();
-        if (!graphClient) {
-            throw new Error('No se pudo obtener el cliente de Graph');
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
-        
-        // Obtener el archivo de configuración de aplicaciones obligatorias
-        const requiredAppsFile = await graphClient.api('/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/root:/required_apps_config.json').get();
         
         // Inicializar listas
         availableApps = [...allApps];
         requiredApps = [];
         
-        if (requiredAppsFile) {
-            // Obtener el contenido del archivo
-            const requiredAppsContent = await graphClient.api(`/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/items/${requiredAppsFile.id}/content`).get();
+        // Obtener el contenido del archivo de configuración de aplicaciones obligatorias
+        let requiredAppsContent;
+        try {
+            requiredAppsContent = await spGraph.getFileContent('required_apps_config.json');
             
-            const requiredAppsConfig = JSON.parse(requiredAppsContent);
-            
-            // Procesar las aplicaciones obligatorias
-            if (requiredAppsConfig.requiredApps && requiredAppsConfig.requiredApps.length > 0) {
-                // Obtener IDs de aplicaciones obligatorias
-                const requiredAppIds = requiredAppsConfig.requiredApps.map(app => app.id);
+            if (requiredAppsContent) {
+                const requiredAppsConfig = JSON.parse(requiredAppsContent);
                 
-                // Filtrar aplicaciones obligatorias
-                requiredApps = allApps.filter(app => requiredAppIds.includes(app.id));
-                
-                // Filtrar aplicaciones disponibles
-                availableApps = allApps.filter(app => !requiredAppIds.includes(app.id));
+                // Procesar las aplicaciones obligatorias
+                if (requiredAppsConfig.requiredApps && requiredAppsConfig.requiredApps.length > 0) {
+                    // Obtener IDs de aplicaciones obligatorias
+                    const requiredAppIds = requiredAppsConfig.requiredApps.map(app => app.id);
+                    
+                    // Filtrar aplicaciones obligatorias
+                    requiredApps = allApps.filter(app => requiredAppIds.includes(app.id));
+                    
+                    // Filtrar aplicaciones disponibles
+                    availableApps = allApps.filter(app => !requiredAppIds.includes(app.id));
+                }
             }
+        } catch (error) {
+            console.warn('No se encontró el archivo de configuración de aplicaciones obligatorias:', error);
+            // Continuar con listas vacías
         }
         
         // Actualizar listas
@@ -823,17 +831,16 @@ function filterAvailableApps() {
 }
 
 /**
- * Guarda la configuración de aplicaciones obligatorias
+ * Guarda la configuración de aplicaciones obligatorias en SharePoint
  */
 async function saveRequiredApps() {
     try {
         showLoading('Guardando aplicaciones obligatorias...');
         updateLoadingProgress(20);
         
-        // Obtener cliente de Graph
-        const graphClient = await getGraphClient();
-        if (!graphClient) {
-            throw new Error('No se pudo obtener el cliente de Graph');
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
         // Crear objeto de configuración
@@ -851,7 +858,7 @@ async function saveRequiredApps() {
         const requiredAppsJson = JSON.stringify(requiredAppsConfig, null, 2);
         
         // Subir archivo
-        await uploadFileContent(graphClient, 'required_apps_config.json', requiredAppsJson);
+        await spGraph.saveFileContent('required_apps_config.json', requiredAppsJson);
         
         updateLoadingProgress(100);
         hideLoading();
@@ -1061,14 +1068,13 @@ async function syncApps() {
         showLoading('Sincronizando aplicaciones...');
         updateLoadingProgress(20);
         
-        // Obtener cliente de Graph
-        const graphClient = await getGraphClient();
-        if (!graphClient) {
-            throw new Error('No se pudo obtener el cliente de Graph');
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
         // Obtener la configuración ELITE
-        const eliteConfig = await getEliteConfig(graphClient);
+        const eliteConfig = await getEliteConfig();
         if (!eliteConfig) {
             throw new Error('No se pudo obtener la configuración ELITE');
         }
@@ -1093,7 +1099,7 @@ async function syncApps() {
         const eliteConfigJson = JSON.stringify(eliteConfig, null, 2);
         
         // Subir archivo
-        await uploadFileContent(graphClient, 'elite_apps_config.json', eliteConfigJson);
+        await spGraph.saveFileContent('elite_apps_config.json', eliteConfigJson);
         
         updateLoadingProgress(100);
         hideLoading();
@@ -1105,36 +1111,5 @@ async function syncApps() {
         showError('Error al sincronizar aplicaciones: ' + error.message);
         hideLoading();
         return false;
-    }
-}
-
-/**
- * Sube el contenido de un archivo a SharePoint
- */
-async function uploadFileContent(graphClient, fileName, content) {
-    try {
-        // Obtener el archivo si existe
-        let fileItem;
-        try {
-            fileItem = await graphClient.api(`/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/root:/${fileName}`).get();
-        } catch (error) {
-            // El archivo no existe, se creará
-            fileItem = null;
-        }
-        
-        if (fileItem) {
-            // Actualizar archivo existente
-            await graphClient.api(`/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/items/${fileItem.id}/content`)
-                .put(content);
-        } else {
-            // Crear nuevo archivo
-            await graphClient.api(`/sites/ldcigroup.sharepoint.com,2ef0b39a-9523-4015-9d5a-2ec9a9a2b05e,a1c3c5a1-7416-4b42-b9fc-c0c300a331c4/drives/b!OguQ4iOVFUCdWi7JqaKwXqHFw6EWdEJL-cwMAKMxrMTYMZEPGvVDTJGXlwm_Nt-g/root:/${fileName}:/content`)
-                .put(content);
-        }
-        
-        return true;
-    } catch (error) {
-        console.error(`Error al subir el archivo ${fileName}:`, error);
-        throw error;
     }
 } 

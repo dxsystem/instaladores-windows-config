@@ -505,58 +505,103 @@
     <script src="js/sharepoint-graph.js"></script>
     <script src="js/apps-manager.js"></script>
     <script>
+        // Variables globales
+        let auth, spGraph, appsManager;
+        
         // Inicialización cuando el documento esté listo
         document.addEventListener('DOMContentLoaded', async function() {
-            // Verificar autenticación
-            if (!await checkAuthentication()) {
-                window.location.href = 'login.html';
-                return;
-            }
-
-            // Mostrar nombre de usuario actual
-            const currentUser = getCurrentUser();
-            if (currentUser) {
-                document.getElementById('currentUserName').textContent = currentUser.displayName || currentUser.username;
-            }
-
-            // Configurar evento de cierre de sesión
-            document.getElementById('logoutButton').addEventListener('click', function() {
-                logout();
-                window.location.href = 'login.html';
-            });
-
-            // Inicializar gestión de aplicaciones
-            await initializeAppsManager();
-
-            // Configurar eventos de pestañas
-            const appsTabs = document.getElementById('appsTabs');
-            appsTabs.addEventListener('shown.bs.tab', async function(event) {
-                const targetId = event.target.getAttribute('data-bs-target');
+            try {
+                console.log('Inicializando la aplicación...');
                 
-                if (targetId === '#required-apps' && !requiredAppsLoaded) {
-                    await loadRequiredApps();
-                    requiredAppsLoaded = true;
-                } else if (targetId === '#descriptions' && !descriptionsLoaded) {
-                    await loadDescriptions();
-                    descriptionsLoaded = true;
+                // Inicializar autenticación
+                auth = new SharePointAuth();
+                console.log('SharePointAuth creado, inicializando...');
+                
+                // Esperar a que la autenticación se inicialice completamente
+                const authInitialized = await auth.initialize();
+                console.log('Autenticación inicializada, resultado:', authInitialized);
+                
+                // Verificar explícitamente la sesión existente
+                const sessionResult = await auth.checkExistingSession();
+                console.log('Verificación de sesión existente:', sessionResult);
+                console.log('Estado de autenticación:', auth.isAuthenticated());
+                
+                // Verificar si el usuario está autenticado
+                if (!auth.isAuthenticated()) {
+                    console.log('Usuario no autenticado, redirigiendo a login.html');
+                    window.location.href = 'login.html';
+                    return;
                 }
-            });
-
-            // Configurar eventos de botones
-            document.getElementById('refreshButton').addEventListener('click', refreshData);
-            document.getElementById('syncButton').addEventListener('click', syncApps);
-            document.getElementById('addAppButton').addEventListener('click', showAddAppModal);
-            document.getElementById('addDescriptionButton').addEventListener('click', showAddDescriptionModal);
-            document.getElementById('saveDescriptionsButton').addEventListener('click', saveAllDescriptions);
-            document.getElementById('saveRequiredAppsButton').addEventListener('click', saveRequiredApps);
-            document.getElementById('saveAppButton').addEventListener('click', saveApp);
-            document.getElementById('saveDescriptionButton').addEventListener('click', saveDescription);
-
-            // Configurar eventos de búsqueda
-            document.getElementById('appSearchInput').addEventListener('input', filterApps);
-            document.getElementById('descriptionSearchInput').addEventListener('input', filterDescriptions);
-            document.getElementById('availableAppsSearchInput').addEventListener('input', filterAvailableApps);
-            document.getElementById('categoryFilter').addEventListener('change', filterApps);
+                
+                // Mostrar información del usuario
+                const currentUser = auth.getCurrentUser();
+                console.log('Usuario actual (procesado):', currentUser);
+                
+                if (currentUser) {
+                    // Actualizar el nombre de usuario en la interfaz
+                    const userNameElement = document.getElementById('currentUserName');
+                    if (userNameElement) {
+                        // Intentar usar displayName, name, o username en ese orden
+                        const displayName = currentUser.name || currentUser.displayName || currentUser.username || 'Usuario';
+                        userNameElement.textContent = displayName;
+                        console.log('Nombre de usuario mostrado:', displayName);
+                    }
+                }
+                
+                // Configurar botón de logout
+                const logoutButton = document.getElementById('logoutButton');
+                if (logoutButton) {
+                    logoutButton.addEventListener('click', () => {
+                        console.log('Cerrando sesión...');
+                        auth.logout().then(() => {
+                            window.location.href = 'login.html';
+                        });
+                    });
+                }
+                
+                // Inicializar componentes
+                console.log('Inicializando SharePointGraph...');
+                spGraph = new SharePointGraph(auth);
+                window.spGraph = spGraph; // Hacer disponible globalmente
+                
+                // Inicializar gestión de aplicaciones
+                await initializeAppsManager();
+                
+                // Configurar eventos de pestañas
+                const appsTabs = document.getElementById('appsTabs');
+                appsTabs.addEventListener('shown.bs.tab', async function(event) {
+                    const targetId = event.target.getAttribute('data-bs-target');
+                    
+                    if (targetId === '#required-apps' && !requiredAppsLoaded) {
+                        await loadRequiredApps();
+                        requiredAppsLoaded = true;
+                    } else if (targetId === '#descriptions' && !descriptionsLoaded) {
+                        await loadDescriptions();
+                        descriptionsLoaded = true;
+                    }
+                });
+                
+                // Configurar eventos de botones
+                document.getElementById('refreshButton').addEventListener('click', refreshData);
+                document.getElementById('syncButton').addEventListener('click', syncApps);
+                document.getElementById('addAppButton').addEventListener('click', showAddAppModal);
+                document.getElementById('addDescriptionButton').addEventListener('click', showAddDescriptionModal);
+                document.getElementById('saveDescriptionsButton').addEventListener('click', saveAllDescriptions);
+                document.getElementById('saveRequiredAppsButton').addEventListener('click', saveRequiredApps);
+                document.getElementById('saveAppButton').addEventListener('click', saveApp);
+                document.getElementById('saveDescriptionButton').addEventListener('click', saveDescription);
+                
+                // Configurar eventos de búsqueda
+                document.getElementById('appSearchInput').addEventListener('input', filterApps);
+                document.getElementById('descriptionSearchInput').addEventListener('input', filterDescriptions);
+                document.getElementById('availableAppsSearchInput').addEventListener('input', filterAvailableApps);
+                document.getElementById('categoryFilter').addEventListener('change', filterApps);
+                
+                console.log('Aplicación inicializada correctamente');
+            } catch (error) {
+                console.error('Error al inicializar la aplicación:', error);
+                alert(`Error al inicializar la aplicación: ${error.message}`);
+            }
         });
     </script>
 </body>
