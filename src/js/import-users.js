@@ -297,9 +297,30 @@ class UserImporter {
         };
     }
     
-    // Formatea una fecha como YYYY-MM-DD
+    // Formatea una fecha para mostrarla en formato YYYY-MM-DD
     formatDate(date) {
-        return date.toISOString().split('T')[0];
+        if (!date) return '-';
+        
+        if (typeof date === 'string') {
+            // Si ya es una cadena, verificar si ya tiene el formato correcto
+            if (/^\d{4}-\d{2}-\d{2}/.test(date)) {
+                return date.substring(0, 10); // Devolver solo YYYY-MM-DD
+            }
+            // Intentar convertir la cadena a fecha
+            date = new Date(date);
+        }
+        
+        // Verificar si es un objeto Date válido
+        if (!(date instanceof Date) || isNaN(date.getTime())) {
+            return '-';
+        }
+        
+        // Formatear como YYYY-MM-DD
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
     }
 
     // Valida los datos de un usuario
@@ -499,8 +520,8 @@ class UserImporter {
                     </td>
                     <td>${existingUser ? this.escapeHtml(existingUser.subscriptionType || '-') : '-'}</td>
                     <td>${this.escapeHtml(user.subscriptionType)}</td>
-                    <td>${existingUser ? (existingUser.startDate ? `${existingUser.startDate.substring(0, 10)} - ${existingUser.endDate.substring(0, 10)}` : '-') : '-'}</td>
-                    <td>${user.startDate} - ${user.endDate}</td>
+                    <td>${existingUser ? (existingUser.startDate ? `${this.formatDate(existingUser.startDate)} - ${this.formatDate(existingUser.endDate)}` : '-') : '-'}</td>
+                    <td>${this.formatDate(user.startDate)} - ${this.formatDate(user.endDate)}</td>
                     <td>
                         ${user.error ? 
                             `<span class="badge bg-danger" title="${this.escapeHtml(user.error)}">Error</span>` : 
