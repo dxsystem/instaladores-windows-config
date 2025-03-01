@@ -642,25 +642,51 @@ class SharePointGraph {
             // Obtener token de acceso
             const token = await this.getAccessToken();
             
-            // Construir la URL para obtener el archivo
+            // Usar el driveId conocido
+            const driveId = "b!Y4G7xKhAwE63GzVWFoZqEoZ6a3u1ygZDon3BUkpZKN5vf5RQYNfFQZUvvITooz_l";
+            
+            // Intentar obtener el archivo directamente desde la raíz de la biblioteca
+            try {
+                const rootUrl = `${this.graphEndpoint}/drives/${driveId}/root:/Forms/AllItems.aspx/${fileName}:/content`;
+                console.log(`Intentando obtener archivo desde la raíz: ${rootUrl}`);
+                
+                const rootResponse = await fetch(rootUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'text/plain'
+                    }
+                });
+                
+                if (rootResponse.ok) {
+                    const content = await rootResponse.text();
+                    console.log(`Contenido obtenido correctamente desde la raíz (${content.length} bytes)`);
+                    return content;
+                } else {
+                    console.log(`Acceso desde la raíz no funcionó: ${rootResponse.status} ${rootResponse.statusText}`);
+                }
+            } catch (rootError) {
+                console.log('Error al acceder desde la raíz:', rootError.message);
+            }
+            
             // Probar diferentes rutas para encontrar el archivo
             const possiblePaths = [
-                `/drive/root:/InstaladoresWindowsCOnline/${fileName}:/content`,
-                `/drive/root:/${fileName}:/content`,
-                `/drives/b!Y4G7xKhA7ESxGzVWFoZqEoZ6a3vFasYGon0cFSRZKN7Nh-Zt_Ej8QZGfLnQFnGFl/root:/${fileName}:/content`,
-                `/drives/b!Y4G7xKhA7ESxGzVWFoZqEoZ6a3vFasYGon0cFSRZKN7Nh-Zt_Ej8QZGfLnQFnGFl/items/root:/${fileName}:/content`
+                `/root:/${fileName}:/content`,
+                `/items/root:/${fileName}:/content`,
+                `/root:/Forms/${fileName}:/content`,
+                `/root:/Forms/AllItems.aspx/${fileName}:/content`,
+                `/root:/InstaladoresWindowsCOnline/${fileName}:/content`
             ];
             
             let content = null;
-            let response = null;
             
             // Intentar cada ruta hasta encontrar una que funcione
             for (const path of possiblePaths) {
-                const url = `${this.graphEndpoint}/sites/${this.siteId}${path}`;
+                const url = `${this.graphEndpoint}/drives/${driveId}${path}`;
                 console.log(`Intentando obtener archivo con URL: ${url}`);
                 
                 try {
-                    response = await fetch(url, {
+                    const response = await fetch(url, {
                         method: 'GET',
                         headers: {
                             'Authorization': `Bearer ${token}`,
@@ -677,6 +703,55 @@ class SharePointGraph {
                     }
                 } catch (pathError) {
                     console.log(`Error al intentar ruta ${url}:`, pathError.message);
+                }
+            }
+            
+            // Si no se encontró el archivo, intentar buscarlo
+            if (!content) {
+                try {
+                    const searchUrl = `${this.graphEndpoint}/drives/${driveId}/root/search(q='${fileName}')`;
+                    console.log(`Buscando archivo por nombre: ${searchUrl}`);
+                    
+                    const searchResponse = await fetch(searchUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    if (searchResponse.ok) {
+                        const searchData = await searchResponse.json();
+                        console.log(`Resultados de búsqueda: ${searchData.value?.length || 0} archivos`);
+                        
+                        if (searchData.value && searchData.value.length > 0) {
+                            // Buscar el archivo exacto
+                            const exactFile = searchData.value.find(file => file.name === fileName);
+                            
+                            if (exactFile) {
+                                console.log(`Archivo encontrado mediante búsqueda: ${exactFile.name} (ID: ${exactFile.id})`);
+                                
+                                // Obtener el contenido usando el ID del archivo
+                                const fileUrl = `${this.graphEndpoint}/drives/${driveId}/items/${exactFile.id}/content`;
+                                console.log(`Obteniendo contenido con ID: ${fileUrl}`);
+                                
+                                const fileResponse = await fetch(fileUrl, {
+                                    method: 'GET',
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                        'Accept': 'text/plain'
+                                    }
+                                });
+                                
+                                if (fileResponse.ok) {
+                                    content = await fileResponse.text();
+                                    console.log(`Contenido obtenido correctamente usando ID (${content.length} bytes)`);
+                                }
+                            }
+                        }
+                    }
+                } catch (searchError) {
+                    console.log('Error al buscar archivo:', searchError.message);
                 }
             }
             
@@ -746,20 +821,23 @@ class SharePointGraph {
             // Obtener token de acceso con permisos de escritura
             const token = await this.getAccessToken(true);
             
-            // Construir la URL para guardar el archivo
+            // Usar el driveId conocido
+            const driveId = "b!Y4G7xKhAwE63GzVWFoZqEoZ6a3u1ygZDon3BUkpZKN5vf5RQYNfFQZUvvITooz_l";
+            
             // Probar diferentes rutas para guardar el archivo
             const possiblePaths = [
-                `/drive/root:/InstaladoresWindowsCOnline/${fileName}:/content`,
-                `/drive/root:/${fileName}:/content`,
-                `/drives/b!Y4G7xKhA7ESxGzVWFoZqEoZ6a3vFasYGon0cFSRZKN7Nh-Zt_Ej8QZGfLnQFnGFl/root:/${fileName}:/content`,
-                `/drives/b!Y4G7xKhA7ESxGzVWFoZqEoZ6a3vFasYGon0cFSRZKN7Nh-Zt_Ej8QZGfLnQFnGFl/items/root:/${fileName}:/content`
+                `/root:/${fileName}:/content`,
+                `/items/root:/${fileName}:/content`,
+                `/root:/Forms/${fileName}:/content`,
+                `/root:/Forms/AllItems.aspx/${fileName}:/content`,
+                `/root:/InstaladoresWindowsCOnline/${fileName}:/content`
             ];
             
             let success = false;
             
             // Intentar cada ruta hasta encontrar una que funcione
             for (const path of possiblePaths) {
-                const url = `${this.graphEndpoint}/sites/${this.siteId}${path}`;
+                const url = `${this.graphEndpoint}/drives/${driveId}${path}`;
                 console.log(`Intentando guardar archivo con URL: ${url}`);
                 
                 try {
@@ -781,6 +859,33 @@ class SharePointGraph {
                     }
                 } catch (pathError) {
                     console.log(`Error al intentar ruta ${url}:`, pathError.message);
+                }
+            }
+            
+            // Si no funcionó ninguna ruta, intentar crear el archivo en la raíz
+            if (!success) {
+                try {
+                    // Intentar crear el archivo en la raíz del drive
+                    const rootUrl = `${this.graphEndpoint}/drives/${driveId}/root:/content`;
+                    console.log(`Intentando crear archivo en la raíz: ${rootUrl}`);
+                    
+                    const rootResponse = await fetch(rootUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: content
+                    });
+                    
+                    if (rootResponse.ok) {
+                        console.log(`Archivo creado correctamente en la raíz`);
+                        success = true;
+                    } else {
+                        console.log(`Creación en raíz no funcionó: ${rootResponse.status} ${rootResponse.statusText}`);
+                    }
+                } catch (rootError) {
+                    console.log('Error al crear en raíz:', rootError.message);
                 }
             }
             
@@ -816,120 +921,179 @@ class SharePointGraph {
             const driveId = "b!Y4G7xKhAwE63GzVWFoZqEoZ6a3u1ygZDon3BUkpZKN5vf5RQYNfFQZUvvITooz_l";
             const folderId = "017AGUZRPVVT45OTNMY5A33CRJXZ6QNDTY";
             
-            // Intentar primero con el ID de carpeta directo
+            let allFiles = [];
+            
+            // Función para procesar los archivos
+            const processFiles = (items) => {
+                return items.map(file => ({
+                    id: file.id,
+                    name: file.name,
+                    size: file.size,
+                    lastModified: file.lastModifiedDateTime,
+                    downloadUrl: file['@microsoft.graph.downloadUrl'],
+                    webUrl: file.webUrl
+                }));
+            };
+            
+            // Función para obtener todos los archivos con paginación
+            const getAllFilesWithPagination = async (initialUrl) => {
+                let files = [];
+                let nextLink = initialUrl;
+                
+                while (nextLink) {
+                    console.log(`Obteniendo página de archivos: ${nextLink}`);
+                    
+                    const response = await fetch(nextLink, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        console.log(`Error al obtener página: ${response.status} ${response.statusText}`);
+                        break;
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.value && data.value.length > 0) {
+                        const pageFiles = processFiles(data.value);
+                        files = files.concat(pageFiles);
+                        console.log(`Obtenidos ${pageFiles.length} archivos en esta página, total acumulado: ${files.length}`);
+                    }
+                    
+                    // Actualizar nextLink para la siguiente iteración
+                    nextLink = data['@odata.nextLink'] || null;
+                }
+                
+                return files;
+            };
+            
+            // 1. Intentar primero con el ID de carpeta directo
             try {
-                const folderUrl = `${this.graphEndpoint}/drives/${driveId}/items/${folderId}/children`;
+                const folderUrl = `${this.graphEndpoint}/drives/${driveId}/items/${folderId}/children?$top=1000`;
                 console.log(`Intentando obtener archivos con ID de carpeta directo: ${folderUrl}`);
                 
-                const folderResponse = await fetch(folderUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                });
+                const folderFiles = await getAllFilesWithPagination(folderUrl);
                 
-                if (folderResponse.ok) {
-                    const folderData = await folderResponse.json();
-                    console.log(`Se encontraron ${folderData.value?.length || 0} archivos en la carpeta exe usando ID directo`);
-                    
-                    // Procesar los archivos
-                    const files = folderData.value?.map(file => ({
-                        id: file.id,
-                        name: file.name,
-                        size: file.size,
-                        lastModified: file.lastModifiedDateTime,
-                        downloadUrl: file['@microsoft.graph.downloadUrl'],
-                        webUrl: file.webUrl
-                    })) || [];
-                    
-                    return files;
-                } else {
-                    console.log(`Acceso directo por ID no funcionó: ${folderResponse.status} ${folderResponse.statusText}`);
+                if (folderFiles.length > 0) {
+                    console.log(`Se encontraron ${folderFiles.length} archivos en la carpeta exe usando ID directo`);
+                    allFiles = folderFiles;
+                    return allFiles;
                 }
             } catch (directError) {
                 console.log('Error al acceder directamente por ID:', directError.message);
             }
             
-            // Si el acceso directo falló, intentar con la ruta completa usando el driveId
+            // 2. Si el acceso directo falló, intentar con la ruta completa usando el driveId
             try {
-                const driveUrl = `${this.graphEndpoint}/drives/${driveId}/root:/InstaladoresWindowsCOnline/exe:/children`;
+                const driveUrl = `${this.graphEndpoint}/drives/${driveId}/root:/InstaladoresWindowsCOnline/exe:/children?$top=1000`;
                 console.log(`Intentando obtener archivos con driveId y ruta: ${driveUrl}`);
                 
-                const driveResponse = await fetch(driveUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                });
+                const driveFiles = await getAllFilesWithPagination(driveUrl);
                 
-                if (driveResponse.ok) {
-                    const driveData = await driveResponse.json();
-                    console.log(`Se encontraron ${driveData.value?.length || 0} archivos en la carpeta exe usando driveId y ruta`);
-                    
-                    // Procesar los archivos
-                    const files = driveData.value?.map(file => ({
-                        id: file.id,
-                        name: file.name,
-                        size: file.size,
-                        lastModified: file.lastModifiedDateTime,
-                        downloadUrl: file['@microsoft.graph.downloadUrl'],
-                        webUrl: file.webUrl
-                    })) || [];
-                    
-                    return files;
-                } else {
-                    console.log(`Acceso por driveId y ruta no funcionó: ${driveResponse.status} ${driveResponse.statusText}`);
+                if (driveFiles.length > 0) {
+                    console.log(`Se encontraron ${driveFiles.length} archivos en la carpeta exe usando driveId y ruta`);
+                    allFiles = driveFiles;
+                    return allFiles;
                 }
             } catch (driveError) {
                 console.log('Error al acceder por driveId y ruta:', driveError.message);
             }
             
-            // Si todo lo anterior falló, intentar con búsqueda
+            // 3. Intentar con la ruta Forms/AllItems.aspx/exe
             try {
-                const searchUrl = `${this.graphEndpoint}/drives/${driveId}/root/search(q='.exe')`;
-                console.log(`Intentando buscar archivos .exe con URL: ${searchUrl}`);
+                const formsUrl = `${this.graphEndpoint}/drives/${driveId}/root:/Forms/AllItems.aspx/exe:/children?$top=1000`;
+                console.log(`Intentando obtener archivos con ruta Forms/AllItems.aspx/exe: ${formsUrl}`);
                 
-                const searchResponse = await fetch(searchUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                });
+                const formsFiles = await getAllFilesWithPagination(formsUrl);
                 
-                if (searchResponse.ok) {
-                    const searchData = await searchResponse.json();
-                    console.log(`Se encontraron ${searchData.value?.length || 0} archivos .exe mediante búsqueda`);
+                if (formsFiles.length > 0) {
+                    console.log(`Se encontraron ${formsFiles.length} archivos en la carpeta Forms/AllItems.aspx/exe`);
+                    allFiles = formsFiles;
+                    return allFiles;
+                }
+            } catch (formsError) {
+                console.log('Error al acceder por ruta Forms/AllItems.aspx/exe:', formsError.message);
+            }
+            
+            // 4. Intentar con búsqueda de archivos ejecutables
+            try {
+                // Buscar archivos ejecutables en todo el drive
+                const searchUrl = `${this.graphEndpoint}/drives/${driveId}/root/search(q='.exe')?$top=1000`;
+                console.log(`Intentando buscar archivos ejecutables: ${searchUrl}`);
+                
+                const searchFiles = await getAllFilesWithPagination(searchUrl);
+                
+                if (searchFiles.length > 0) {
+                    // Filtrar solo archivos ejecutables
+                    const executableFiles = searchFiles.filter(file => 
+                        file.name.toLowerCase().endsWith('.exe') || 
+                        file.name.toLowerCase().endsWith('.msi') || 
+                        file.name.toLowerCase().endsWith('.bat') || 
+                        file.name.toLowerCase().endsWith('.cmd') ||
+                        file.name.toLowerCase().endsWith('.zip') ||
+                        file.name.toLowerCase().endsWith('.rar')
+                    );
                     
-                    if (searchData.value && searchData.value.length > 0) {
-                        // Filtrar solo archivos .exe, .msi, .bat, etc.
-                        const executableFiles = searchData.value.filter(file => 
-                            file.name.endsWith('.exe') || 
-                            file.name.endsWith('.msi') || 
-                            file.name.endsWith('.bat') || 
-                            file.name.endsWith('.cmd') ||
-                            file.name.endsWith('.zip') ||
-                            file.name.endsWith('.rar')
-                        );
-                        
-                        const files = executableFiles.map(file => ({
-                            id: file.id,
-                            name: file.name,
-                            size: file.size,
-                            lastModified: file.lastModifiedDateTime,
-                            downloadUrl: file['@microsoft.graph.downloadUrl'],
-                            webUrl: file.webUrl
-                        }));
-                        
-                        return files;
+                    console.log(`Se encontraron ${executableFiles.length} archivos ejecutables mediante búsqueda`);
+                    allFiles = executableFiles;
+                    
+                    if (allFiles.length > 0) {
+                        return allFiles;
                     }
-                } else {
-                    console.log(`Búsqueda no funcionó: ${searchResponse.status} ${searchResponse.statusText}`);
                 }
             } catch (searchError) {
-                console.log('Error al buscar archivos:', searchError.message);
+                console.log('Error al buscar archivos ejecutables:', searchError.message);
+            }
+            
+            // 5. Intentar listar todos los archivos del drive y filtrar manualmente
+            try {
+                const rootUrl = `${this.graphEndpoint}/drives/${driveId}/root/children?$top=1000`;
+                console.log(`Intentando listar todos los archivos del drive: ${rootUrl}`);
+                
+                const rootFiles = await getAllFilesWithPagination(rootUrl);
+                
+                // Buscar carpeta exe entre los resultados
+                const exeFolder = rootFiles.find(item => 
+                    item.name.toLowerCase() === 'exe' && 
+                    !item.file // Es una carpeta, no un archivo
+                );
+                
+                if (exeFolder) {
+                    console.log(`Carpeta exe encontrada con ID: ${exeFolder.id}`);
+                    
+                    // Obtener archivos de la carpeta exe
+                    const exeFolderUrl = `${this.graphEndpoint}/drives/${driveId}/items/${exeFolder.id}/children?$top=1000`;
+                    const exeFolderFiles = await getAllFilesWithPagination(exeFolderUrl);
+                    
+                    console.log(`Se encontraron ${exeFolderFiles.length} archivos en la carpeta exe`);
+                    allFiles = exeFolderFiles;
+                    return allFiles;
+                } else {
+                    // Filtrar archivos ejecutables de todos los archivos encontrados
+                    const executableFiles = rootFiles.filter(file => 
+                        file.name && (
+                            file.name.toLowerCase().endsWith('.exe') || 
+                            file.name.toLowerCase().endsWith('.msi') || 
+                            file.name.toLowerCase().endsWith('.bat') || 
+                            file.name.toLowerCase().endsWith('.cmd') ||
+                            file.name.toLowerCase().endsWith('.zip') ||
+                            file.name.toLowerCase().endsWith('.rar')
+                        )
+                    );
+                    
+                    console.log(`Se encontraron ${executableFiles.length} archivos ejecutables en la raíz`);
+                    allFiles = executableFiles;
+                    
+                    if (allFiles.length > 0) {
+                        return allFiles;
+                    }
+                }
+            } catch (rootError) {
+                console.log('Error al listar archivos de la raíz:', rootError.message);
             }
             
             // Si llegamos aquí, no se encontraron archivos con ningún método
