@@ -352,7 +352,7 @@
                     
                     // Inicializar la interfaz
                     await userManager.loadUsers();
-                    userManager.renderUserTable();
+                    renderUserTable(userManager.getAllUsers());
                     
                     // Configurar eventos
                     setupEventListeners();
