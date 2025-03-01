@@ -17,7 +17,7 @@ let currentEditingApp = null;
 let currentEditingDescription = null;
 
 // Constantes
-const DEFAULT_ICON_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFEmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS42LWMxNDIgNzkuMTYwOTI0LCAyMDE3LzA3LzEzLTAxOjA2OjM5ICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ0MgKFdpbmRvd3MpIiB4bXA6Q3JlYXRlRGF0ZT0iMjAyMy0wMy0wMVQxMDowNDo0NyswMTowMCIgeG1wOk1vZGlmeURhdGU9IjIwMjMtMDMtMDFUMTA6MDU6MjcrMDE6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjMtMDMtMDFUMTA6MDU6MjcrMDE6MDAiIGRjOmZvcm1hdD0iaW1hZ2UvcG5nIiBwaG90b3Nob3A6Q29sb3JNb2RlPSIzIiBwaG90b3Nob3A6SUNDUHJvZmlsZT0ic1JHQiBJRUM2MTk2Ni0yLjEiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6YjA4NjE1ZjUtY2Q0OS1mMjQxLWE2YjMtNDhmYTUxZWM5OTVkIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOmIwODYxNWY1LWNkNDktZjI0MS1hNmIzLTQ4ZmE1MWVjOTk1ZCIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOmIwODYxNWY1LWNkNDktZjI0MS1hNmIzLTQ4ZmE1MWVjOTk1ZCI+IDx4bXBNTTpIaXN0b3J5PiA8cmRmOlNlcT4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNyZWF0ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6YjA4NjE1ZjUtY2Q0OS1mMjQxLWE2YjMtNDhmYTUxZWM5OTVkIiBzdEV2dDp3aGVuPSIyMDIzLTAzLTAxVDEwOjA0OjQ3KzAxOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgQ0MgKFdpbmRvd3MpIi8+IDwvcmRmOlNlcT4gPC94bXBNTTpIaXN0b3J5PiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PgEk4u4AAARfSURBVGiB7ZlbiE1RGMd/a+9xnDHkktyPcikhl5TcI7dIeVAeeHB5QB6IUiJKkQcPlJJbSJFLLnkQRbk9KCW55JZLGC4zY8YZc/bea3k4+5w5Zs6ec/aZGQ/mr9bD+tb6f//vX9+31reWoZSiKpGpavRqgGqAagD3zMzM8uPU1FSzrKwsnpyc3AyoBYRWvPLycpGWlmaPGTNmxLp16/IzMjIyU1JSRlqW9QEwlVKxDyClVLZtF+Xn5+/ZsGHD+4yMjMzk5OQRhmF0BpI8XZcfQAFfLMs6lZeXt23Lli13MzMzs1NSUoYbhjEQSKzIQCkVdwfMvLy8rRs3brwDdARaAY0qYxqGYQCNgTbAKGAqMAeYDUwCBgLtgAaeF+F+QCm1RCm1XCm1SCnVL14pKKVMpVRzpVRXpVRvpVRvpVQvpVQPpVRXpVRrpVSS1/fiBlBKtQbGAiOAIcBgICtedpVSAvgKvAJeAk+BR0A+8BHwNQfjAlBKJQBDgQnAWGAA0CQedo5jAm+Ae8Bt4CZwD/gRq6GYAJRSjYBJwHRgLNAwFjvHsQHuAFeAC8B14GsshmIGUEoNBhYCM4DkWGwcxwKuAUeAo8D7aA1EDaCUygTWAguAFtHqH8cEzgN7gBPAz2iUowJQShmWZa3Pzs7enpubmwbUiMZAGfEDOA5sB85Eoxw1gFLKBPoBe4EuQK1oHQiDH8ARYDVwP1rlaB8iUsrBwCWgJ/HLPEAd4G/gMrAkFkOxVKEGwCagf4yOR4IARgNpwDTgU6TKEQMopVKBXcCQSHU9YiAwDLgJ/BWJYkQASqnawCGgXyRKPqE3cA1oHolSJI/YDmCYXw75hO7AXqB+JEpuAZRSfwJzI3HEZwwCZkei4ApAKdUQWB6JA2XA7+BbYDGwH/jmt7FSqhGwCkh3o+/qDlBKGcB6oLVbY2XEBDYDu4HbwH2gEPgM/AJqOt6kAu2BnkB/YDzQ1KP9dGCFUmqeUkq6UXAFAIwCxrk0VEZ8A5YCJ4FiF+OLgCLgBXAG2AosBDq5tD8RGAFccKPg9hFa5NJIGfEZmA/8A5QSWcVRzjgF7AHmAV9c2JkPuKqHXQEopboDvdwYKSOKgVnAKeJbD5cCp4HpQIkLvT5KqS5uJrkCcNa6XqGAOcB5vLXFbvACmIXzrYiApDhzI8INQH+gqQsjBcwGrhJ5rRIJyoArwBwXOt2BjpEmuwHwNLcDC4B/8S/zv3EJOOdCpxPQJtJENwCdcdfJlAKHiU/m7TLiAnDNhU5LXCyg3AC0czEe4BRQ4GJ8LCgGTroY3wj4I9JkNwAN3EwAzrsYGw8uAcUuxqcRYb/sBqBupIlOfHOh4wduu9BI+d0A3FShIjfj44EbgNqRJroBKHQxHvw/A4VE+CV2A/DGxXiAVi7GxgM3O7pvgZeRJrsBuOtmAtDJxdh4MIjIW2SAS0TYHbsB+N/F+FrAEBdj44FJ5Jsbs3DRHbsB+AhcdzMBmA40dzE+VgwABrsYfw14HWmymzIaIvvMRsJw4BBxbK2dOrcTsBjIdqGzGRc9sBuAYmA9LlpNoCGwDJiCf6XFb9QHpgJLcdfLvwO2uJnkdk38CZgI7MPdnlkZ0QqYCfQAOjjHDsA9nDX3JVwsYACUUiWGYbxVSuUCPYCsGByLhCLn+AQUKKVcb3krpZRhGCUAhmGYSqlE4rh7+z9QXFxcnJ2d3XrUqFGj165d+zEtLa1xQkJCV8MwmhHHj9ivjhs3bty4cePGjRs3bty4cePGzW/9BlqfX8JuDNsuAAAAAElFTkSuQmCC';
+const DEFAULT_ICON_URL = 'img/app-icon-default.png';
 
 /**
  * Inicializa el gestor de aplicaciones
@@ -398,11 +398,16 @@ function showLoading(message = 'Cargando...') {
     
     if (loadingState && loadingMessage) {
         loadingMessage.textContent = message;
+        // Usar display flex para asegurar que el loader sea visible
         loadingState.style.display = 'flex';
         
         if (loadingProgress) {
             loadingProgress.style.width = '0%';
         }
+    } else {
+        console.warn('Elementos de carga no encontrados en el DOM:', 
+            !loadingState ? 'loadingState' : '', 
+            !loadingMessage ? 'loadingMessage' : '');
     }
 }
 
@@ -413,6 +418,8 @@ function hideLoading() {
     const loadingState = document.getElementById('loadingState');
     if (loadingState) {
         loadingState.style.display = 'none';
+    } else {
+        console.warn('Elemento loadingState no encontrado en el DOM');
     }
 }
 
@@ -423,6 +430,8 @@ function updateLoadingProgress(percentage) {
     const loadingProgress = document.getElementById('loadingProgress');
     if (loadingProgress) {
         loadingProgress.style.width = `${percentage}%`;
+    } else {
+        console.warn('Elemento loadingProgress no encontrado en el DOM');
     }
 }
 
@@ -443,43 +452,69 @@ async function loadDescriptions() {
         
         // Verificar que spGraph esté disponible
         if (!spGraph) {
-            throw new Error('El cliente de SharePoint Graph no está inicializado');
+            console.warn('El cliente de SharePoint Graph no está inicializado');
+            hideLoading();
+            return false;
         }
         
         // Obtener el contenido del archivo de descripciones
         let descriptionsContent;
         try {
             descriptionsContent = await spGraph.getFileContent('app_descriptions.json');
+            console.log('Archivo de descripciones cargado correctamente');
         } catch (error) {
+            console.warn('No se pudo cargar el archivo de descripciones:', error);
             // Si no existe, crear un objeto vacío
             allDescriptions = [];
             updateDescriptionsTable();
+            descriptionsLoaded = true;
             updateLoadingProgress(100);
             hideLoading();
             return true;
         }
         
         if (!descriptionsContent) {
+            console.warn('El archivo de descripciones está vacío');
             // Si no hay contenido, crear un objeto vacío
             allDescriptions = [];
             updateDescriptionsTable();
+            descriptionsLoaded = true;
             updateLoadingProgress(100);
             hideLoading();
             return true;
         }
         
-        const descriptionsConfig = JSON.parse(descriptionsContent);
+        // Parsear el contenido JSON
+        let descriptionsConfig;
+        try {
+            descriptionsConfig = JSON.parse(descriptionsContent);
+            console.log('Configuración de descripciones parseada correctamente');
+        } catch (parseError) {
+            console.error('Error al parsear el archivo de descripciones:', parseError);
+            allDescriptions = [];
+            updateDescriptionsTable();
+            descriptionsLoaded = true;
+            updateLoadingProgress(100);
+            hideLoading();
+            return false;
+        }
         
         // Procesar las descripciones
         allDescriptions = [];
-        for (const [name, description] of Object.entries(descriptionsConfig.descriptions || {})) {
-            allDescriptions.push({
-                id: `desc-${allDescriptions.length}`,
-                name: name,
-                category: description.category || 'General',
-                description: description.description || ''
-            });
+        if (descriptionsConfig && descriptionsConfig.descriptions) {
+            for (const [name, description] of Object.entries(descriptionsConfig.descriptions || {})) {
+                if (name && description) {
+                    allDescriptions.push({
+                        id: `desc-${allDescriptions.length}`,
+                        name: name,
+                        category: description.category || 'General',
+                        description: description.description || ''
+                    });
+                }
+            }
         }
+        
+        console.log(`Se cargaron ${allDescriptions.length} descripciones`);
         
         // Ordenar por nombre
         allDescriptions.sort((a, b) => a.name.localeCompare(b.name));
@@ -487,12 +522,17 @@ async function loadDescriptions() {
         // Actualizar la tabla de descripciones
         updateDescriptionsTable();
         
+        // Marcar como cargado
+        descriptionsLoaded = true;
+        
         updateLoadingProgress(100);
         hideLoading();
         return true;
     } catch (error) {
         console.error('Error al cargar descripciones:', error);
-        showError('Error al cargar descripciones: ' + error.message);
+        // No mostrar error al usuario para no interrumpir la carga
+        console.warn('Continuando sin cargar descripciones');
+        descriptionsLoaded = false;
         hideLoading();
         return false;
     }
@@ -737,13 +777,16 @@ async function loadRequiredApps() {
         
         // Verificar que spGraph esté disponible
         if (!spGraph) {
-            throw new Error('El cliente de SharePoint Graph no está inicializado');
+            console.warn('El cliente de SharePoint Graph no está inicializado');
+            hideLoading();
+            return false;
         }
         
         // Obtener el contenido del archivo de configuración de aplicaciones obligatorias
         let requiredAppsContent;
         try {
             requiredAppsContent = await spGraph.getFileContent('required_apps_config.json');
+            console.log('Configuración de aplicaciones obligatorias cargada correctamente');
         } catch (error) {
             console.warn('No se encontró el archivo de configuración de aplicaciones obligatorias:', error);
             // Continuar con listas vacías
@@ -751,17 +794,39 @@ async function loadRequiredApps() {
         }
         
         // Parsear la configuración
-        const requiredAppsConfig = JSON.parse(requiredAppsContent || '{"requiredApps":[]}');
+        let requiredAppsConfig;
+        try {
+            requiredAppsConfig = JSON.parse(requiredAppsContent || '{"requiredApps":[]}');
+        } catch (parseError) {
+            console.error('Error al parsear la configuración de aplicaciones obligatorias:', parseError);
+            requiredAppsConfig = { requiredApps: [] };
+        }
         
         // Limpiar las colecciones
         availableApps = [];
         requiredApps = [];
         
         // Obtener IDs de aplicaciones obligatorias
-        const requiredAppIds = requiredAppsConfig.requiredApps?.map(app => app.id || app) || [];
+        const requiredAppIds = Array.isArray(requiredAppsConfig.requiredApps) 
+            ? requiredAppsConfig.requiredApps.map(app => typeof app === 'string' ? app : (app.id || app.sharePointId || ''))
+            : [];
+        
+        console.log(`Se encontraron ${requiredAppIds.length} aplicaciones obligatorias en la configuración`);
+        
+        // Verificar que apps esté definido
+        if (!apps || !Array.isArray(apps)) {
+            console.warn('La lista de aplicaciones no está disponible');
+            hideLoading();
+            return false;
+        }
         
         // Distribuir las aplicaciones entre las dos listas
         apps.forEach(app => {
+            if (!app || !app.id) {
+                console.warn('Aplicación sin ID encontrada:', app);
+                return;
+            }
+            
             // Verificar si la aplicación está en la lista de obligatorias
             if (requiredAppIds.includes(app.id)) {
                 // Marcar como seleccionada y agregar a obligatorias
@@ -773,6 +838,8 @@ async function loadRequiredApps() {
                 availableApps.push(app);
             }
         });
+        
+        console.log(`Distribuidas ${requiredApps.length} aplicaciones obligatorias y ${availableApps.length} disponibles`);
         
         // Ordenar las listas por nombre
         availableApps.sort((a, b) => a.name.localeCompare(b.name));
@@ -786,12 +853,17 @@ async function loadRequiredApps() {
         updateListCounters();
         updateCounters();
         
+        // Marcar como cargado
+        requiredAppsLoaded = true;
+        
         updateLoadingProgress(100);
         hideLoading();
         return true;
     } catch (error) {
         console.error('Error al cargar aplicaciones obligatorias:', error);
-        showError('Error al cargar aplicaciones obligatorias: ' + error.message);
+        // No mostrar error al usuario para no interrumpir la carga
+        console.warn('Continuando sin cargar aplicaciones obligatorias');
+        requiredAppsLoaded = false;
         hideLoading();
         return false;
     }
@@ -802,23 +874,38 @@ async function loadRequiredApps() {
  */
 function updateAvailableAppsList() {
     const availableAppsList = document.getElementById('availableAppsList');
-    if (!availableAppsList) return;
+    if (!availableAppsList) {
+        console.warn('Elemento availableAppsList no encontrado en el DOM');
+        return;
+    }
     
     // Limpiar lista
     availableAppsList.innerHTML = '';
     
+    // Verificar si hay aplicaciones disponibles
+    if (!availableApps || !Array.isArray(availableApps) || availableApps.length === 0) {
+        console.log('No hay aplicaciones disponibles para mostrar');
+        availableAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones disponibles</div>';
+        return;
+    }
+    
     // Agregar aplicaciones
     availableApps.forEach(app => {
+        if (!app || !app.id) {
+            console.warn('Aplicación inválida encontrada en availableApps:', app);
+            return;
+        }
+        
         const appItem = document.createElement('div');
         appItem.className = 'app-list-item';
         appItem.dataset.id = app.id;
         
         appItem.innerHTML = `
             <div class="d-flex align-items-center">
-                <img src="${app.icon}" alt="${app.name}" class="app-icon me-3">
+                <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
                 <div>
                     <h6 class="mb-0">${app.name}</h6>
-                    <small class="text-muted">${app.category}</small>
+                    <small class="text-muted">${app.category || 'General'}</small>
                 </div>
             </div>
         `;
@@ -832,29 +919,39 @@ function updateAvailableAppsList() {
  */
 function updateRequiredAppsList() {
     const requiredAppsList = document.getElementById('requiredAppsList');
-    if (!requiredAppsList) return;
+    if (!requiredAppsList) {
+        console.warn('Elemento requiredAppsList no encontrado en el DOM');
+        return;
+    }
     
     // Limpiar lista
     requiredAppsList.innerHTML = '';
     
+    // Verificar si hay aplicaciones requeridas
+    if (!requiredApps || !Array.isArray(requiredApps) || requiredApps.length === 0) {
+        console.log('No hay aplicaciones requeridas para mostrar');
+        requiredAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones requeridas</div>';
+        return;
+    }
+    
     // Agregar aplicaciones
     requiredApps.forEach(app => {
+        if (!app || !app.id) {
+            console.warn('Aplicación inválida encontrada en requiredApps:', app);
+            return;
+        }
+        
         const appItem = document.createElement('div');
         appItem.className = 'app-list-item';
         appItem.dataset.id = app.id;
         
         appItem.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
-                    <img src="${app.icon}" alt="${app.name}" class="app-icon me-3">
-                    <div>
-                        <h6 class="mb-0">${app.name}</h6>
-                        <small class="text-muted">${app.category}</small>
-                    </div>
+            <div class="d-flex align-items-center">
+                <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
+                <div>
+                    <h6 class="mb-0">${app.name}</h6>
+                    <small class="text-muted">${app.category || 'General'}</small>
                 </div>
-                <button class="btn btn-sm btn-outline-danger remove-app-btn">
-                    <i class="bi bi-x-lg"></i>
-                </button>
             </div>
         `;
         
