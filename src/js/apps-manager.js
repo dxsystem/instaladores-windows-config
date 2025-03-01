@@ -93,32 +93,128 @@ async function loadApps() {
         
         // Obtener la configuración ELITE (todas las aplicaciones)
         const eliteConfig = await getEliteConfig();
-        if (!eliteConfig || !eliteConfig.applications) {
-            throw new Error('No se pudo obtener la configuración de aplicaciones');
-        }
         
-        // Procesar las aplicaciones
-        allApps = eliteConfig.applications.map((app, index) => {
-            // Extraer categoría
-            const category = app.category || 'General';
-            categories.add(category);
+        // Obtener la lista de archivos de la carpeta exe
+        const exeFiles = await spGraph.getExeFiles();
+        console.log('Archivos encontrados en la carpeta exe:', exeFiles);
+        
+        updateLoadingProgress(50);
+        
+        // Si no hay configuración o no hay aplicaciones, crear una configuración inicial
+        if (!eliteConfig || !eliteConfig.applications || eliteConfig.applications.length === 0) {
+            console.log('No hay configuración de aplicaciones, creando una inicial basada en los archivos encontrados');
             
-            return {
-                id: app.sharePointId || `app-${index}`,
-                name: app.name || '',
-                fileName: app.fileName || '',
-                category: category,
-                description: app.description || '',
-                version: app.version || '',
-                size: app.size || 0,
-                lastModified: app.lastModified ? new Date(app.lastModified) : new Date(),
-                installationOrder: app.installationOrder || (index + 1),
-                icon: DEFAULT_ICON_URL
-            };
-        });
-        
-        // Ordenar por nombre
-        allApps.sort((a, b) => a.name.localeCompare(b.name));
+            // Crear aplicaciones a partir de los archivos encontrados
+            allApps = exeFiles.map((file, index) => {
+                // Extraer extensión y nombre base
+                const fileName = file.name;
+                const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+                const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+                
+                // Determinar categoría basada en la extensión
+                let category = 'General';
+                if (extension === 'exe') category = 'Aplicación';
+                else if (extension === 'msi') category = 'Instalador';
+                else if (extension === 'zip' || extension === 'rar') category = 'Comprimido';
+                else if (extension === 'bat' || extension === 'cmd') category = 'Script';
+                
+                // Agregar categoría al conjunto
+                categories.add(category);
+                
+                return {
+                    id: file.id,
+                    name: baseName,
+                    fileName: fileName,
+                    category: category,
+                    description: `Software profesional ${baseName}`,
+                    version: '',
+                    size: file.size || 0,
+                    lastModified: file.lastModified ? new Date(file.lastModified) : new Date(),
+                    installationOrder: index + 1,
+                    icon: DEFAULT_ICON_URL
+                };
+            });
+            
+            // Ordenar por nombre
+            allApps.sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Guardar la configuración inicial
+            await syncApps();
+        } else {
+            // Usar la configuración existente y actualizar con información de los archivos
+            console.log('Usando configuración existente y actualizando con información de archivos');
+            
+            // Procesar las aplicaciones
+            allApps = eliteConfig.applications.map((app, index) => {
+                // Buscar el archivo correspondiente
+                const file = exeFiles.find(f => f.name === app.fileName);
+                
+                // Extraer categoría
+                const category = app.category || 'General';
+                categories.add(category);
+                
+                return {
+                    id: app.sharePointId || file?.id || `app-${index}`,
+                    name: app.name || '',
+                    fileName: app.fileName || '',
+                    category: category,
+                    description: app.description || '',
+                    version: app.version || '',
+                    size: app.size || (file?.size || 0),
+                    lastModified: app.lastModified ? new Date(app.lastModified) : (file?.lastModified ? new Date(file.lastModified) : new Date()),
+                    installationOrder: app.installationOrder || (index + 1),
+                    icon: DEFAULT_ICON_URL
+                };
+            });
+            
+            // Agregar archivos que no estén en la configuración
+            const configuredFileNames = allApps.map(app => app.fileName);
+            const newFiles = exeFiles.filter(file => !configuredFileNames.includes(file.name));
+            
+            if (newFiles.length > 0) {
+                console.log(`Se encontraron ${newFiles.length} archivos nuevos que no están en la configuración`);
+                
+                // Agregar los nuevos archivos a la lista de aplicaciones
+                const newApps = newFiles.map((file, index) => {
+                    // Extraer extensión y nombre base
+                    const fileName = file.name;
+                    const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+                    const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+                    
+                    // Determinar categoría basada en la extensión
+                    let category = 'General';
+                    if (extension === 'exe') category = 'Aplicación';
+                    else if (extension === 'msi') category = 'Instalador';
+                    else if (extension === 'zip' || extension === 'rar') category = 'Comprimido';
+                    else if (extension === 'bat' || extension === 'cmd') category = 'Script';
+                    
+                    // Agregar categoría al conjunto
+                    categories.add(category);
+                    
+                    return {
+                        id: file.id,
+                        name: baseName,
+                        fileName: fileName,
+                        category: category,
+                        description: `Software profesional ${baseName}`,
+                        version: '',
+                        size: file.size || 0,
+                        lastModified: file.lastModified ? new Date(file.lastModified) : new Date(),
+                        installationOrder: allApps.length + index + 1,
+                        icon: DEFAULT_ICON_URL
+                    };
+                });
+                
+                // Agregar las nuevas aplicaciones a la lista
+                allApps = [...allApps, ...newApps];
+                
+                // Ordenar por nombre
+                allApps.sort((a, b) => a.name.localeCompare(b.name));
+                
+                // Guardar la configuración actualizada
+                await syncApps();
+            }
+        }
         
         // Actualizar la tabla de aplicaciones
         updateAppsTable();

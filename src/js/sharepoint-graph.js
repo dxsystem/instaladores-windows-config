@@ -643,7 +643,8 @@ class SharePointGraph {
             const token = await this.getAccessToken();
             
             // Construir la URL para obtener el archivo
-            const url = `${this.graphEndpoint}/sites/${this.siteId}/drive/root:/${fileName}:/content`;
+            // Usar la ruta correcta dentro de InstaladoresWindowsCOnline
+            const url = `${this.graphEndpoint}/sites/${this.siteId}/drive/root:/InstaladoresWindowsCOnline/${fileName}:/content`;
             
             console.log(`URL para obtener archivo: ${url}`);
             
@@ -658,6 +659,39 @@ class SharePointGraph {
             
             if (!response.ok) {
                 console.error(`Error al obtener archivo: ${response.status} ${response.statusText}`);
+                
+                // Si el archivo no existe, intentar crearlo con un contenido inicial
+                if (response.status === 404) {
+                    console.log(`El archivo ${fileName} no existe, intentando crear una estructura inicial...`);
+                    
+                    // Crear estructura inicial según el tipo de archivo
+                    let initialContent = "{}";
+                    
+                    if (fileName === 'elite_apps_config.json') {
+                        initialContent = JSON.stringify({
+                            lastUpdate: new Date().toISOString(),
+                            applications: []
+                        }, null, 2);
+                    } else if (fileName === 'app_descriptions.json') {
+                        initialContent = JSON.stringify({
+                            lastUpdate: new Date().toISOString(),
+                            descriptions: {}
+                        }, null, 2);
+                    } else if (fileName === 'required_apps_config.json') {
+                        initialContent = JSON.stringify({
+                            lastUpdate: new Date().toISOString(),
+                            requiredApps: []
+                        }, null, 2);
+                    }
+                    
+                    // Intentar crear el archivo
+                    const created = await this.saveFileContent(fileName, initialContent);
+                    if (created) {
+                        console.log(`Archivo ${fileName} creado con estructura inicial`);
+                        return initialContent;
+                    }
+                }
+                
                 return null;
             }
             
@@ -691,7 +725,8 @@ class SharePointGraph {
             const token = await this.getAccessToken(true);
             
             // Construir la URL para guardar el archivo
-            const url = `${this.graphEndpoint}/sites/${this.siteId}/drive/root:/${fileName}:/content`;
+            // Usar la ruta correcta dentro de InstaladoresWindowsCOnline
+            const url = `${this.graphEndpoint}/sites/${this.siteId}/drive/root:/InstaladoresWindowsCOnline/${fileName}:/content`;
             
             console.log(`URL para guardar archivo: ${url}`);
             
@@ -715,6 +750,62 @@ class SharePointGraph {
         } catch (error) {
             console.error(`Error al guardar contenido en el archivo ${fileName}:`, error);
             return false;
+        }
+    }
+
+    /**
+     * Obtiene la lista de archivos en la carpeta exe de SharePoint
+     * @returns {Promise<Array>} Lista de archivos
+     */
+    async getExeFiles() {
+        try {
+            console.log('Obteniendo lista de archivos de la carpeta exe...');
+            
+            // Asegurarse de que tenemos el siteId
+            if (!this.siteId) {
+                await this.getSiteId();
+            }
+            
+            // Obtener token de acceso
+            const token = await this.getAccessToken();
+            
+            // Construir la URL para obtener los archivos de la carpeta exe
+            const url = `${this.graphEndpoint}/sites/${this.siteId}/drive/root:/InstaladoresWindowsCOnline/exe:/children`;
+            
+            console.log(`URL para obtener archivos: ${url}`);
+            
+            // Realizar la petición
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                console.error(`Error al obtener archivos: ${response.status} ${response.statusText}`);
+                return [];
+            }
+            
+            // Obtener la respuesta como JSON
+            const data = await response.json();
+            console.log(`Se encontraron ${data.value?.length || 0} archivos en la carpeta exe`);
+            
+            // Procesar los archivos
+            const files = data.value?.map(file => ({
+                id: file.id,
+                name: file.name,
+                size: file.size,
+                lastModified: file.lastModifiedDateTime,
+                downloadUrl: file['@microsoft.graph.downloadUrl'],
+                webUrl: file.webUrl
+            })) || [];
+            
+            return files;
+        } catch (error) {
+            console.error('Error al obtener archivos de la carpeta exe:', error);
+            return [];
         }
     }
 }
