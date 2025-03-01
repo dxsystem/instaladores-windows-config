@@ -135,7 +135,27 @@ class UserManager {
      * @returns {Object|null} Usuario encontrado o null si no existe
      */
     getUserById(id) {
-        return this.users.find(user => user.id === id) || null;
+        if (!id) {
+            console.warn('getUserById: ID inválido', id);
+            return null;
+        }
+        
+        // Convertir a string para comparación segura
+        const idStr = String(id);
+        console.log(`Buscando usuario con ID: ${idStr}`);
+        
+        const user = this.users.find(user => {
+            if (!user || !user.id) return false;
+            return String(user.id) === idStr;
+        });
+        
+        if (user) {
+            console.log(`Usuario encontrado por ID ${idStr}: ${user.email}`);
+        } else {
+            console.log(`No se encontró usuario con ID ${idStr}`);
+        }
+        
+        return user || null;
     }
 
     /**
@@ -288,20 +308,33 @@ class UserManager {
 
     /**
      * Actualiza un usuario existente
-     * @param {string} id - ID del usuario
-     * @param {Object} userData - Datos actualizados del usuario
+     * @param {Object} userData - Datos del usuario a actualizar
      * @returns {Promise<Object>} Usuario actualizado
      */
-    async updateUser(id, userData) {
+    async updateUser(userData) {
         try {
+            if (!userData) {
+                throw new Error('Datos de usuario no proporcionados');
+            }
+            
+            // Asegurarse de que tenemos un ID válido
+            const id = userData.id;
+            if (!id) {
+                throw new Error('ID de usuario no proporcionado');
+            }
+            
+            console.log(`Actualizando usuario con ID: ${id}`);
+            
             // Verificar si el usuario existe
-            const existingUser = this.getUserById(id);
+            const existingUser = await this.getUserById(id);
             if (!existingUser) {
                 throw new Error(`No se encontró el usuario con ID ${id}`);
             }
             
+            console.log(`Usuario encontrado: ${existingUser.email} (ID: ${id})`);
+            
             // Verificar si el email ya está en uso por otro usuario
-            if (userData.email !== existingUser.email) {
+            if (userData.email && userData.email !== existingUser.email) {
                 const userWithSameEmail = this.getUserByEmail(userData.email);
                 if (userWithSameEmail && userWithSameEmail.id !== id) {
                     throw new Error(`El email ${userData.email} ya está en uso por otro usuario`);
@@ -310,13 +343,15 @@ class UserManager {
             
             // Preparar datos para actualizar
             const updateData = {
-                Email: userData.email,
+                Email: userData.email || existingUser.email,
                 SubscriptionType: userData.subscriptionType || existingUser.subscriptionType || 'Gratuita',
                 StartDate: userData.startDate || existingUser.startDate,
                 EndDate: userData.endDate || existingUser.endDate,
                 IsActive: userData.isActive === undefined ? existingUser.isActive : userData.isActive,
                 FailedLoginAttempts: existingUser.failedLoginAttempts || 0
             };
+            
+            console.log('Datos para actualizar:', updateData);
             
             // Solo actualizar la contraseña si se proporciona una nueva
             if (userData.password) {

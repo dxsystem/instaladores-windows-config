@@ -519,21 +519,39 @@ class UserImporter {
         for (const index of this.selectedUsers) {
             const user = this.users[index];
             try {
-                const existingUser = await this.userManager.findUserByEmail(user.email);
-                if (existingUser) {
+                // Verificar si el usuario ya existe (usando el objeto existingUser que ya tenemos)
+                if (user.estado === 'Actualizar' && user.existingUser && user.existingUser.id) {
+                    console.log(`Actualizando usuario existente: ${user.email} (ID: ${user.existingUser.id})`);
+                    
+                    // Usar el ID del usuario existente para la actualización
                     await this.userManager.updateUser({
-                        ...existingUser,
+                        id: user.existingUser.id,  // Asegurarse de incluir el ID
+                        email: user.email,
                         subscriptionType: user.subscriptionType,
                         startDate: user.startDate,
                         endDate: user.endDate,
-                        isActive: user.isActive
+                        isActive: user.isActive !== undefined ? user.isActive : true
                     });
+                    
+                    console.log(`Usuario actualizado correctamente: ${user.email}`);
                     results.updated++;
                 } else {
-                    await this.userManager.createUser(user);
+                    console.log(`Creando nuevo usuario: ${user.email}`);
+                    
+                    // Crear nuevo usuario
+                    await this.userManager.createUser({
+                        email: user.email,
+                        subscriptionType: user.subscriptionType,
+                        startDate: user.startDate,
+                        endDate: user.endDate,
+                        isActive: user.isActive !== undefined ? user.isActive : true
+                    });
+                    
+                    console.log(`Usuario creado correctamente: ${user.email}`);
                     results.success++;
                 }
             } catch (error) {
+                console.error(`Error al procesar usuario ${user.email}:`, error);
                 results.errors.push({
                     email: user.email,
                     error: error.message,
