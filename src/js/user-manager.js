@@ -144,7 +144,9 @@ class UserManager {
      * @returns {Object|null} Usuario encontrado o null si no existe
      */
     getUserByEmail(email) {
-        return this.users.find(user => user.email === email) || null;
+        if (!email) return null;
+        const emailLower = email.toLowerCase();
+        return this.users.find(user => user.email && user.email.toLowerCase() === emailLower) || null;
     }
 
     /**
@@ -180,8 +182,12 @@ class UserManager {
         try {
             if (!emails || emails.length === 0) return [];
             
+            console.log(`Buscando ${emails.length} usuarios por email en SharePoint...`);
+            
             // Filtrar emails vacíos y duplicados
             const uniqueEmails = [...new Set(emails.filter(email => email))];
+            console.log(`Emails únicos a buscar: ${uniqueEmails.length}`);
+            console.log('Lista de emails:', uniqueEmails);
             
             // Buscar primero en la caché local
             const result = [];
@@ -190,29 +196,51 @@ class UserManager {
             uniqueEmails.forEach(email => {
                 const cachedUser = this.getUserByEmail(email);
                 if (cachedUser) {
+                    console.log(`Usuario encontrado en caché: ${email}`);
                     result.push(cachedUser);
                 } else {
+                    console.log(`Usuario no encontrado en caché, se buscará en SharePoint: ${email}`);
                     emailsToSearch.push(email);
                 }
             });
             
             // Si todos los usuarios están en caché, retornar inmediatamente
-            if (emailsToSearch.length === 0) return result;
+            if (emailsToSearch.length === 0) {
+                console.log('Todos los usuarios fueron encontrados en caché');
+                return result;
+            }
+            
+            console.log(`Buscando ${emailsToSearch.length} usuarios en SharePoint...`);
             
             // Construir filtro para buscar los emails restantes
-            // Limitamos a 10 emails por consulta para evitar URLs demasiado largas
-            const batchSize = 10;
+            // Limitamos a 5 emails por consulta para evitar URLs demasiado largas
+            const batchSize = 5;
             for (let i = 0; i < emailsToSearch.length; i += batchSize) {
                 const batch = emailsToSearch.slice(i, i + batchSize);
-                const filterParts = batch.map(email => `fields/Email eq '${email}'`);
+                console.log(`Procesando lote ${i/batchSize + 1} con ${batch.length} emails`);
+                
+                // Construir filtro OData para buscar por email
+                const filterParts = batch.map(email => `fields/Email eq '${email.replace(/'/g, "''")}'`);
                 const filter = filterParts.join(' or ');
                 
-                const users = await this.spGraph.getUsersByFilter(filter);
-                if (users && users.length > 0) {
-                    result.push(...users);
+                console.log(`Filtro OData: ${filter}`);
+                
+                try {
+                    const users = await this.spGraph.getUsersByFilter(filter);
+                    console.log(`Encontrados ${users.length} usuarios en SharePoint para este lote`);
+                    
+                    if (users && users.length > 0) {
+                        users.forEach(user => {
+                            console.log(`Usuario encontrado en SharePoint: ${user.email}`);
+                        });
+                        result.push(...users);
+                    }
+                } catch (batchError) {
+                    console.error(`Error al procesar lote de emails:`, batchError);
                 }
             }
             
+            console.log(`Total de usuarios encontrados: ${result.length}`);
             return result;
         } catch (error) {
             console.error(`Error al buscar usuarios por emails:`, error);

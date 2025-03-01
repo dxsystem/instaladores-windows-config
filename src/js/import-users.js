@@ -241,109 +241,147 @@ class UserImporter {
         return null;
     }
 
-    // Muestra la previsualización de los datos
+    // Muestra la previsualización de los usuarios a importar
     async showPreview() {
-        // Limpiar tabla de previsualización
-        this.previewTableBody.innerHTML = '';
-        
-        // Buscar usuarios existentes para comparar
-        const emails = this.users.map(user => user.email);
-        const existingUsers = await this.userManager.findUsersByEmails(emails);
-        
-        // Crear un mapa de usuarios existentes por email para facilitar la búsqueda
-        const existingUsersMap = {};
-        existingUsers.forEach(user => {
-            existingUsersMap[user.email.toLowerCase()] = user;
-        });
-        
-        // Actualizar usuarios con información de usuarios existentes
-        this.users.forEach(user => {
-            const existingUser = existingUsersMap[user.email.toLowerCase()];
-            if (existingUser) {
-                user.existingUser = existingUser;
-                user.estado = 'Actualizar';
-            } else {
-                user.estado = 'Nuevo';
+        try {
+            if (!this.users || this.users.length === 0) {
+                this.showAlert('No hay usuarios para importar', 'warning');
+                return;
             }
-        });
-        
-        // Crear encabezados de tabla más similares a la imagen 2
-        const headerRow = document.createElement('tr');
-        headerRow.innerHTML = `
-            <th width="50">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="selectAllCheckbox" checked>
-                </div>
-            </th>
-            <th>Email</th>
-            <th>Estado</th>
-            <th>Suscripción Actual</th>
-            <th>Nueva Suscripción</th>
-            <th>Vigencia Actual</th>
-            <th>Nueva Vigencia</th>
-            <th>Validación</th>
-        `;
-        
-        // Reemplazar encabezados existentes
-        const thead = this.previewTableBody.parentElement.querySelector('thead');
-        if (thead) {
-            thead.innerHTML = '';
-            thead.appendChild(headerRow);
-        }
-        
-        // Agregar filas de usuarios
-        this.users.forEach((user, index) => {
-            if (!user || !user.email) return; // Saltar filas vacías
             
-            const row = document.createElement('tr');
-            row.className = user.error ? 'table-danger' : '';
+            this.showLoading('Verificando usuarios existentes...');
             
-            // Determinar si hay cambios en los datos
-            const existingUser = user.existingUser;
-            const subscriptionChanged = existingUser && existingUser.subscriptionType !== user.subscriptionType;
-            const datesChanged = existingUser && (
-                existingUser.startDate !== user.startDate || 
-                existingUser.endDate !== user.endDate
-            );
+            // Limpiar selecciones previas
+            this.selectedUsers.clear();
+            this.previewTableBody.innerHTML = '';
             
-            row.innerHTML = `
-                <td>
+            // Obtener todos los emails para buscar usuarios existentes
+            const emails = this.users.map(user => user.email).filter(email => email);
+            console.log(`Buscando ${emails.length} emails en SharePoint...`);
+            
+            // Buscar usuarios existentes por email
+            const existingUsers = await this.userManager.findUsersByEmails(emails);
+            console.log(`Se encontraron ${existingUsers.length} usuarios existentes en SharePoint`);
+            
+            // Crear un mapa de usuarios existentes por email para facilitar la búsqueda
+            const existingUsersMap = {};
+            existingUsers.forEach(user => {
+                if (user && user.email) {
+                    const emailLower = user.email.toLowerCase();
+                    existingUsersMap[emailLower] = user;
+                    console.log(`Usuario existente mapeado: ${emailLower}`);
+                }
+            });
+            
+            console.log('Mapa de usuarios existentes:', Object.keys(existingUsersMap));
+            
+            // Actualizar usuarios con información de usuarios existentes
+            this.users.forEach(user => {
+                if (user && user.email) {
+                    const emailLower = user.email.toLowerCase();
+                    const existingUser = existingUsersMap[emailLower];
+                    
+                    if (existingUser) {
+                        console.log(`Usuario encontrado en SharePoint: ${user.email}`);
+                        user.existingUser = existingUser;
+                        user.estado = 'Actualizar';
+                    } else {
+                        console.log(`Usuario nuevo, no existe en SharePoint: ${user.email}`);
+                        user.estado = 'Nuevo';
+                    }
+                }
+            });
+            
+            // Crear encabezados de tabla más similares a la imagen 2
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = `
+                <th width="50">
                     <div class="form-check">
-                        <input class="form-check-input user-checkbox" type="checkbox" value="${index}" 
-                            ${user.selected ? 'checked' : ''} ${user.error ? 'disabled' : ''}>
+                        <input class="form-check-input" type="checkbox" id="selectAllCheckbox" checked>
                     </div>
-                </td>
-                <td>${this.escapeHtml(user.email)}</td>
-                <td>
-                    <span class="badge ${user.estado === 'Nuevo' ? 'bg-primary' : 'bg-warning text-dark'}">
-                        ${user.estado}
-                    </span>
-                </td>
-                <td>${existingUser ? this.escapeHtml(existingUser.subscriptionType || '-') : '-'}</td>
-                <td>${this.escapeHtml(user.subscriptionType)}</td>
-                <td>${existingUser ? (existingUser.startDate ? `${existingUser.startDate} - ${existingUser.endDate}` : '-') : '-'}</td>
-                <td>${user.startDate} - ${user.endDate}</td>
-                <td>
-                    ${user.error ? 
-                        `<span class="badge bg-danger" title="${this.escapeHtml(user.error)}">Error</span>` : 
-                        '<span class="badge bg-success">Válido</span>'}
-                </td>
+                </th>
+                <th>Email</th>
+                <th>Estado</th>
+                <th>Suscripción Actual</th>
+                <th>Nueva Suscripción</th>
+                <th>Vigencia Actual</th>
+                <th>Nueva Vigencia</th>
+                <th>Validación</th>
             `;
             
-            // Agregar evento de cambio al checkbox
-            const checkbox = row.querySelector('.user-checkbox');
-            checkbox.addEventListener('change', (e) => this.handleUserSelection(e, index));
-            
-            if (user.selected && !user.error) {
-                this.selectedUsers.add(index);
+            // Reemplazar encabezados existentes
+            const thead = this.previewTableBody.parentElement.querySelector('thead');
+            if (thead) {
+                thead.innerHTML = '';
+                thead.appendChild(headerRow);
             }
             
-            this.previewTableBody.appendChild(row);
-        });
-        
-        this.updateSelectionCounters();
-        this.previewContainer.classList.remove('d-none');
-        this.importButtonContainer.classList.remove('d-none');
+            // Agregar filas de usuarios
+            this.users.forEach((user, index) => {
+                if (!user || !user.email) return; // Saltar filas vacías
+                
+                const row = document.createElement('tr');
+                row.className = user.error ? 'table-danger' : '';
+                
+                // Determinar si hay cambios en los datos
+                const existingUser = user.existingUser;
+                const subscriptionChanged = existingUser && existingUser.subscriptionType !== user.subscriptionType;
+                const datesChanged = existingUser && (
+                    existingUser.startDate !== user.startDate || 
+                    existingUser.endDate !== user.endDate
+                );
+                
+                row.innerHTML = `
+                    <td>
+                        <div class="form-check">
+                            <input class="form-check-input user-checkbox" type="checkbox" value="${index}" 
+                                ${user.selected ? 'checked' : ''} ${user.error ? 'disabled' : ''}>
+                        </div>
+                    </td>
+                    <td>${this.escapeHtml(user.email)}</td>
+                    <td>
+                        <span class="badge ${user.estado === 'Nuevo' ? 'bg-primary' : 'bg-warning text-dark'}">
+                            ${user.estado}
+                        </span>
+                    </td>
+                    <td>${existingUser ? this.escapeHtml(existingUser.subscriptionType || '-') : '-'}</td>
+                    <td>${this.escapeHtml(user.subscriptionType)}</td>
+                    <td>${existingUser ? (existingUser.startDate ? `${existingUser.startDate.substring(0, 10)} - ${existingUser.endDate.substring(0, 10)}` : '-') : '-'}</td>
+                    <td>${user.startDate} - ${user.endDate}</td>
+                    <td>
+                        ${user.error ? 
+                            `<span class="badge bg-danger" title="${this.escapeHtml(user.error)}">Error</span>` : 
+                            '<span class="badge bg-success">Válido</span>'}
+                    </td>
+                `;
+                
+                // Agregar evento de cambio al checkbox
+                const checkbox = row.querySelector('.user-checkbox');
+                checkbox.addEventListener('change', (e) => this.handleUserSelection(e, index));
+                
+                if (user.selected && !user.error) {
+                    this.selectedUsers.add(index);
+                }
+                
+                this.previewTableBody.appendChild(row);
+            });
+            
+            this.updateSelectionCounters();
+            this.previewContainer.classList.remove('d-none');
+            this.importButtonContainer.classList.remove('d-none');
+            
+            // Ocultar el indicador de carga
+            this.hideLoading();
+            
+            console.log('Previsualización completada. Usuarios nuevos vs existentes:');
+            console.log('- Nuevos:', this.users.filter(u => u.estado === 'Nuevo').length);
+            console.log('- Actualizar:', this.users.filter(u => u.estado === 'Actualizar').length);
+            console.log('- Con errores:', this.users.filter(u => u.error).length);
+        } catch (error) {
+            console.error('Error al mostrar previsualización:', error);
+            this.hideLoading();
+            this.showAlert(`Error al verificar usuarios existentes: ${error.message}`, 'danger');
+        }
     }
 
     // Maneja la selección/deselección de usuarios

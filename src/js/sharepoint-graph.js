@@ -305,24 +305,31 @@ class SharePointGraph {
      */
     async getUsersByFilter(filter) {
         try {
+            console.log('Iniciando búsqueda de usuarios con filtro en SharePoint');
+            
             if (!this.siteId) {
+                console.log('Obteniendo siteId...');
                 await this.getSiteId();
             }
             
             if (!this.listId) {
+                console.log('Obteniendo listId...');
                 await this.getListId();
             }
             
             // Construir URL con el filtro
-            let url = `${this.graphEndpoint}/sites/${this.siteId}/lists/${this.listId}/items`;
+            let url = `${this.graphEndpoint}/sites/${this.siteId}/lists/${this.listId}/items?expand=fields`;
             if (filter) {
-                url += `?$filter=${encodeURIComponent(filter)}`;
+                url += `&$filter=${encodeURIComponent(filter)}`;
             }
+            
+            console.log('URL de consulta a SharePoint:', url);
             
             // Obtener token de acceso
             const accessToken = await this.getAccessToken();
             
             // Realizar la solicitud
+            console.log('Enviando solicitud a SharePoint...');
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -332,14 +339,27 @@ class SharePointGraph {
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Error ${response.status}: ${errorData.error ? errorData.error.message : 'Error desconocido'}`);
+                const errorText = await response.text();
+                let errorMessage = `Error ${response.status}: `;
+                
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage += errorData.error ? errorData.error.message : 'Error desconocido';
+                } catch (parseError) {
+                    errorMessage += errorText || 'Error desconocido';
+                }
+                
+                console.error('Error en respuesta de SharePoint:', errorMessage);
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
+            console.log(`Respuesta recibida de SharePoint. Items encontrados: ${data.value ? data.value.length : 0}`);
             
             // Procesar los resultados
-            return this._processUserItems(data.value || []);
+            const users = this._processUserItems(data.value || []);
+            console.log('Usuarios procesados:', users.length);
+            return users;
         } catch (error) {
             console.error('Error al obtener usuarios por filtro:', error);
             return [];
