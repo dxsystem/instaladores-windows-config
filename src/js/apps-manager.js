@@ -1167,60 +1167,6 @@ async function refreshData() {
 }
 
 /**
- * Sincroniza las aplicaciones con SharePoint
- */
-async function syncApps() {
-    try {
-        showLoading('Sincronizando aplicaciones...');
-        updateLoadingProgress(20);
-        
-        // Verificar que spGraph esté disponible
-        if (!spGraph) {
-            throw new Error('El cliente de SharePoint Graph no está inicializado');
-        }
-        
-        // Obtener la configuración ELITE
-        const eliteConfig = await getEliteConfig();
-        if (!eliteConfig) {
-            throw new Error('No se pudo obtener la configuración ELITE');
-        }
-        
-        // Actualizar aplicaciones
-        eliteConfig.applications = allApps.map(app => ({
-            sharePointId: app.id,
-            name: app.name,
-            fileName: app.fileName,
-            category: app.category,
-            description: app.description,
-            version: app.version,
-            size: app.size,
-            lastModified: app.lastModified.toISOString(),
-            installationOrder: app.installationOrder
-        }));
-        
-        // Actualizar fecha de última actualización
-        eliteConfig.lastUpdate = new Date().toISOString();
-        
-        // Convertir a JSON
-        const eliteConfigJson = JSON.stringify(eliteConfig, null, 2);
-        
-        // Subir archivo
-        await spGraph.saveFileContent('elite_apps_config.json', eliteConfigJson);
-        
-        updateLoadingProgress(100);
-        hideLoading();
-        
-        alert('Aplicaciones sincronizadas correctamente');
-        return true;
-    } catch (error) {
-        console.error('Error al sincronizar aplicaciones:', error);
-        showError('Error al sincronizar aplicaciones: ' + error.message);
-        hideLoading();
-        return false;
-    }
-}
-
-/**
  * Sincroniza todas las configuraciones con SharePoint
  * Replica la lógica de SyncButton_Click en la aplicación de escritorio
  */
@@ -1244,7 +1190,106 @@ async function syncAllConfigurations() {
         // Paso 2: Cargar y actualizar aplicaciones
         showLoading('Procesando aplicaciones...');
         updateLoadingProgress(40);
-        await loadApps(); // Esta función ya carga y actualiza las aplicaciones
+        
+        // Si no hay configuración o no hay aplicaciones, crear una configuración inicial
+        if (allApps.length === 0) {
+            console.log('No hay configuración de aplicaciones, creando una inicial basada en los archivos encontrados');
+            
+            // Crear aplicaciones a partir de los archivos encontrados
+            allApps = exeFiles.map((file, index) => {
+                // Extraer extensión y nombre base
+                const fileName = file.name;
+                const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+                const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+                
+                // Determinar categoría basada en la extensión
+                let category = 'General';
+                if (extension === 'exe') category = 'Aplicación';
+                else if (extension === 'msi') category = 'Instalador';
+                else if (extension === 'zip' || extension === 'rar') category = 'Comprimido';
+                else if (extension === 'bat' || extension === 'cmd') category = 'Script';
+                
+                // Agregar categoría al conjunto
+                categories.add(category);
+                
+                return {
+                    id: file.id,
+                    name: baseName,
+                    fileName: fileName,
+                    category: category,
+                    description: `Software profesional ${baseName}`,
+                    version: '',
+                    size: file.size || 0,
+                    lastModified: file.lastModified ? new Date(file.lastModified) : new Date(),
+                    installationOrder: index + 1,
+                    icon: DEFAULT_ICON_URL
+                };
+            });
+            
+            // Ordenar por nombre
+            allApps.sort((a, b) => a.name.localeCompare(b.name));
+        } else {
+            // Actualizar información de archivos existentes
+            allApps.forEach(app => {
+                const file = exeFiles.find(f => f.name === app.fileName);
+                if (file) {
+                    app.size = file.size || app.size;
+                    app.lastModified = file.lastModified ? new Date(file.lastModified) : app.lastModified;
+                }
+            });
+            
+            // Agregar archivos nuevos
+            const configuredFileNames = allApps.map(app => app.fileName);
+            const newFiles = exeFiles.filter(file => !configuredFileNames.includes(file.name));
+            
+            if (newFiles.length > 0) {
+                console.log(`Se encontraron ${newFiles.length} archivos nuevos que no están en la configuración`);
+                
+                // Agregar los nuevos archivos a la lista de aplicaciones
+                const newApps = newFiles.map((file, index) => {
+                    // Extraer extensión y nombre base
+                    const fileName = file.name;
+                    const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+                    const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+                    
+                    // Determinar categoría basada en la extensión
+                    let category = 'General';
+                    if (extension === 'exe') category = 'Aplicación';
+                    else if (extension === 'msi') category = 'Instalador';
+                    else if (extension === 'zip' || extension === 'rar') category = 'Comprimido';
+                    else if (extension === 'bat' || extension === 'cmd') category = 'Script';
+                    
+                    // Agregar categoría al conjunto
+                    categories.add(category);
+                    
+                    return {
+                        id: file.id,
+                        name: baseName,
+                        fileName: fileName,
+                        category: category,
+                        description: `Software profesional ${baseName}`,
+                        version: '',
+                        size: file.size || 0,
+                        lastModified: file.lastModified ? new Date(file.lastModified) : new Date(),
+                        installationOrder: allApps.length + index + 1,
+                        icon: DEFAULT_ICON_URL
+                    };
+                });
+                
+                // Agregar las nuevas aplicaciones a la lista
+                allApps = [...allApps, ...newApps];
+                
+                // Ordenar por nombre
+                allApps.sort((a, b) => a.name.localeCompare(b.name));
+            }
+        }
+        
+        // Actualizar la tabla de aplicaciones
+        updateAppsTable();
+        
+        // Actualizar el selector de categorías
+        updateCategoryFilter();
+        
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
         // Paso 3: Cargar y actualizar descripciones
@@ -1253,10 +1298,28 @@ async function syncAllConfigurations() {
         await loadDescriptions();
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
-        // Paso 4: Sincronizar aplicaciones (ELITE)
+        // Paso 4: Sincronizar configuración ELITE
         showLoading('Sincronizando configuración ELITE...');
         updateLoadingProgress(70);
-        await syncApps(); // Esta función ya sincroniza las aplicaciones ELITE
+        
+        // Crear configuración ELITE
+        const eliteConfig = {
+            lastUpdate: new Date().toISOString(),
+            applications: allApps.map(app => ({
+                sharePointId: app.id,
+                name: app.name,
+                fileName: app.fileName,
+                category: app.category,
+                description: app.description,
+                version: app.version,
+                size: app.size,
+                lastModified: app.lastModified.toISOString(),
+                installationOrder: app.installationOrder
+            }))
+        };
+        
+        // Guardar configuración ELITE
+        await spGraph.saveFileContent('elite_apps_config.json', JSON.stringify(eliteConfig, null, 2));
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
         // Paso 5: Crear configuración PRO (60% de las apps)
