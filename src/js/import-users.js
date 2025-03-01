@@ -264,15 +264,15 @@ class UserImporter {
             
             // Obtener todos los emails para buscar usuarios existentes
             const emails = this.users.map(user => user.email).filter(email => email);
-            console.log(`Buscando ${emails.length} emails en SharePoint para comparación...`);
+            console.log(`Comparando ${emails.length} emails con la lista de usuarios existentes...`);
             
             if (debugMode) {
-                console.log('Lista de emails a buscar:', emails);
+                console.log('Lista de emails a comparar:', emails);
             }
             
-            // Buscar usuarios existentes por email
+            // Buscar usuarios existentes por email (usando la lista local)
             const existingUsers = await this.userManager.findUsersByEmails(emails);
-            console.log(`Se encontraron ${existingUsers.length} usuarios existentes en SharePoint`);
+            console.log(`Se encontraron ${existingUsers.length} usuarios existentes en la lista local`);
             
             if (debugMode) {
                 console.log('Usuarios existentes encontrados:', existingUsers);
@@ -299,11 +299,11 @@ class UserImporter {
                     const existingUser = existingUsersMap[emailLower];
                     
                     if (existingUser) {
-                        console.log(`Usuario encontrado en SharePoint: ${user.email} (ID: ${existingUser.id})`);
+                        console.log(`Usuario encontrado: ${user.email} (ID: ${existingUser.id})`);
                         user.existingUser = existingUser;
                         user.estado = 'Actualizar';
                     } else {
-                        console.log(`Usuario nuevo, no existe en SharePoint: ${user.email}`);
+                        console.log(`Usuario nuevo, no existe: ${user.email}`);
                         user.estado = 'Nuevo';
                     }
                 }
@@ -314,15 +314,6 @@ class UserImporter {
             const actualizarCount = this.users.filter(u => u.estado === 'Actualizar').length;
             
             console.log(`Resumen de comparación: ${nuevosCount} nuevos, ${actualizarCount} a actualizar`);
-            
-            if (nuevosCount > 0 && existingUsers.length > 0) {
-                console.log('ADVERTENCIA: Hay usuarios que deberían existir pero no se encontraron en la comparación');
-                console.log('Emails en archivo que no se encontraron en SharePoint:', 
-                    this.users
-                        .filter(u => u.estado === 'Nuevo')
-                        .map(u => u.email)
-                );
-            }
             
             // Mostrar información adicional en modo depuración
             if (debugMode) {
@@ -356,9 +347,17 @@ class UserImporter {
                 });
                 debugHtml += '</ul>';
                 
-                debugHtml += '<h5>Usuarios encontrados en SharePoint:</h5>';
+                debugHtml += '<h5>Usuarios encontrados en la lista local:</h5>';
                 debugHtml += '<ul>';
                 existingUsers.forEach(user => {
+                    debugHtml += `<li>${user.email} - ID: ${user.id}</li>`;
+                });
+                debugHtml += '</ul>';
+                
+                // Añadir lista completa de usuarios cargados
+                debugHtml += '<h5>Lista completa de usuarios en el sistema:</h5>';
+                debugHtml += '<ul>';
+                this.userManager.users.forEach(user => {
                     debugHtml += `<li>${user.email} - ID: ${user.id}</li>`;
                 });
                 debugHtml += '</ul>';

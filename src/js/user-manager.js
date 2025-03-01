@@ -145,27 +145,16 @@ class UserManager {
      */
     getUserByEmail(email) {
         if (!email || typeof email !== 'string') {
-            console.warn('getUserByEmail: Email inválido', email);
             return null;
         }
         
         const emailLower = email.toLowerCase().trim();
-        console.log(`Buscando usuario por email: "${emailLower}"`);
         
-        // Buscar usuario en la caché local
+        // Buscar usuario en la lista local
         const user = this.users.find(user => {
             if (!user || !user.email || typeof user.email !== 'string') return false;
-            const userEmailLower = user.email.toLowerCase().trim();
-            const match = userEmailLower === emailLower;
-            if (match) {
-                console.log(`Usuario encontrado en caché: ${user.email} (ID: ${user.id})`);
-            }
-            return match;
+            return user.email.toLowerCase().trim() === emailLower;
         });
-        
-        if (!user) {
-            console.log(`Usuario no encontrado en caché: ${email}`);
-        }
         
         return user || null;
     }
@@ -195,7 +184,7 @@ class UserManager {
     }
     
     /**
-     * Busca múltiples usuarios por sus emails (consulta a SharePoint)
+     * Busca múltiples usuarios por sus emails (usando la lista local)
      * @param {Array<string>} emails - Lista de emails de usuarios
      * @returns {Promise<Array<Object>>} Lista de usuarios encontrados
      */
@@ -203,116 +192,51 @@ class UserManager {
         try {
             if (!emails || emails.length === 0) return [];
             
-            console.log(`Buscando ${emails.length} usuarios por email en SharePoint...`);
+            console.log(`Buscando ${emails.length} usuarios por email en la lista local...`);
             console.log('Lista completa de emails a buscar:', emails);
             
             // Filtrar emails vacíos y duplicados
             const uniqueEmails = [...new Set(emails.filter(email => email))];
             console.log(`Emails únicos a buscar: ${uniqueEmails.length}`);
-            console.log('Lista de emails únicos:', uniqueEmails);
             
-            // Buscar primero en la caché local
+            // Asegurarse de que tenemos usuarios cargados
+            if (this.users.length === 0) {
+                console.log('No hay usuarios cargados en la lista local. Cargando usuarios...');
+                await this.loadUsersFromSharePoint();
+            }
+            
+            console.log(`Comparando con ${this.users.length} usuarios ya cargados`);
+            
+            // Buscar usuarios por email en la lista local
             const result = [];
-            const emailsToSearch = [];
-            const emailsLowerMap = {}; // Mapa para mantener la relación entre email original y lowercase
+            const notFoundEmails = [];
             
             uniqueEmails.forEach(email => {
                 if (!email) return;
                 
                 const emailLower = email.toLowerCase().trim();
-                emailsLowerMap[emailLower] = email; // Guardar relación
                 
-                const cachedUser = this.getUserByEmail(email);
-                if (cachedUser) {
-                    console.log(`Usuario encontrado en caché: ${email} (${cachedUser.id})`);
-                    result.push(cachedUser);
+                // Buscar en la lista local de usuarios
+                const foundUser = this.users.find(user => {
+                    if (!user || !user.email) return false;
+                    return user.email.toLowerCase().trim() === emailLower;
+                });
+                
+                if (foundUser) {
+                    console.log(`Usuario encontrado en la lista local: ${email} (ID: ${foundUser.id})`);
+                    result.push(foundUser);
                 } else {
-                    console.log(`Usuario no encontrado en caché, se buscará en SharePoint: ${email}`);
-                    emailsToSearch.push(email);
+                    console.log(`Usuario no encontrado en la lista local: ${email}`);
+                    notFoundEmails.push(email);
                 }
             });
             
-            // Si todos los usuarios están en caché, retornar inmediatamente
-            if (emailsToSearch.length === 0) {
-                console.log('Todos los usuarios fueron encontrados en caché');
-                console.log('Usuarios encontrados:', result.map(u => u.email));
-                return result;
-            }
-            
-            console.log(`Buscando ${emailsToSearch.length} usuarios en SharePoint...`);
-            
-            // Probar con diferentes formatos de filtro
-            // Limitamos a 2 emails por consulta para evitar URLs demasiado largas
-            const batchSize = 2;
-            
-            // Probar diferentes formatos de filtro para cada email
-            for (const email of emailsToSearch) {
-                if (!email) continue;
-                
-                const emailLower = email.toLowerCase().trim();
-                const safeEmail = emailLower.replace(/'/g, "''");
-                
-                console.log(`Probando diferentes filtros para email: ${email}`);
-                
-                // Probar diferentes formatos de filtro
-                const filterFormats = [
-                    // Formato 1: Comparación exacta con campo Email
-                    `fields/Email eq '${safeEmail}'`,
-                    
-                    // Formato 2: Comparación con tolower
-                    `tolower(fields/Email) eq '${safeEmail}'`,
-                    
-                    // Formato 3: Usando startswith
-                    `startswith(tolower(fields/Email), '${safeEmail}')`,
-                    
-                    // Formato 4: Usando contains
-                    `contains(tolower(fields/Email), '${safeEmail}')`
-                ];
-                
-                for (let i = 0; i < filterFormats.length; i++) {
-                    const filter = filterFormats[i];
-                    console.log(`Probando formato ${i+1}: ${filter}`);
-                    
-                    try {
-                        const users = await this.spGraph.getUsersByFilter(filter);
-                        console.log(`Formato ${i+1}: Encontrados ${users.length} usuarios`);
-                        
-                        if (users && users.length > 0) {
-                            users.forEach(user => {
-                                if (user && user.email) {
-                                    const userEmailLower = user.email.toLowerCase().trim();
-                                    console.log(`Usuario encontrado en SharePoint: ${user.email} (${user.id})`);
-                                    
-                                    // Verificar si este usuario ya está en los resultados
-                                    const isDuplicate = result.some(existingUser => 
-                                        existingUser.email.toLowerCase().trim() === userEmailLower
-                                    );
-                                    
-                                    if (isDuplicate) {
-                                        console.log(`Usuario duplicado, no se añadirá: ${user.email}`);
-                                    } else {
-                                        result.push(user);
-                                    }
-                                }
-                            });
-                            
-                            // Si encontramos usuarios con este formato, pasamos al siguiente email
-                            break;
-                        }
-                    } catch (filterError) {
-                        console.error(`Error con formato ${i+1}:`, filterError);
-                    }
-                }
-            }
-            
-            // Procesar los resultados
             console.log(`Total de usuarios encontrados: ${result.length}`);
             console.log('Emails de usuarios encontrados:', result.map(u => u.email));
-            console.log('Emails que no se encontraron:', 
-                emailsToSearch.filter(email => 
-                    !result.some(u => u.email.toLowerCase().trim() === email.toLowerCase().trim())
-                )
-            );
+            
+            if (notFoundEmails.length > 0) {
+                console.log(`No se encontraron ${notFoundEmails.length} emails:`, notFoundEmails);
+            }
             
             return result;
         } catch (error) {
