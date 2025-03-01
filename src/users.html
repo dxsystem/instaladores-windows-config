@@ -110,7 +110,7 @@
                     <i class="bi bi-person-plus me-1"></i>
                     Nuevo Usuario
                 </button>
-                <button id="downloadUsersButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#downloadUsersModal">
+                <button id="downloadUsersButton" class="btn btn-primary">
                     <i class="bi bi-download me-1"></i>
                     Descargar Usuarios
                 </button>
@@ -323,25 +323,6 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="saveUserButton">Guardar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Descargar Usuarios -->
-    <div class="modal fade" id="downloadUsersModal" tabindex="-1" aria-labelledby="downloadUsersModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="downloadUsersModalLabel">Descargar Usuarios</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>¿Estás seguro de que deseas descargar la lista de usuarios?</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="downloadUsersButtonConfirm">Descargar</button>
                 </div>
             </div>
         </div>
@@ -576,30 +557,7 @@
             resetButton.addEventListener('click', resetSearchAndFilters);
             
             // Botón de descargar usuarios
-            document.getElementById('downloadUsersButton').addEventListener('click', function() {
-                // Usar el método de Bootstrap para mostrar el modal
-                const downloadUsersModal = new bootstrap.Modal(document.getElementById('downloadUsersModal'), {
-                    backdrop: true,
-                    keyboard: true,
-                    focus: true
-                });
-                downloadUsersModal.show();
-            });
-            
-            // Botón de confirmar descarga
-            document.getElementById('downloadUsersButtonConfirm').addEventListener('click', function() {
-                // Cerrar el modal antes de iniciar la descarga
-                const modal = bootstrap.Modal.getInstance(document.getElementById('downloadUsersModal'));
-                if (modal) {
-                    modal.hide();
-                    // Pequeño retraso para asegurar que el modal se cierre completamente
-                    setTimeout(() => {
-                        downloadUsers();
-                    }, 300);
-                } else {
-                    downloadUsers();
-                }
-            });
+            document.getElementById('downloadUsersButton').addEventListener('click', downloadUsers);
         }
         
         // Aplicar búsqueda y filtros
