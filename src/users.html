@@ -121,7 +121,7 @@
         <div id="alertContainer"></div>
 
         <!-- Estado de carga -->
-        <div id="loadingState" class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex flex-column justify-content-center align-items-center d-none" style="z-index: 1050;">
+        <div id="loadingState" class="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center d-none" style="z-index: 1050; background-color: rgba(255, 255, 255, 0.8);">
             <div class="card shadow" style="width: 400px;">
                 <div class="card-body text-center">
                     <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
@@ -395,8 +395,10 @@
         function showLoading(show) {
             if (show) {
                 loadingState.classList.remove('d-none');
+                document.body.style.overflow = 'hidden'; // Prevenir scroll
             } else {
                 loadingState.classList.add('d-none');
+                document.body.style.overflow = ''; // Restaurar scroll
             }
         }
         
@@ -784,12 +786,10 @@
             }
             
             try {
-                showLoading(true);
-                
+                // Preparar datos para la descarga sin mostrar el loader inicialmente
                 const users = userManager.getAllUsers();
                 if (!users || users.length === 0) {
                     showAlert('warning', 'No hay usuarios para descargar');
-                    showLoading(false);
                     return;
                 }
                 
@@ -821,27 +821,28 @@
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const filename = `usuarios_${timestamp}.csv`;
                 
+                // Crear y configurar el enlace de descarga
                 const link = document.createElement('a');
                 link.href = url;
                 link.setAttribute('download', filename);
+                link.style.display = 'none';
                 document.body.appendChild(link);
-                
-                // Ocultar el loader antes de hacer clic en el enlace
-                showLoading(false);
                 
                 // Descargar el archivo
                 link.click();
                 
                 // Limpiar
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url); // Liberar la URL para evitar fugas de memoria
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url); // Liberar la URL para evitar fugas de memoria
+                    
+                    // Mostrar mensaje de éxito
+                    showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
+                }, 100);
                 
-                // Mostrar mensaje de éxito
-                showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
             } catch (error) {
                 console.error('Error al descargar usuarios:', error);
                 showAlert('danger', `Error al descargar usuarios: ${error.message}`);
-                showLoading(false);
             }
         }
         
