@@ -257,14 +257,29 @@ function updateAppsTable() {
         const formattedSize = formatFileSize(app.size);
         
         // Formatear fecha
-        const formattedDate = app.lastModified.toLocaleDateString();
+        let formattedDate = '';
+        if (app.lastModified) {
+            // Convertir a objeto Date si es una cadena
+            const lastModifiedDate = typeof app.lastModified === 'string' 
+                ? new Date(app.lastModified) 
+                : app.lastModified;
+            
+            // Verificar si es una fecha válida
+            if (!isNaN(lastModifiedDate.getTime())) {
+                formattedDate = lastModifiedDate.toLocaleDateString();
+            } else {
+                formattedDate = 'Fecha desconocida';
+            }
+        } else {
+            formattedDate = 'Fecha desconocida';
+        }
         
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td><img src="${app.icon}" alt="${app.name}" class="app-icon"></td>
+            <td><img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon"></td>
             <td>${app.name}</td>
             <td><span class="badge bg-secondary">${app.category}</span></td>
-            <td>${app.version}</td>
+            <td>${app.version || ''}</td>
             <td>${formattedSize}</td>
             <td>${formattedDate}</td>
             <td>
