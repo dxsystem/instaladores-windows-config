@@ -241,56 +241,71 @@ class UserManager {
             
             console.log(`Buscando ${emailsToSearch.length} usuarios en SharePoint...`);
             
-            // Construir filtro para buscar los emails restantes
-            // Limitamos a 5 emails por consulta para evitar URLs demasiado largas
-            const batchSize = 5;
-            for (let i = 0; i < emailsToSearch.length; i += batchSize) {
-                const batch = emailsToSearch.slice(i, i + batchSize);
-                console.log(`Procesando lote ${Math.floor(i/batchSize) + 1} con ${batch.length} emails`);
+            // Probar con diferentes formatos de filtro
+            // Limitamos a 2 emails por consulta para evitar URLs demasiado largas
+            const batchSize = 2;
+            
+            // Probar diferentes formatos de filtro para cada email
+            for (const email of emailsToSearch) {
+                if (!email) continue;
                 
-                // Construir filtro OData para buscar por email
-                // Usamos tolower() en el filtro OData para hacer la comparación case-insensitive
-                const filterParts = batch.map(email => {
-                    const safeEmail = email.replace(/'/g, "''").trim();
-                    return `(tolower(fields/Email) eq '${safeEmail.toLowerCase()}')`;
-                });
+                const emailLower = email.toLowerCase().trim();
+                const safeEmail = emailLower.replace(/'/g, "''");
                 
-                const filter = filterParts.join(' or ');
-                console.log(`Filtro OData: ${filter}`);
+                console.log(`Probando diferentes filtros para email: ${email}`);
                 
-                try {
-                    const users = await this.spGraph.getUsersByFilter(filter);
-                    console.log(`Encontrados ${users.length} usuarios en SharePoint para este lote`);
+                // Probar diferentes formatos de filtro
+                const filterFormats = [
+                    // Formato 1: Comparación exacta con campo Email
+                    `fields/Email eq '${safeEmail}'`,
                     
-                    if (users && users.length > 0) {
-                        users.forEach(user => {
-                            if (user && user.email) {
-                                const userEmailLower = user.email.toLowerCase().trim();
-                                console.log(`Usuario encontrado en SharePoint: ${user.email} (${user.id})`);
-                                
-                                // Verificar si este usuario ya está en los resultados
-                                const isDuplicate = result.some(existingUser => 
-                                    existingUser.email.toLowerCase().trim() === userEmailLower
-                                );
-                                
-                                if (isDuplicate) {
-                                    console.log(`Usuario duplicado, no se añadirá: ${user.email}`);
-                                } else {
-                                    result.push(user);
+                    // Formato 2: Comparación con tolower
+                    `tolower(fields/Email) eq '${safeEmail}'`,
+                    
+                    // Formato 3: Usando startswith
+                    `startswith(tolower(fields/Email), '${safeEmail}')`,
+                    
+                    // Formato 4: Usando contains
+                    `contains(tolower(fields/Email), '${safeEmail}')`
+                ];
+                
+                for (let i = 0; i < filterFormats.length; i++) {
+                    const filter = filterFormats[i];
+                    console.log(`Probando formato ${i+1}: ${filter}`);
+                    
+                    try {
+                        const users = await this.spGraph.getUsersByFilter(filter);
+                        console.log(`Formato ${i+1}: Encontrados ${users.length} usuarios`);
+                        
+                        if (users && users.length > 0) {
+                            users.forEach(user => {
+                                if (user && user.email) {
+                                    const userEmailLower = user.email.toLowerCase().trim();
+                                    console.log(`Usuario encontrado en SharePoint: ${user.email} (${user.id})`);
+                                    
+                                    // Verificar si este usuario ya está en los resultados
+                                    const isDuplicate = result.some(existingUser => 
+                                        existingUser.email.toLowerCase().trim() === userEmailLower
+                                    );
+                                    
+                                    if (isDuplicate) {
+                                        console.log(`Usuario duplicado, no se añadirá: ${user.email}`);
+                                    } else {
+                                        result.push(user);
+                                    }
                                 }
-                            } else {
-                                console.warn('Usuario sin email encontrado en SharePoint');
-                            }
-                        });
-                    } else {
-                        console.log(`No se encontraron usuarios en SharePoint para este lote`);
-                        console.log('Emails del lote:', batch);
+                            });
+                            
+                            // Si encontramos usuarios con este formato, pasamos al siguiente email
+                            break;
+                        }
+                    } catch (filterError) {
+                        console.error(`Error con formato ${i+1}:`, filterError);
                     }
-                } catch (batchError) {
-                    console.error(`Error al procesar lote de emails:`, batchError);
                 }
             }
             
+            // Procesar los resultados
             console.log(`Total de usuarios encontrados: ${result.length}`);
             console.log('Emails de usuarios encontrados:', result.map(u => u.email));
             console.log('Emails que no se encontraron:', 

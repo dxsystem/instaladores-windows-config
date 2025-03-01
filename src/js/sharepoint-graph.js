@@ -326,68 +326,118 @@ class SharePointGraph {
     /**
      * Obtiene usuarios de SharePoint según un filtro OData
      * @param {string} filter - Filtro OData para la consulta
-     * @returns {Promise<Array>} Lista de usuarios que coinciden con el filtro
+     * @returns {Promise<Array<Object>>} Lista de usuarios que coinciden con el filtro
      */
     async getUsersByFilter(filter) {
         try {
-            console.log('Iniciando búsqueda de usuarios con filtro en SharePoint');
+            console.log('=== INICIO getUsersByFilter ===');
+            console.log('Filtro original:', filter);
             
+            // Construir URL base
+            let url = `${this.graphEndpoint}/sites/${this.siteId}/lists/${this.listId}/items?expand=fields`;
+            
+            // Añadir filtro si existe
+            if (filter) {
+                // Asegurarse de que el filtro esté correctamente codificado
+                const encodedFilter = encodeURIComponent(filter);
+                url += `&$filter=${encodedFilter}`;
+                console.log('Filtro codificado:', encodedFilter);
+            }
+            
+            console.log('URL completa de la consulta:', url);
+            
+            // Realizar la petición a SharePoint
+            console.log('Realizando petición a SharePoint...');
+            const response = await this._fetchWithAuth(url);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error en la respuesta de SharePoint:', response.status, errorText);
+                throw new Error(`Error al obtener usuarios: ${response.status} - ${errorText}`);
+            }
+            
+            // Procesar la respuesta
+            const data = await response.json();
+            console.log('Respuesta completa de SharePoint:', JSON.stringify(data, null, 2));
+            
+            if (!data || !data.value) {
+                console.warn('Respuesta de SharePoint sin datos o formato incorrecto');
+                return [];
+            }
+            
+            console.log(`Encontrados ${data.value.length} items en la respuesta`);
+            
+            // Procesar los items de usuario
+            const users = this._processUserItems(data.value);
+            console.log(`Procesados ${users.length} usuarios`);
+            
+            // Mostrar detalles de los usuarios encontrados
+            if (users.length > 0) {
+                console.log('Detalles de los usuarios encontrados:');
+                users.forEach(user => {
+                    console.log(`- Email: ${user.email}, ID: ${user.id}`);
+                });
+            } else {
+                console.log('No se encontraron usuarios para el filtro proporcionado');
+            }
+            
+            console.log('=== FIN getUsersByFilter ===');
+            return users;
+        } catch (error) {
+            console.error('Error en getUsersByFilter:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Realiza una petición autenticada a la API de SharePoint
+     * @param {string} url - URL a la que realizar la petición
+     * @param {Object} options - Opciones adicionales para fetch
+     * @returns {Promise<Response>} Respuesta de la petición
+     * @private
+     */
+    async _fetchWithAuth(url, options = {}) {
+        try {
+            console.log('Iniciando petición autenticada a:', url);
+            
+            // Asegurarse de que tenemos los IDs necesarios
             if (!this.siteId) {
                 console.log('Obteniendo siteId...');
                 await this.getSiteId();
             }
             
-            if (!this.listId) {
+            if (!this.listId && url.includes('/lists/')) {
                 console.log('Obteniendo listId...');
                 await this.getListId();
             }
             
-            // Construir URL con el filtro
-            let url = `${this.graphEndpoint}/sites/${this.siteId}/lists/${this.listId}/items?expand=fields`;
-            if (filter) {
-                url += `&$filter=${encodeURIComponent(filter)}`;
-            }
-            
-            console.log('URL de consulta a SharePoint:', url);
-            
             // Obtener token de acceso
             const accessToken = await this.getAccessToken();
+            console.log('Token obtenido correctamente');
             
-            // Realizar la solicitud
-            console.log('Enviando solicitud a SharePoint...');
-            const response = await fetch(url, {
+            // Configurar opciones por defecto
+            const fetchOptions = {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
-                    'Accept': 'application/json'
-                }
-            });
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                ...options
+            };
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                let errorMessage = `Error ${response.status}: `;
-                
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage += errorData.error ? errorData.error.message : 'Error desconocido';
-                } catch (parseError) {
-                    errorMessage += errorText || 'Error desconocido';
-                }
-                
-                console.error('Error en respuesta de SharePoint:', errorMessage);
-                throw new Error(errorMessage);
-            }
+            // Realizar la petición
+            console.log('Enviando petición con opciones:', JSON.stringify(fetchOptions, (key, value) => 
+                key === 'Authorization' ? 'Bearer [TOKEN]' : value
+            ));
             
-            const data = await response.json();
-            console.log(`Respuesta recibida de SharePoint. Items encontrados: ${data.value ? data.value.length : 0}`);
+            const response = await fetch(url, fetchOptions);
+            console.log('Respuesta recibida:', response.status, response.statusText);
             
-            // Procesar los resultados
-            const users = this._processUserItems(data.value || []);
-            console.log('Usuarios procesados:', users.length);
-            return users;
+            return response;
         } catch (error) {
-            console.error('Error al obtener usuarios por filtro:', error);
-            return [];
+            console.error('Error en petición autenticada:', error);
+            throw error;
         }
     }
 

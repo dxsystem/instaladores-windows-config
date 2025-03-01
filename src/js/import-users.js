@@ -249,6 +249,13 @@ class UserImporter {
                 return;
             }
             
+            // Activar modo de depuración
+            const debugMode = true;
+            if (debugMode) {
+                console.log('%c=== MODO DEPURACIÓN ACTIVADO ===', 'background: #f00; color: #fff; padding: 5px;');
+                console.log('Usuarios cargados del archivo:', this.users);
+            }
+            
             this.showLoading('Verificando usuarios existentes...');
             
             // Limpiar selecciones previas
@@ -259,9 +266,17 @@ class UserImporter {
             const emails = this.users.map(user => user.email).filter(email => email);
             console.log(`Buscando ${emails.length} emails en SharePoint para comparación...`);
             
+            if (debugMode) {
+                console.log('Lista de emails a buscar:', emails);
+            }
+            
             // Buscar usuarios existentes por email
             const existingUsers = await this.userManager.findUsersByEmails(emails);
             console.log(`Se encontraron ${existingUsers.length} usuarios existentes en SharePoint`);
+            
+            if (debugMode) {
+                console.log('Usuarios existentes encontrados:', existingUsers);
+            }
             
             // Crear un mapa de usuarios existentes por email para facilitar la búsqueda
             const existingUsersMap = {};
@@ -307,6 +322,53 @@ class UserImporter {
                         .filter(u => u.estado === 'Nuevo')
                         .map(u => u.email)
                 );
+            }
+            
+            // Mostrar información adicional en modo depuración
+            if (debugMode) {
+                // Crear un botón para mostrar/ocultar información de depuración
+                const debugButton = document.createElement('button');
+                debugButton.className = 'btn btn-danger mb-3';
+                debugButton.textContent = 'Mostrar Información de Depuración';
+                debugButton.addEventListener('click', () => {
+                    const debugInfo = document.getElementById('debug-info');
+                    if (debugInfo.style.display === 'none') {
+                        debugInfo.style.display = 'block';
+                        debugButton.textContent = 'Ocultar Información de Depuración';
+                    } else {
+                        debugInfo.style.display = 'none';
+                        debugButton.textContent = 'Mostrar Información de Depuración';
+                    }
+                });
+                
+                // Crear contenedor para información de depuración
+                const debugInfo = document.createElement('div');
+                debugInfo.id = 'debug-info';
+                debugInfo.className = 'alert alert-danger';
+                debugInfo.style.display = 'none';
+                
+                // Añadir información de depuración
+                let debugHtml = '<h4>Información de Depuración</h4>';
+                debugHtml += '<h5>Usuarios en archivo:</h5>';
+                debugHtml += '<ul>';
+                this.users.forEach(user => {
+                    debugHtml += `<li>${user.email} - Estado: ${user.estado}</li>`;
+                });
+                debugHtml += '</ul>';
+                
+                debugHtml += '<h5>Usuarios encontrados en SharePoint:</h5>';
+                debugHtml += '<ul>';
+                existingUsers.forEach(user => {
+                    debugHtml += `<li>${user.email} - ID: ${user.id}</li>`;
+                });
+                debugHtml += '</ul>';
+                
+                debugInfo.innerHTML = debugHtml;
+                
+                // Insertar elementos de depuración antes de la tabla
+                const tableContainer = this.previewTableBody.closest('.table-responsive');
+                tableContainer.parentNode.insertBefore(debugButton, tableContainer);
+                tableContainer.parentNode.insertBefore(debugInfo, tableContainer);
             }
             
             // Crear encabezados de tabla más similares a la imagen 2
