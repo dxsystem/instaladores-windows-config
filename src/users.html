@@ -779,14 +779,14 @@
         
         // Descargar usuarios
         function downloadUsers() {
-            // Cerrar el modal de descarga
-            const downloadUsersModal = bootstrap.Modal.getInstance(document.getElementById('downloadUsersModal'));
-            if (downloadUsersModal) {
-                downloadUsersModal.hide();
-            }
-            
             try {
-                // Preparar datos para la descarga sin mostrar el loader inicialmente
+                // Cerrar el modal de descarga si está abierto
+                const downloadUsersModal = bootstrap.Modal.getInstance(document.getElementById('downloadUsersModal'));
+                if (downloadUsersModal) {
+                    downloadUsersModal.hide();
+                }
+                
+                // Obtener usuarios
                 const users = userManager.getAllUsers();
                 if (!users || users.length === 0) {
                     showAlert('warning', 'No hay usuarios para descargar');
@@ -815,31 +815,33 @@
                 // Unir encabezados y filas
                 const csv = [headers.join(',')].concat(rows).join('\n');
                 
-                // Crear blob y descargar
+                // Usar el método de descarga más simple y directo
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const filename = `usuarios_${timestamp}.csv`;
                 
-                // Crear y configurar el enlace de descarga
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', filename);
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                
-                // Descargar el archivo
-                link.click();
-                
-                // Limpiar
-                setTimeout(() => {
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url); // Liberar la URL para evitar fugas de memoria
-                    
-                    // Mostrar mensaje de éxito
+                // Método alternativo de descarga que evita problemas con la pantalla gris
+                if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+                    // Para IE
+                    window.navigator.msSaveOrOpenBlob(blob, filename);
                     showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
-                }, 100);
-                
+                } else {
+                    // Para navegadores modernos
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Limpiar después de un breve retraso
+                    window.setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
+                    }, 0);
+                }
             } catch (error) {
                 console.error('Error al descargar usuarios:', error);
                 showAlert('danger', `Error al descargar usuarios: ${error.message}`);

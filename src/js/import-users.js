@@ -114,12 +114,25 @@ class UserImporter {
             reader.onload = (e) => {
                 try {
                     const data = e.target.result;
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                    resolve(jsonData);
+                    
+                    // Detectar si es un archivo CSV o Excel basado en la extensión
+                    const fileExtension = file.name.split('.').pop().toLowerCase();
+                    
+                    if (fileExtension === 'csv') {
+                        // Procesar como CSV
+                        const text = new TextDecoder('utf-8').decode(new Uint8Array(data));
+                        const lines = text.split('\n');
+                        const jsonData = lines.map(line => line.split(','));
+                        resolve(jsonData);
+                    } else {
+                        // Procesar como Excel
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                        resolve(jsonData);
+                    }
                 } catch (error) {
-                    reject(new Error('El archivo no es un archivo Excel válido.'));
+                    reject(new Error('El archivo no es un archivo Excel o CSV válido.'));
                 }
             };
             
@@ -128,14 +141,24 @@ class UserImporter {
         });
     }
 
-    // Valida y formatea los datos del Excel
+    // Valida y formatea los datos del Excel o CSV
     validateAndFormatData(data) {
         if (data.length < 2) {
             throw new Error('El archivo está vacío o no contiene datos válidos.');
         }
 
-        // Ignoramos los encabezados y leemos directamente por posición
-        // Columna 0: correo, Columna 1: tipo suscripción, Columna 2: duración, Columna 3 (opcional): estado
+        // Obtener los encabezados para identificar las columnas
+        const headers = data[0].map(h => String(h || '').toLowerCase().trim());
+        
+        // Buscar índices de columnas basados en los encabezados
+        const emailIndex = this.findColumnIndex(headers, ['email', 'correo', 'e-mail']);
+        const subscriptionIndex = this.findColumnIndex(headers, ['tipo de suscripción', 'suscripcion', 'tipo', 'subscription', 'subscriptiontype']);
+        const startDateIndex = this.findColumnIndex(headers, ['fecha inicio', 'inicio', 'start date', 'startdate']);
+        const endDateIndex = this.findColumnIndex(headers, ['fecha fin', 'fin', 'end date', 'enddate']);
+        const statusIndex = this.findColumnIndex(headers, ['estado', 'status', 'activo', 'active']);
+        
+        // Si no se encuentran los encabezados, usar posiciones por defecto
+        const useDefaultPositions = emailIndex === -1;
         
         const today = new Date();
         
@@ -143,20 +166,48 @@ class UserImporter {
             // Verificar que la fila tenga al menos una celda con datos
             if (!row || row.length === 0 || !row[0]) return null;
             
-            const email = row[0] || '';
-            const subscriptionType = row.length > 1 ? row[1] || '' : '';
-            const durationText = row.length > 2 ? (row[2] ? String(row[2]).toLowerCase() : '') : '';
+            let email, subscriptionType, startDate, endDate, isActive;
             
-            // Leer estado (activo/inactivo) si está disponible (columna 3)
-            let isActive = true; // Por defecto activo
-            if (row.length > 3 && row[3] !== undefined) {
-                const activeText = String(row[3]).toLowerCase().trim();
-                isActive = !(activeText === 'no' || activeText === 'false' || activeText === '0' || 
-                           activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
+            if (useDefaultPositions) {
+                // Usar posiciones por defecto (formato antiguo)
+                email = row[0] || '';
+                subscriptionType = row.length > 1 ? row[1] || '' : '';
+                const durationText = row.length > 2 ? (row[2] ? String(row[2]).toLowerCase() : '') : '';
+                
+                // Leer estado (activo/inactivo) si está disponible (columna 3)
+                isActive = true; // Por defecto activo
+                if (row.length > 3 && row[3] !== undefined) {
+                    const activeText = String(row[3]).toLowerCase().trim();
+                    isActive = !(activeText === 'no' || activeText === 'false' || activeText === '0' || 
+                               activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
+                }
+                
+                // Calcular fechas basadas en la duración
+                const dates = this.calculateDates(durationText, today);
+                startDate = dates.startDate;
+                endDate = dates.endDate;
+            } else {
+                // Usar posiciones basadas en encabezados (formato nuevo - CSV descargado)
+                email = emailIndex >= 0 && row.length > emailIndex ? row[emailIndex] || '' : '';
+                subscriptionType = subscriptionIndex >= 0 && row.length > subscriptionIndex ? row[subscriptionIndex] || '' : '';
+                
+                // Parsear fechas directamente
+                if (startDateIndex >= 0 && row.length > startDateIndex && row[startDateIndex]) {
+                    startDate = this.parseDate(row[startDateIndex]);
+                }
+                
+                if (endDateIndex >= 0 && row.length > endDateIndex && row[endDateIndex]) {
+                    endDate = this.parseDate(row[endDateIndex]);
+                }
+                
+                // Parsear estado
+                isActive = true; // Por defecto activo
+                if (statusIndex >= 0 && row.length > statusIndex && row[statusIndex] !== undefined) {
+                    const activeText = String(row[statusIndex]).toLowerCase().trim();
+                    isActive = !(activeText === 'no' || activeText === 'false' || activeText === '0' || 
+                               activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
+                }
             }
-            
-            // Calcular fechas basadas en la duración
-            const { startDate, endDate } = this.calculateDates(durationText, today);
             
             const user = {
                 email: email,
@@ -167,7 +218,6 @@ class UserImporter {
                 isActive: isActive,
                 selected: true,
                 rowIndex: index + 2,
-                durationText: durationText, // Guardamos el texto original para mostrarlo
                 existingUser: null // Se llenará después con la información del usuario existente
             };
 
@@ -190,6 +240,31 @@ class UserImporter {
         return -1;
     }
     
+    // Parsea una fecha en formato de texto
+    parseDate(dateText) {
+        if (!dateText) return null;
+        
+        try {
+            // Intentar parsear la fecha
+            const date = new Date(dateText);
+            
+            // Verificar si la fecha es válida
+            if (isNaN(date.getTime())) {
+                // Si no es válida, intentar con formatos comunes en español
+                const parts = dateText.split('/');
+                if (parts.length === 3) {
+                    // Formato DD/MM/YYYY
+                    return new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+                return null;
+            }
+            
+            return date;
+        } catch (e) {
+            return null;
+        }
+    }
+
     // Calcula las fechas de inicio y fin basadas en el texto de duración
     calculateDates(durationText, startDateObj = new Date()) {
         const startDate = new Date(startDateObj);
@@ -235,8 +310,8 @@ class UserImporter {
         if (!user.subscriptionType) {
             return 'Tipo de suscripción es requerido';
         }
-        if (!user.durationText) {
-            return 'Duración es requerida';
+        if (!user.startDate || !user.endDate) {
+            return 'Fecha de inicio y fin son requeridas';
         }
         return null;
     }

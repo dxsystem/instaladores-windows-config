@@ -100,20 +100,22 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="input-group mb-3">
-                            <input type="file" class="form-control" id="excelFileInput" accept=".xlsx, .xls">
+                            <input type="file" class="form-control" id="excelFileInput" accept=".xlsx, .xls, .csv">
                             <button class="btn btn-primary" type="button" id="uploadButton">
                                 <i class="bi bi-upload me-1"></i>
                                 Cargar
                             </button>
                         </div>
                         <div class="form-text">
-                            Formatos soportados: .xlsx, .xls
+                            Formatos soportados: .xlsx, .xls, .csv
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="alert alert-info mb-0">
                             <i class="bi bi-info-circle me-2"></i>
-                            El archivo debe contener 3 columnas obligatorias en este orden: 1) Correo Electrónico, 2) Tipo de Suscripción y 3) Duración (ej: "1 año", "6 meses"). Opcionalmente, puede incluir una 4ta columna para el Estado (Activo/Inactivo). Las cabeceras del archivo son ignoradas.
+                            <p class="mb-1">Puede cargar archivos en dos formatos:</p>
+                            <p class="mb-1"><strong>1. Formato CSV descargado desde la página de usuarios:</strong> Con encabezados Email, Tipo de Suscripción, Fecha Inicio, Fecha Fin y Estado.</p>
+                            <p class="mb-0"><strong>2. Formato personalizado:</strong> Con 3 columnas obligatorias: 1) Correo Electrónico, 2) Tipo de Suscripción y 3) Duración (ej: "1 año", "6 meses"). Opcionalmente, puede incluir una 4ta columna para el Estado (Activo/Inactivo).</p>
                         </div>
                     </div>
                 </div>
