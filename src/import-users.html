@@ -261,6 +261,20 @@
                     return;
                 }
                 
+                // Mostrar información del usuario
+                const currentUser = auth.getCurrentUser();
+                if (currentUser && currentUser.displayName) {
+                    document.getElementById('currentUserName').textContent = currentUser.displayName;
+                }
+                
+                // Configurar botón de logout
+                const logoutButton = document.getElementById('logoutButton');
+                if (logoutButton) {
+                    logoutButton.addEventListener('click', () => {
+                        auth.logout();
+                    });
+                }
+                
                 // Inicializar componentes
                 spGraph = new SharePointGraph(auth);
                 window.spGraph = spGraph; // Hacer disponible globalmente

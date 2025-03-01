@@ -46,6 +46,12 @@ class UserImporter {
         }
     }
 
+    // Maneja la selección del archivo
+    handleFileSelect(event) {
+        // Llamar a handleFileUpload cuando se selecciona un archivo
+        this.handleFileUpload();
+    }
+
     // Maneja la carga del archivo Excel
     async handleFileUpload() {
         const file = this.fileInput.files[0];
