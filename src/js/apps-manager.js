@@ -1208,4 +1208,123 @@ async function syncApps() {
         hideLoading();
         return false;
     }
+}
+
+/**
+ * Sincroniza todas las configuraciones con SharePoint
+ * Replica la lógica de SyncButton_Click en la aplicación de escritorio
+ */
+async function syncAllConfigurations() {
+    try {
+        showLoading('Iniciando sincronización completa...');
+        updateLoadingProgress(0);
+        
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
+        }
+        
+        // Paso 1: Obtener archivos de la carpeta exe
+        showLoading('Obteniendo archivos de SharePoint...');
+        updateLoadingProgress(20);
+        const exeFiles = await spGraph.getExeFiles();
+        console.log('Archivos encontrados en la carpeta exe:', exeFiles);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
+        
+        // Paso 2: Cargar y actualizar aplicaciones
+        showLoading('Procesando aplicaciones...');
+        updateLoadingProgress(40);
+        await loadApps(); // Esta función ya carga y actualiza las aplicaciones
+        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
+        
+        // Paso 3: Cargar y actualizar descripciones
+        showLoading('Cargando descripciones de aplicaciones...');
+        updateLoadingProgress(60);
+        await loadDescriptions();
+        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
+        
+        // Paso 4: Sincronizar aplicaciones (ELITE)
+        showLoading('Sincronizando configuración ELITE...');
+        updateLoadingProgress(70);
+        await syncApps(); // Esta función ya sincroniza las aplicaciones ELITE
+        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
+        
+        // Paso 5: Crear configuración PRO (60% de las apps)
+        showLoading('Generando configuración PRO...');
+        updateLoadingProgress(80);
+        const proAppsCount = Math.floor(allApps.length * 0.6);
+        // Ordenar aleatoriamente y tomar el 60%
+        const proApps = [...allApps]
+            .sort(() => 0.5 - Math.random())
+            .slice(0, proAppsCount);
+        
+        // Crear configuración PRO
+        const proConfig = {
+            lastUpdate: new Date().toISOString(),
+            applications: proApps.map(app => ({
+                sharePointId: app.id,
+                name: app.name,
+                fileName: app.fileName,
+                category: app.category,
+                description: app.description,
+                version: app.version,
+                size: app.size,
+                lastModified: app.lastModified.toISOString(),
+                installationOrder: app.installationOrder
+            }))
+        };
+        
+        // Guardar configuración PRO
+        await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
+        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
+        
+        // Paso 6: Crear configuración Gratuita (30 apps aleatorias o menos)
+        showLoading('Generando configuración Gratuita...');
+        updateLoadingProgress(90);
+        const freeAppsCount = Math.min(30, allApps.length);
+        // Ordenar aleatoriamente y tomar hasta 30 apps
+        const freeApps = [...allApps]
+            .sort(() => 0.5 - Math.random())
+            .slice(0, freeAppsCount);
+        
+        // Crear configuración Gratuita
+        const freeConfig = {
+            lastUpdate: new Date().toISOString(),
+            applications: freeApps.map(app => ({
+                sharePointId: app.id,
+                name: app.name,
+                fileName: app.fileName,
+                category: app.category,
+                description: app.description,
+                version: app.version,
+                size: app.size,
+                lastModified: app.lastModified.toISOString(),
+                installationOrder: app.installationOrder
+            }))
+        };
+        
+        // Guardar configuración Gratuita
+        await spGraph.saveFileContent('free_apps_config.json', JSON.stringify(freeConfig, null, 2));
+        
+        // Paso 7: Guardar descripciones
+        showLoading('Guardando descripciones de aplicaciones...');
+        updateLoadingProgress(95);
+        await saveAllDescriptions();
+        
+        // Paso 8: Guardar aplicaciones obligatorias
+        if (requiredAppsLoaded) {
+            await saveRequiredApps();
+        }
+        
+        updateLoadingProgress(100);
+        hideLoading();
+        
+        alert('Sincronización completa realizada correctamente');
+        return true;
+    } catch (error) {
+        console.error('Error durante la sincronización completa:', error);
+        showError('Error durante la sincronización completa: ' + error.message);
+        hideLoading();
+        return false;
+    }
 } 

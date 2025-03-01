@@ -205,8 +205,11 @@
                 <button id="refreshButton" class="btn btn-outline-primary me-2">
                     <i class="bi bi-arrow-clockwise"></i> Actualizar
                 </button>
-                <button id="syncButton" class="btn btn-primary">
+                <button id="syncButton" class="btn btn-primary me-2">
                     <i class="bi bi-cloud-arrow-up me-1"></i> Sincronizar
+                </button>
+                <button id="syncAllButton" class="btn btn-success">
+                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Sincronización Completa
                 </button>
             </div>
         </div>
@@ -585,6 +588,7 @@
                 // Configurar eventos de botones
                 document.getElementById('refreshButton').addEventListener('click', refreshData);
                 document.getElementById('syncButton').addEventListener('click', syncApps);
+                document.getElementById('syncAllButton').addEventListener('click', syncAllConfigurations);
                 document.getElementById('addAppButton').addEventListener('click', showAddAppModal);
                 document.getElementById('addDescriptionButton').addEventListener('click', showAddDescriptionModal);
                 document.getElementById('saveDescriptionsButton').addEventListener('click', saveAllDescriptions);
