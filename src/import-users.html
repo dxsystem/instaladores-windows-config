@@ -212,11 +212,9 @@
                         </div>
                     </div>
                 </div>
-                <div id="errorDetails" class="mt-3 d-none">
-                    <h5>Detalles de errores:</h5>
-                    <ul id="errorList" class="list-group">
-                        <!-- Aquí se mostrarán los errores -->
-                    </ul>
+                <div id="errorDetails" class="alert alert-danger d-none">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Detalles de errores:</h5>
+                    <ul id="errorList"></ul>
                 </div>
             </div>
         </div>
@@ -231,6 +229,9 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- MSAL -->
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
     
     <!-- Auth JS -->
     <script src="js/sharepoint-auth.js"></script>
