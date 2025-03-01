@@ -141,12 +141,33 @@ class UserManager {
     /**
      * Obtiene un usuario por su email
      * @param {string} email - Email del usuario
-     * @returns {Object|null} Usuario encontrado o null si no existe
+     * @returns {Object|null} Usuario encontrado o null
      */
     getUserByEmail(email) {
-        if (!email) return null;
-        const emailLower = email.toLowerCase();
-        return this.users.find(user => user.email && user.email.toLowerCase() === emailLower) || null;
+        if (!email || typeof email !== 'string') {
+            console.warn('getUserByEmail: Email inválido', email);
+            return null;
+        }
+        
+        const emailLower = email.toLowerCase().trim();
+        console.log(`Buscando usuario por email: "${emailLower}"`);
+        
+        // Buscar usuario en la caché local
+        const user = this.users.find(user => {
+            if (!user || !user.email || typeof user.email !== 'string') return false;
+            const userEmailLower = user.email.toLowerCase().trim();
+            const match = userEmailLower === emailLower;
+            if (match) {
+                console.log(`Usuario encontrado en caché: ${user.email} (ID: ${user.id})`);
+            }
+            return match;
+        });
+        
+        if (!user) {
+            console.log(`Usuario no encontrado en caché: ${email}`);
+        }
+        
+        return user || null;
     }
 
     /**
@@ -183,20 +204,27 @@ class UserManager {
             if (!emails || emails.length === 0) return [];
             
             console.log(`Buscando ${emails.length} usuarios por email en SharePoint...`);
+            console.log('Lista completa de emails a buscar:', emails);
             
             // Filtrar emails vacíos y duplicados
             const uniqueEmails = [...new Set(emails.filter(email => email))];
             console.log(`Emails únicos a buscar: ${uniqueEmails.length}`);
-            console.log('Lista de emails:', uniqueEmails);
+            console.log('Lista de emails únicos:', uniqueEmails);
             
             // Buscar primero en la caché local
             const result = [];
             const emailsToSearch = [];
+            const emailsLowerMap = {}; // Mapa para mantener la relación entre email original y lowercase
             
             uniqueEmails.forEach(email => {
+                if (!email) return;
+                
+                const emailLower = email.toLowerCase().trim();
+                emailsLowerMap[emailLower] = email; // Guardar relación
+                
                 const cachedUser = this.getUserByEmail(email);
                 if (cachedUser) {
-                    console.log(`Usuario encontrado en caché: ${email}`);
+                    console.log(`Usuario encontrado en caché: ${email} (${cachedUser.id})`);
                     result.push(cachedUser);
                 } else {
                     console.log(`Usuario no encontrado en caché, se buscará en SharePoint: ${email}`);
@@ -207,6 +235,7 @@ class UserManager {
             // Si todos los usuarios están en caché, retornar inmediatamente
             if (emailsToSearch.length === 0) {
                 console.log('Todos los usuarios fueron encontrados en caché');
+                console.log('Usuarios encontrados:', result.map(u => u.email));
                 return result;
             }
             
@@ -217,12 +246,16 @@ class UserManager {
             const batchSize = 5;
             for (let i = 0; i < emailsToSearch.length; i += batchSize) {
                 const batch = emailsToSearch.slice(i, i + batchSize);
-                console.log(`Procesando lote ${i/batchSize + 1} con ${batch.length} emails`);
+                console.log(`Procesando lote ${Math.floor(i/batchSize) + 1} con ${batch.length} emails`);
                 
                 // Construir filtro OData para buscar por email
-                const filterParts = batch.map(email => `fields/Email eq '${email.replace(/'/g, "''")}'`);
-                const filter = filterParts.join(' or ');
+                // Usamos tolower() en el filtro OData para hacer la comparación case-insensitive
+                const filterParts = batch.map(email => {
+                    const safeEmail = email.replace(/'/g, "''").trim();
+                    return `(tolower(fields/Email) eq '${safeEmail.toLowerCase()}')`;
+                });
                 
+                const filter = filterParts.join(' or ');
                 console.log(`Filtro OData: ${filter}`);
                 
                 try {
@@ -231,9 +264,27 @@ class UserManager {
                     
                     if (users && users.length > 0) {
                         users.forEach(user => {
-                            console.log(`Usuario encontrado en SharePoint: ${user.email}`);
+                            if (user && user.email) {
+                                const userEmailLower = user.email.toLowerCase().trim();
+                                console.log(`Usuario encontrado en SharePoint: ${user.email} (${user.id})`);
+                                
+                                // Verificar si este usuario ya está en los resultados
+                                const isDuplicate = result.some(existingUser => 
+                                    existingUser.email.toLowerCase().trim() === userEmailLower
+                                );
+                                
+                                if (isDuplicate) {
+                                    console.log(`Usuario duplicado, no se añadirá: ${user.email}`);
+                                } else {
+                                    result.push(user);
+                                }
+                            } else {
+                                console.warn('Usuario sin email encontrado en SharePoint');
+                            }
                         });
-                        result.push(...users);
+                    } else {
+                        console.log(`No se encontraron usuarios en SharePoint para este lote`);
+                        console.log('Emails del lote:', batch);
                     }
                 } catch (batchError) {
                     console.error(`Error al procesar lote de emails:`, batchError);
@@ -241,6 +292,13 @@ class UserManager {
             }
             
             console.log(`Total de usuarios encontrados: ${result.length}`);
+            console.log('Emails de usuarios encontrados:', result.map(u => u.email));
+            console.log('Emails que no se encontraron:', 
+                emailsToSearch.filter(email => 
+                    !result.some(u => u.email.toLowerCase().trim() === email.toLowerCase().trim())
+                )
+            );
+            
             return result;
         } catch (error) {
             console.error(`Error al buscar usuarios por emails:`, error);

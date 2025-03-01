@@ -207,14 +207,33 @@ class SharePointGraph {
     }
     
     /**
-     * Procesa los items de usuario devueltos por la API
-     * @param {Array} items - Items de la lista
-     * @returns {Array} Lista de usuarios procesados
+     * Procesa los elementos de usuario devueltos por SharePoint
+     * @param {Array} items - Elementos a procesar
+     * @returns {Array} Usuarios procesados
      * @private
      */
     _processUserItems(items) {
-        return items.map(item => {
-            const fields = item.fields;
+        console.log('Procesando items de usuarios desde SharePoint:', items);
+        
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            console.log('No hay items para procesar');
+            return [];
+        }
+        
+        // Mostrar estructura del primer item para depuración
+        if (items.length > 0) {
+            console.log('Estructura del primer item:', JSON.stringify(items[0], null, 2));
+        }
+        
+        const processedUsers = items.map(item => {
+            const fields = item.fields || {};
+            
+            // Verificar si el campo Email existe y tiene valor
+            if (!fields.Email) {
+                console.warn('Item sin email:', item);
+            } else {
+                console.log(`Procesando usuario con email: ${fields.Email}`);
+            }
             
             // Convertir fechas si existen
             let startDate = fields.StartDate;
@@ -228,7 +247,7 @@ class SharePointGraph {
                 endDate = new Date(endDate).toISOString();
             }
             
-            return {
+            const user = {
                 id: item.id,
                 email: fields.Email || '',
                 subscriptionType: fields.SubscriptionType || 'Gratuita',
@@ -237,9 +256,15 @@ class SharePointGraph {
                 isActive: fields.IsActive === true || fields.IsActive === 'true',
                 failedLoginAttempts: fields.FailedLoginAttempts || 0
             };
+            
+            console.log(`Usuario procesado: ${user.email}, ID: ${user.id}`);
+            return user;
         });
+        
+        console.log(`Total de usuarios procesados: ${processedUsers.length}`);
+        return processedUsers;
     }
-    
+
     /**
      * Busca usuarios según criterios de búsqueda y filtros
      * @param {string} searchTerm - Término de búsqueda

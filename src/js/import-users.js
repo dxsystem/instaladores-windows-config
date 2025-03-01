@@ -257,7 +257,7 @@ class UserImporter {
             
             // Obtener todos los emails para buscar usuarios existentes
             const emails = this.users.map(user => user.email).filter(email => email);
-            console.log(`Buscando ${emails.length} emails en SharePoint...`);
+            console.log(`Buscando ${emails.length} emails en SharePoint para comparación...`);
             
             // Buscar usuarios existentes por email
             const existingUsers = await this.userManager.findUsersByEmails(emails);
@@ -267,22 +267,24 @@ class UserImporter {
             const existingUsersMap = {};
             existingUsers.forEach(user => {
                 if (user && user.email) {
-                    const emailLower = user.email.toLowerCase();
+                    // Usar email en minúsculas y sin espacios para la comparación
+                    const emailLower = user.email.toLowerCase().trim();
                     existingUsersMap[emailLower] = user;
-                    console.log(`Usuario existente mapeado: ${emailLower}`);
+                    console.log(`Usuario existente mapeado: ${emailLower} (ID: ${user.id})`);
                 }
             });
             
-            console.log('Mapa de usuarios existentes:', Object.keys(existingUsersMap));
+            console.log('Emails de usuarios existentes:', Object.keys(existingUsersMap));
             
             // Actualizar usuarios con información de usuarios existentes
             this.users.forEach(user => {
                 if (user && user.email) {
-                    const emailLower = user.email.toLowerCase();
+                    // Usar email en minúsculas y sin espacios para la comparación
+                    const emailLower = user.email.toLowerCase().trim();
                     const existingUser = existingUsersMap[emailLower];
                     
                     if (existingUser) {
-                        console.log(`Usuario encontrado en SharePoint: ${user.email}`);
+                        console.log(`Usuario encontrado en SharePoint: ${user.email} (ID: ${existingUser.id})`);
                         user.existingUser = existingUser;
                         user.estado = 'Actualizar';
                     } else {
@@ -291,6 +293,21 @@ class UserImporter {
                     }
                 }
             });
+            
+            // Verificar si hay discrepancias
+            const nuevosCount = this.users.filter(u => u.estado === 'Nuevo').length;
+            const actualizarCount = this.users.filter(u => u.estado === 'Actualizar').length;
+            
+            console.log(`Resumen de comparación: ${nuevosCount} nuevos, ${actualizarCount} a actualizar`);
+            
+            if (nuevosCount > 0 && existingUsers.length > 0) {
+                console.log('ADVERTENCIA: Hay usuarios que deberían existir pero no se encontraron en la comparación');
+                console.log('Emails en archivo que no se encontraron en SharePoint:', 
+                    this.users
+                        .filter(u => u.estado === 'Nuevo')
+                        .map(u => u.email)
+                );
+            }
             
             // Crear encabezados de tabla más similares a la imagen 2
             const headerRow = document.createElement('tr');
