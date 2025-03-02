@@ -391,7 +391,7 @@ function formatFileSize(bytes) {
 /**
  * Muestra el estado de carga
  */
-function showLoading(message = 'Cargando...') {\n    console.log("Mostrando loader con mensaje: " + message);
+function showLoading(message = 'Cargando...') {
     const loadingState = document.getElementById('loadingState');
     const loadingMessage = document.getElementById('loadingMessage');
     const loadingProgress = document.getElementById('loadingProgress');
@@ -399,7 +399,7 @@ function showLoading(message = 'Cargando...') {\n    console.log("Mostrando load
     if (loadingState && loadingMessage) {
         loadingMessage.textContent = message;
         // Usar display flex para asegurar que el loader sea visible
-        loadingState.classList.add("d-flex"); loadingState.style.cssText = "display: flex !important; z-index: 9999;";
+        loadingState.style.display = 'flex';
         
         if (loadingProgress) {
             loadingProgress.style.width = '0%';
@@ -414,7 +414,14 @@ function showLoading(message = 'Cargando...') {\n    console.log("Mostrando load
 /**
  * Oculta el estado de carga
  */
-function hideLoading() { console.log("Intentando ocultar el loader..."); const loadingState = document.getElementById('loadingState'); if (loadingState) { loadingState.classList.remove('d-flex'); loadingState.style.cssText = 'display: none !important; z-index: 9999;'; console.log("Loader ocultado correctamente"); } else { console.warn('Elemento loadingState no encontrado en el DOM'); } }
+function hideLoading() {
+    const loadingState = document.getElementById('loadingState');
+    if (loadingState) {
+        loadingState.style.display = "none"; console.log("Loader ocultado correctamente");
+    } else {
+        console.warn('Elemento loadingState no encontrado en el DOM');
+    }
+}
 
 /**
  * Actualiza el progreso de carga
@@ -1488,5 +1495,3 @@ async function syncAllConfigurations() {
         return false;
     }
 } 
-
-
