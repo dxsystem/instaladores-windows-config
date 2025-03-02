@@ -180,7 +180,11 @@ class IconService {
         let assignedCount = 0;
         let errorCount = 0;
         
-        apps.forEach((app, index) => {
+        // Crear una copia de las aplicaciones para evitar problemas de referencia
+        const appsToProcess = [...apps];
+        
+        // Procesar cada aplicación
+        appsToProcess.forEach((app, index) => {
             if (!app || !app.fileName) {
                 console.warn(`Aplicación ${index} no válida o sin nombre de archivo`);
                 errorCount++;
@@ -188,77 +192,59 @@ class IconService {
             }
             
             try {
-                console.log(`Procesando icono para ${app.name} (${index + 1}/${apps.length})`);
-                
                 // Obtener la extensión del archivo
                 const fileExtension = this.getFileExtension(app.fileName);
                 
-                // Primero intentar encontrar un icono con el nombre exacto del archivo
-                const exactFileName = app.fileName.substring(0, app.fileName.lastIndexOf('.'));
-                const exactFilePath = `img/${exactFileName}.png`;
+                // Asignar icono por defecto según la extensión
+                this.assignDefaultIcon(app, fileExtension);
                 
-                console.log(`Buscando icono exacto: ${exactFilePath}`);
+                // Intentar encontrar un icono más específico
+                this.findBetterIcon(app);
                 
-                // Verificar si existe un icono con el nombre exacto del archivo
-                this.loadIcon(exactFilePath).then(iconData => {
-                    app.icon = iconData;
-                    this.iconCache.set(exactFilePath, iconData);
-                    this.updateAppIconInUI(app);
-                    console.log(`Icono exacto encontrado: ${exactFilePath} para ${app.name}`);
-                    assignedCount++;
-                }).catch(() => {
-                    // Si no hay icono exacto, buscar un icono personalizado basado en el nombre de la aplicación
-                    const iconName = this.findMatchingIcon(app.name);
-                    
-                    if (iconName) {
-                        // Si encontramos un icono personalizado, usarlo
-                        const iconUrl = `img/${iconName}.png`;
-                        
-                        console.log(`Icono personalizado encontrado: ${iconUrl} para ${app.name}`);
-                        
-                        // Verificar si el icono existe en el cache
-                        if (this.iconCache.has(iconUrl)) {
-                            app.icon = this.iconCache.get(iconUrl);
-                            console.log(`Icono asignado desde cache: ${iconUrl} para ${app.name}`);
-                            this.updateAppIconInUI(app);
-                            assignedCount++;
-                        } else {
-                            // Intentar cargar el icono
-                            this.loadIcon(iconUrl).then(iconData => {
-                                if (iconData) {
-                                    app.icon = iconData;
-                                    this.iconCache.set(iconUrl, iconData);
-                                    
-                                    // Actualizar la interfaz si es necesario
-                                    this.updateAppIconInUI(app);
-                                    
-                                    console.log(`Icono personalizado cargado: ${iconUrl} para ${app.name}`);
-                                    assignedCount++;
-                                } else {
-                                    this.assignDefaultIcon(app, fileExtension);
-                                }
-                            }).catch(() => {
-                                this.assignDefaultIcon(app, fileExtension);
-                            });
-                        }
-                    } else {
-                        // Si no hay icono personalizado, usar el icono por defecto según la extensión
-                        this.assignDefaultIcon(app, fileExtension);
-                    }
-                });
+                assignedCount++;
             } catch (error) {
                 console.error(`Error al asignar icono para ${app.name}:`, error);
                 // Asignar icono por defecto en caso de error
                 app.icon = this.DEFAULT_ICON_URL;
-                this.updateAppIconInUI(app);
                 errorCount++;
             }
         });
         
         // Mostrar resumen al finalizar
-        setTimeout(() => {
-            console.log(`Resumen de asignación de iconos: ${assignedCount} asignados, ${errorCount} errores`);
-        }, 2000);
+        console.log(`Resumen de asignación de iconos: ${assignedCount} asignados, ${errorCount} errores`);
+    }
+
+    /**
+     * Busca un icono mejor para la aplicación
+     * @param {Object} app - Aplicación
+     */
+    findBetterIcon(app) {
+        if (!app || !app.name) return;
+        
+        try {
+            // Buscar un icono personalizado basado en el nombre de la aplicación
+            const iconName = this.findMatchingIcon(app.name);
+            
+            if (iconName) {
+                // Si encontramos un icono personalizado, usarlo
+                const iconUrl = `img/${iconName}.png`;
+                
+                // Intentar cargar el icono
+                this.loadIcon(iconUrl)
+                    .then(iconData => {
+                        app.icon = iconData;
+                        this.updateAppIconInUI(app);
+                        console.log(`Icono personalizado asignado: ${iconUrl} para ${app.name}`);
+                    })
+                    .catch(error => {
+                        console.warn(`No se pudo cargar el icono personalizado ${iconUrl} para ${app.name}:`, error);
+                        // Mantener el icono por defecto
+                    });
+            }
+        } catch (error) {
+            console.warn(`Error al buscar un mejor icono para ${app.name}:`, error);
+            // No hacer nada, mantener el icono por defecto
+        }
     }
 
     /**
