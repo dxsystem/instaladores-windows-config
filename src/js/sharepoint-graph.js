@@ -809,6 +809,21 @@ class SharePointGraph {
         try {
             console.log(`Guardando contenido en el archivo: ${fileName}`);
             
+            // Log detallado del contenido a guardar
+            if (fileName.includes('_apps_config.json')) {
+                try {
+                    const contentObj = JSON.parse(content);
+                    console.log(`Contenido a guardar en ${fileName}:`, {
+                        lastUpdate: contentObj.lastUpdate,
+                        totalApps: contentObj.applications.length,
+                        primeros5Archivos: contentObj.applications.slice(0, 5).map(app => app.fileName),
+                        tamaño: content.length
+                    });
+                } catch (parseError) {
+                    console.error(`Error al analizar el contenido de ${fileName}:`, parseError);
+                }
+            }
+            
             // Asegurarse de que tenemos el siteId
             if (!this.siteId) {
                 await this.getSiteId();

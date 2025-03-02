@@ -136,6 +136,18 @@ async function loadApps() {
         const executableFiles = await spGraph.getExeFiles();
         console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat) en la carpeta principal exe`);
         
+        // Log detallado de los archivos encontrados
+        console.log('Detalle de archivos encontrados:', {
+            total: executableFiles.length,
+            extensiones: [...new Set(executableFiles.map(file => 
+                file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : ''))],
+            primeros10: executableFiles.slice(0, 10).map(file => ({
+                nombre: file.name,
+                tamaño: file.size,
+                id: file.id
+            }))
+        });
+        
         // Actualizar la configuración con los nuevos archivos
         updateLoadingProgress(60);
         showLoading('Actualizando configuración...');
@@ -1305,6 +1317,19 @@ async function syncAllConfigurations() {
         updateLoadingProgress(20);
         const executableFiles = await spGraph.getExeFiles();
         console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat) en la carpeta principal exe`);
+        
+        // Log detallado de los archivos encontrados
+        console.log('Detalle de archivos encontrados:', {
+            total: executableFiles.length,
+            extensiones: [...new Set(executableFiles.map(file => 
+                file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : ''))],
+            primeros10: executableFiles.slice(0, 10).map(file => ({
+                nombre: file.name,
+                tamaño: file.size,
+                id: file.id
+            }))
+        });
+        
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
         // Paso 2: Cargar y actualizar aplicaciones
@@ -1450,6 +1475,14 @@ async function syncAllConfigurations() {
             })
         };
         
+        // Log detallado de la configuración ELITE
+        console.log('Configuración ELITE a guardar:', {
+            totalApps: eliteConfig.applications.length,
+            firstApp: eliteConfig.applications[0],
+            lastApp: eliteConfig.applications[eliteConfig.applications.length - 1],
+            appFileNames: eliteConfig.applications.map(app => app.fileName).slice(0, 5) // Mostrar los primeros 5 nombres de archivo
+        });
+        
         // Guardar configuración ELITE
         await spGraph.saveFileContent('elite_apps_config.json', JSON.stringify(eliteConfig, null, 2));
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
@@ -1494,6 +1527,14 @@ async function syncAllConfigurations() {
                 };
             })
         };
+        
+        // Log detallado de la configuración PRO
+        console.log('Configuración PRO a guardar:', {
+            totalApps: proConfig.applications.length,
+            firstApp: proConfig.applications[0],
+            lastApp: proConfig.applications[proConfig.applications.length - 1],
+            appFileNames: proConfig.applications.map(app => app.fileName).slice(0, 5) // Mostrar los primeros 5 nombres de archivo
+        });
         
         // Guardar configuración PRO
         await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
@@ -1540,6 +1581,14 @@ async function syncAllConfigurations() {
             })
         };
         
+        // Log detallado de la configuración Gratuita
+        console.log('Configuración GRATUITA a guardar:', {
+            totalApps: freeConfig.applications.length,
+            firstApp: freeConfig.applications[0],
+            lastApp: freeConfig.applications[freeConfig.applications.length - 1],
+            appFileNames: freeConfig.applications.map(app => app.fileName).slice(0, 5) // Mostrar los primeros 5 nombres de archivo
+        });
+        
         // Guardar configuración Gratuita
         await spGraph.saveFileContent('free_apps_config.json', JSON.stringify(freeConfig, null, 2));
         
@@ -1553,6 +1602,11 @@ async function syncAllConfigurations() {
             await saveRequiredApps();
         }
         
+        // Paso 9: Verificar los archivos guardados
+        showLoading('Verificando archivos guardados...');
+        updateLoadingProgress(98);
+        await verifyConfigFiles();
+        
         updateLoadingProgress(100);
         hideLoading();
         
@@ -1562,6 +1616,65 @@ async function syncAllConfigurations() {
         console.error('Error durante la sincronización completa:', error);
         showError('Error durante la sincronización completa: ' + error.message);
         hideLoading();
+        return false;
+    }
+}
+
+/**
+ * Verifica el contenido de los archivos de configuración guardados
+ */
+async function verifyConfigFiles() {
+    try {
+        console.log('Verificando archivos de configuración guardados...');
+        
+        // Verificar elite_apps_config.json
+        const eliteConfigContent = await spGraph.getFileContent('elite_apps_config.json');
+        if (eliteConfigContent) {
+            const eliteConfig = JSON.parse(eliteConfigContent);
+            console.log('Contenido LEÍDO de elite_apps_config.json:', {
+                lastUpdate: eliteConfig.lastUpdate,
+                totalApps: eliteConfig.applications.length,
+                primeros5Archivos: eliteConfig.applications.slice(0, 5).map(app => app.fileName),
+                extensiones: [...new Set(eliteConfig.applications.map(app => 
+                    app.fileName.includes('.') ? app.fileName.split('.').pop().toLowerCase() : ''))]
+            });
+        } else {
+            console.error('No se pudo leer elite_apps_config.json');
+        }
+        
+        // Verificar pro_apps_config.json
+        const proConfigContent = await spGraph.getFileContent('pro_apps_config.json');
+        if (proConfigContent) {
+            const proConfig = JSON.parse(proConfigContent);
+            console.log('Contenido LEÍDO de pro_apps_config.json:', {
+                lastUpdate: proConfig.lastUpdate,
+                totalApps: proConfig.applications.length,
+                primeros5Archivos: proConfig.applications.slice(0, 5).map(app => app.fileName),
+                extensiones: [...new Set(proConfig.applications.map(app => 
+                    app.fileName.includes('.') ? app.fileName.split('.').pop().toLowerCase() : ''))]
+            });
+        } else {
+            console.error('No se pudo leer pro_apps_config.json');
+        }
+        
+        // Verificar free_apps_config.json
+        const freeConfigContent = await spGraph.getFileContent('free_apps_config.json');
+        if (freeConfigContent) {
+            const freeConfig = JSON.parse(freeConfigContent);
+            console.log('Contenido LEÍDO de free_apps_config.json:', {
+                lastUpdate: freeConfig.lastUpdate,
+                totalApps: freeConfig.applications.length,
+                primeros5Archivos: freeConfig.applications.slice(0, 5).map(app => app.fileName),
+                extensiones: [...new Set(freeConfig.applications.map(app => 
+                    app.fileName.includes('.') ? app.fileName.split('.').pop().toLowerCase() : ''))]
+            });
+        } else {
+            console.error('No se pudo leer free_apps_config.json');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error al verificar archivos de configuración:', error);
         return false;
     }
 } 
