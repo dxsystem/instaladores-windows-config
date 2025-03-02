@@ -25,6 +25,14 @@
         /* Estilos para el loader */
         #loadingState {
             backdrop-filter: blur(5px);
+            transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
+        }
+        
+        #loadingState.hidden {
+            opacity: 0;
+            backdrop-filter: none;
+            z-index: -1;
+            display: none !important;
         }
         
         /* Estilos para las tarjetas de estadísticas */

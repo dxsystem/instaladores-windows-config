@@ -389,7 +389,7 @@ function formatFileSize(bytes) {
 }
 
 /**
- * Muestra el estado de carga
+ * Muestra el estado de carga con un mensaje personalizado
  */
 function showLoading(message = 'Cargando...') {
     const loadingState = document.getElementById('loadingState');
@@ -397,9 +397,15 @@ function showLoading(message = 'Cargando...') {
     const loadingProgress = document.getElementById('loadingProgress');
     
     if (loadingState && loadingMessage) {
-        loadingMessage.textContent = message;
-        // Usar display flex para asegurar que el loader sea visible
+        // Eliminar la clase hidden si existe
+        loadingState.classList.remove('hidden');
+        // Restablecer estilos para asegurar visibilidad
         loadingState.style.display = 'flex';
+        loadingState.style.opacity = '1';
+        loadingState.style.backdropFilter = 'blur(5px)';
+        loadingState.style.zIndex = '9999';
+        
+        loadingMessage.textContent = message;
         
         if (loadingProgress) {
             loadingProgress.style.width = '0%';
@@ -417,7 +423,14 @@ function showLoading(message = 'Cargando...') {
 function hideLoading() {
     const loadingState = document.getElementById('loadingState');
     if (loadingState) {
-        loadingState.style.display = "none"; console.log("Loader ocultado correctamente");
+        // Añadir la clase hidden que contiene los estilos para ocultar completamente
+        loadingState.classList.add('hidden');
+        // Mantener los estilos inline para compatibilidad
+        loadingState.style.display = "none"; 
+        loadingState.style.backdropFilter = "none";
+        loadingState.style.opacity = "0";
+        loadingState.style.zIndex = "-1";
+        console.log("Loader ocultado correctamente");
     } else {
         console.warn('Elemento loadingState no encontrado en el DOM');
     }
