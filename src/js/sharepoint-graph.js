@@ -647,7 +647,7 @@ class SharePointGraph {
             
             // Intentar obtener el archivo directamente desde la raíz de la biblioteca
             try {
-                const rootUrl = `${this.graphEndpoint}/drives/${driveId}/root:/Forms/AllItems.aspx/${fileName}:/content`;
+                const rootUrl = `${this.graphEndpoint}/drives/${driveId}/root:/${fileName}:/content`;
                 console.log(`Intentando obtener archivo desde la raíz: ${rootUrl}`);
                 
                 const rootResponse = await fetch(rootUrl, {
@@ -670,11 +670,7 @@ class SharePointGraph {
             }
             
             // Probar diferentes rutas para encontrar el archivo
-            const possiblePaths = [
-                `/root:/${fileName}:/content`,
-                `/items/root:/${fileName}:/content`,
-                `/root:/Forms/${fileName}:/content`,
-                `/root:/Forms/AllItems.aspx/${fileName}:/content`,
+            const possiblePaths = [`/root:/${fileName}:/content`, `/items/root:/${fileName}:/content`,
                 `/root:/InstaladoresWindowsCOnline/${fileName}:/content`
             ];
             
@@ -825,11 +821,7 @@ class SharePointGraph {
             const driveId = "b!Y4G7xKhAwE63GzVWFoZqEoZ6a3u1ygZDon3BUkpZKN5vf5RQYNfFQZUvvITooz_l";
             
             // Probar diferentes rutas para guardar el archivo
-            const possiblePaths = [
-                `/root:/${fileName}:/content`,
-                `/items/root:/${fileName}:/content`,
-                `/root:/Forms/${fileName}:/content`,
-                `/root:/Forms/AllItems.aspx/${fileName}:/content`,
+            const possiblePaths = [`/root:/${fileName}:/content`, `/items/root:/${fileName}:/content`,
                 `/root:/InstaladoresWindowsCOnline/${fileName}:/content`
             ];
             
@@ -1003,20 +995,20 @@ class SharePointGraph {
                 console.log('Error al acceder por driveId y ruta:', driveError.message);
             }
             
-            // 3. Intentar con la ruta Forms/AllItems.aspx/exe
+            // 3. Intentar con la ruta exe
             try {
-                const formsUrl = `${this.graphEndpoint}/drives/${driveId}/root:/Forms/AllItems.aspx/exe:/children?$top=1000`;
-                console.log(`Intentando obtener archivos con ruta Forms/AllItems.aspx/exe: ${formsUrl}`);
+                const formsUrl = `${this.graphEndpoint}/drives/${driveId}/root:/exe:/children?$top=1000`;
+                console.log(`Intentando obtener archivos con ruta exe: ${formsUrl}`);
                 
                 const formsFiles = await getAllFilesWithPagination(formsUrl);
                 
                 if (formsFiles.length > 0) {
-                    console.log(`Se encontraron ${formsFiles.length} archivos en la carpeta Forms/AllItems.aspx/exe`);
+                    console.log(`Se encontraron ${formsFiles.length} archivos en la carpeta exe`);
                     allFiles = formsFiles;
                     return allFiles;
                 }
             } catch (formsError) {
-                console.log('Error al acceder por ruta Forms/AllItems.aspx/exe:', formsError.message);
+                console.log('Error al acceder por ruta exe:', formsError.message);
             }
             
             // 4. Intentar con búsqueda de archivos ejecutables
@@ -1110,3 +1102,8 @@ class SharePointGraph {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SharePointGraph;
 }
+
+
+
+
+
