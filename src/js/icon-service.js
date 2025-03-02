@@ -169,10 +169,27 @@ class IconService {
      * @param {Array} apps - Lista de aplicaciones
      */
     assignIconsToApps(apps) {
-        console.log('Asignando iconos a las aplicaciones...');
+        if (!apps || !Array.isArray(apps) || apps.length === 0) {
+            console.warn('No hay aplicaciones para asignar iconos');
+            return;
+        }
         
-        apps.forEach(app => {
+        console.log(`Asignando iconos a ${apps.length} aplicaciones...`);
+        
+        // Contador para seguimiento
+        let assignedCount = 0;
+        let errorCount = 0;
+        
+        apps.forEach((app, index) => {
+            if (!app || !app.fileName) {
+                console.warn(`Aplicación ${index} no válida o sin nombre de archivo`);
+                errorCount++;
+                return;
+            }
+            
             try {
+                console.log(`Procesando icono para ${app.name} (${index + 1}/${apps.length})`);
+                
                 // Obtener la extensión del archivo
                 const fileExtension = this.getFileExtension(app.fileName);
                 
@@ -180,12 +197,15 @@ class IconService {
                 const exactFileName = app.fileName.substring(0, app.fileName.lastIndexOf('.'));
                 const exactFilePath = `img/${exactFileName}.png`;
                 
+                console.log(`Buscando icono exacto: ${exactFilePath}`);
+                
                 // Verificar si existe un icono con el nombre exacto del archivo
                 this.loadIcon(exactFilePath).then(iconData => {
                     app.icon = iconData;
                     this.iconCache.set(exactFilePath, iconData);
                     this.updateAppIconInUI(app);
                     console.log(`Icono exacto encontrado: ${exactFilePath} para ${app.name}`);
+                    assignedCount++;
                 }).catch(() => {
                     // Si no hay icono exacto, buscar un icono personalizado basado en el nombre de la aplicación
                     const iconName = this.findMatchingIcon(app.name);
@@ -194,10 +214,14 @@ class IconService {
                         // Si encontramos un icono personalizado, usarlo
                         const iconUrl = `img/${iconName}.png`;
                         
+                        console.log(`Icono personalizado encontrado: ${iconUrl} para ${app.name}`);
+                        
                         // Verificar si el icono existe en el cache
                         if (this.iconCache.has(iconUrl)) {
                             app.icon = this.iconCache.get(iconUrl);
                             console.log(`Icono asignado desde cache: ${iconUrl} para ${app.name}`);
+                            this.updateAppIconInUI(app);
+                            assignedCount++;
                         } else {
                             // Intentar cargar el icono
                             this.loadIcon(iconUrl).then(iconData => {
@@ -209,6 +233,7 @@ class IconService {
                                     this.updateAppIconInUI(app);
                                     
                                     console.log(`Icono personalizado cargado: ${iconUrl} para ${app.name}`);
+                                    assignedCount++;
                                 } else {
                                     this.assignDefaultIcon(app, fileExtension);
                                 }
@@ -225,8 +250,15 @@ class IconService {
                 console.error(`Error al asignar icono para ${app.name}:`, error);
                 // Asignar icono por defecto en caso de error
                 app.icon = this.DEFAULT_ICON_URL;
+                this.updateAppIconInUI(app);
+                errorCount++;
             }
         });
+        
+        // Mostrar resumen al finalizar
+        setTimeout(() => {
+            console.log(`Resumen de asignación de iconos: ${assignedCount} asignados, ${errorCount} errores`);
+        }, 2000);
     }
 
     /**
@@ -235,39 +267,30 @@ class IconService {
      * @param {string} fileExtension - Extensión del archivo
      */
     assignDefaultIcon(app, fileExtension) {
+        console.log(`Asignando icono por defecto para ${app.name} con extensión ${fileExtension}`);
+        
         let iconUrl;
         
         switch (fileExtension) {
             case '.exe':
                 iconUrl = this.EXE_ICON_URL;
+                console.log(`Usando icono de EXE: ${iconUrl}`);
                 break;
             case '.bat':
                 iconUrl = this.BAT_ICON_URL;
+                console.log(`Usando icono de BAT: ${iconUrl}`);
                 break;
             default:
                 iconUrl = this.DEFAULT_ICON_URL;
+                console.log(`Usando icono por defecto: ${iconUrl}`);
                 break;
         }
         
-        // Verificar si el icono existe en el cache
-        if (this.iconCache.has(iconUrl)) {
-            app.icon = this.iconCache.get(iconUrl);
-        } else {
-            // Cargar el icono
-            this.loadIcon(iconUrl).then(iconData => {
-                if (iconData) {
-                    app.icon = iconData;
-                    this.iconCache.set(iconUrl, iconData);
-                    
-                    // Actualizar la interfaz si es necesario
-                    this.updateAppIconInUI(app);
-                } else {
-                    app.icon = this.DEFAULT_ICON_URL;
-                }
-            }).catch(() => {
-                app.icon = this.DEFAULT_ICON_URL;
-            });
-        }
+        // Asignar directamente el icono
+        app.icon = iconUrl;
+        
+        // Actualizar la interfaz
+        this.updateAppIconInUI(app);
         
         console.log(`Icono por defecto asignado: ${iconUrl} para ${app.name}`);
     }
@@ -277,12 +300,33 @@ class IconService {
      * @param {Object} app - Aplicación
      */
     updateAppIconInUI(app) {
+        if (!app || !app.id) {
+            console.warn('No se puede actualizar el icono: aplicación no válida');
+            return;
+        }
+        
+        if (!app.icon) {
+            console.warn(`La aplicación ${app.name} no tiene un icono asignado`);
+            return;
+        }
+        
+        console.log(`Actualizando icono en UI para ${app.name} (ID: ${app.id}), icono: ${app.icon}`);
+        
         // Buscar todas las imágenes que correspondan a esta aplicación
         const appIcons = document.querySelectorAll(`img[data-app-id="${app.id}"]`);
         
+        if (appIcons.length === 0) {
+            console.warn(`No se encontraron elementos de imagen para la aplicación ${app.name} (ID: ${app.id})`);
+            return;
+        }
+        
+        console.log(`Encontrados ${appIcons.length} elementos de imagen para actualizar`);
+        
         // Actualizar cada imagen
-        appIcons.forEach(icon => {
+        appIcons.forEach((icon, index) => {
+            const oldSrc = icon.src;
             icon.src = app.icon;
+            console.log(`Icono ${index + 1} actualizado: ${oldSrc} -> ${app.icon}`);
         });
     }
 
@@ -295,29 +339,36 @@ class IconService {
         return new Promise((resolve, reject) => {
             // Verificar si la URL es válida
             if (!url) {
+                console.error('URL de icono no válida');
                 reject(new Error('URL de icono no válida'));
                 return;
             }
             
             // Verificar si el icono ya está en cache
             if (this.iconCache.has(url)) {
+                console.log(`Icono encontrado en cache: ${url}`);
                 resolve(this.iconCache.get(url));
                 return;
             }
+            
+            console.log(`Intentando cargar icono desde: ${url}`);
             
             // Intentar cargar el icono
             const img = new Image();
             
             img.onload = () => {
+                console.log(`Icono cargado correctamente: ${url}`);
+                this.iconCache.set(url, url);
                 resolve(url);
             };
             
-            img.onerror = () => {
-                console.error(`Error al cargar icono: ${url}`);
+            img.onerror = (error) => {
+                console.error(`Error al cargar icono: ${url}`, error);
                 reject(new Error(`Error al cargar icono: ${url}`));
             };
             
-            img.src = url;
+            // Agregar timestamp para evitar caché del navegador
+            img.src = url + '?t=' + new Date().getTime();
         });
     }
 
