@@ -15,6 +15,7 @@ let appModal = null;
 let descriptionModal = null;
 let currentEditingApp = null;
 let currentEditingDescription = null;
+let iconService = null;
 
 // Constantes
 const DEFAULT_ICON_URL = 'img/app-icon-default.png';
@@ -29,6 +30,9 @@ async function initializeAppsManager() {
         // Inicializar modales
         appModal = new bootstrap.Modal(document.getElementById('appModal'));
         descriptionModal = new bootstrap.Modal(document.getElementById('descriptionModal'));
+        
+        // Inicializar servicio de iconos
+        iconService = new IconService(spGraph);
         
         // Cargar datos iniciales
         await loadApps();
@@ -204,6 +208,16 @@ async function loadApps() {
             installationOrder: app.installationOrder
         }));
         
+        // Asignar iconos a las aplicaciones
+        updateLoadingProgress(85);
+        showLoading('Asignando iconos a las aplicaciones...');
+        
+        if (iconService) {
+            iconService.assignIconsToApps(apps);
+        } else {
+            console.warn('El servicio de iconos no está disponible');
+        }
+        
         // Actualizar la interfaz
         updateLoadingProgress(90);
         showLoading('Actualizando interfaz...');
@@ -276,7 +290,7 @@ function updateAppsTable() {
         
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td><img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon"></td>
+            <td><img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon" data-app-id="${app.id}"></td>
             <td>${app.name}</td>
             <td><span class="badge bg-secondary">${app.category}</span></td>
             <td>${app.version || ''}</td>
