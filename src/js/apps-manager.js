@@ -1313,6 +1313,23 @@ async function syncAllConfigurations() {
         updateLoadingProgress(20);
         const exeFiles = await spGraph.getExeFiles();
         console.log('Archivos encontrados en la carpeta exe:', exeFiles);
+        
+        // Filtrar solo archivos .exe y .bat de la carpeta principal (sin subcarpetas)
+        const executableFiles = exeFiles.filter(file => {
+            // Verificar que sea un archivo .exe o .bat
+            const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
+                                file.name.toLowerCase().endsWith('.bat');
+            
+            // Verificar que no esté en una subcarpeta
+            // Las rutas de subcarpetas contendrían un caracter '/' en el nombre o en la URL
+            const isInSubfolder = file.name.includes('/') || 
+                                (file.webUrl && file.webUrl.split('/exe/').length > 1 && 
+                                file.webUrl.split('/exe/')[1].includes('/'));
+            
+            return isExecutable && !isInSubfolder;
+        });
+        
+        console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat) en la carpeta principal exe`);
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
         // Paso 2: Cargar y actualizar aplicaciones
@@ -1324,7 +1341,7 @@ async function syncAllConfigurations() {
             console.log('No hay configuración de aplicaciones, creando una inicial basada en los archivos encontrados');
             
             // Crear aplicaciones a partir de los archivos encontrados
-            allApps = exeFiles.map((file, index) => {
+            allApps = executableFiles.map((file, index) => {
                 // Extraer extensión y nombre base
                 const fileName = file.name;
                 const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
@@ -1333,9 +1350,7 @@ async function syncAllConfigurations() {
                 // Determinar categoría basada en la extensión
                 let category = 'General';
                 if (extension === 'exe') category = 'Aplicación';
-                else if (extension === 'msi') category = 'Instalador';
-                else if (extension === 'zip' || extension === 'rar') category = 'Comprimido';
-                else if (extension === 'bat' || extension === 'cmd') category = 'Script';
+                else if (extension === 'bat') category = 'Script';
                 
                 // Agregar categoría al conjunto
                 categories.add(category);
@@ -1359,7 +1374,7 @@ async function syncAllConfigurations() {
         } else {
             // Actualizar información de archivos existentes
             allApps.forEach(app => {
-                const file = exeFiles.find(f => f.name === app.fileName);
+                const file = executableFiles.find(f => f.name === app.fileName);
                 if (file) {
                     app.size = file.size || app.size;
                     app.lastModified = file.lastModified ? new Date(file.lastModified) : app.lastModified;
@@ -1368,7 +1383,7 @@ async function syncAllConfigurations() {
             
             // Agregar archivos nuevos
             const configuredFileNames = allApps.map(app => app.fileName);
-            const newFiles = exeFiles.filter(file => !configuredFileNames.includes(file.name));
+            const newFiles = executableFiles.filter(file => !configuredFileNames.includes(file.name));
             
             if (newFiles.length > 0) {
                 console.log(`Se encontraron ${newFiles.length} archivos nuevos que no están en la configuración`);
@@ -1383,9 +1398,7 @@ async function syncAllConfigurations() {
                     // Determinar categoría basada en la extensión
                     let category = 'General';
                     if (extension === 'exe') category = 'Aplicación';
-                    else if (extension === 'msi') category = 'Instalador';
-                    else if (extension === 'zip' || extension === 'rar') category = 'Comprimido';
-                    else if (extension === 'bat' || extension === 'cmd') category = 'Script';
+                    else if (extension === 'bat') category = 'Script';
                     
                     // Agregar categoría al conjunto
                     categories.add(category);
