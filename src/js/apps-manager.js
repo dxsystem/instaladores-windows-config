@@ -15,9 +15,10 @@ let appModal = null;
 let descriptionModal = null;
 let currentEditingApp = null;
 let currentEditingDescription = null;
+let iconService = null;
 
 // Constantes
-const DEFAULT_ICON_URL = 'img/app-icon-default.png';
+const DEFAULT_ICON_URL = 'img/default_app.png';
 
 /**
  * Inicializa el gestor de aplicaciones
@@ -29,6 +30,18 @@ async function initializeAppsManager() {
         // Inicializar modales
         appModal = new bootstrap.Modal(document.getElementById('appModal'));
         descriptionModal = new bootstrap.Modal(document.getElementById('descriptionModal'));
+        
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            console.error('El cliente de SharePoint Graph no está inicializado');
+            hideLoading();
+            showError('Error: El cliente de SharePoint Graph no está inicializado');
+            return;
+        }
+        
+        // Inicializar servicio de iconos
+        iconService = new IconService(spGraph);
+        console.log('Servicio de iconos inicializado');
         
         // Cargar datos iniciales
         await loadApps();
@@ -190,7 +203,7 @@ async function loadApps() {
         showLoading('Guardando configuración actualizada...');
         
         // Actualizar las aplicaciones en memoria
-        apps = config.applications.map(app => ({
+        allApps = config.applications.map(app => ({
             id: app.sharePointId,
             name: app.name,
             fileName: app.fileName,
@@ -201,22 +214,27 @@ async function loadApps() {
             description: app.description,
             downloadUrl: app.downloadUrl,
             webUrl: app.webUrl,
-            installationOrder: app.installationOrder
+            installationOrder: app.installationOrder,
+            icon: DEFAULT_ICON_URL // Icono por defecto
         }));
-        
-        // Actualizar la interfaz
-        updateLoadingProgress(90);
-        showLoading('Actualizando interfaz...');
         
         // Extraer categorías únicas
         categories = new Set();
-        apps.forEach(app => {
+        allApps.forEach(app => {
             if (app.category) {
                 categories.add(app.category);
             } else {
                 categories.add('General');
             }
         });
+        
+        // Asignar iconos a las aplicaciones DESPUÉS de que estén cargadas
+        if (iconService) {
+            console.log('Asignando iconos a las aplicaciones...');
+            iconService.assignIconsToApps(allApps);
+        } else {
+            console.warn('Servicio de iconos no inicializado');
+        }
         
         // Actualizar la tabla y el filtro de categorías
         updateAppsTable();
@@ -230,7 +248,7 @@ async function loadApps() {
         await loadDescriptions();
         await loadRequiredApps();
         
-        return apps;
+        return allApps;
     } catch (error) {
         console.error('Error al cargar aplicaciones:', error);
         showError(`Error al cargar aplicaciones: ${error.message}`);
@@ -250,7 +268,7 @@ function updateAppsTable() {
     tableBody.innerHTML = '';
     
     // Agregar filas
-    apps.forEach((app, index) => {
+    allApps.forEach((app, index) => {
         const row = document.createElement('tr');
         
         // Formatear tamaño
@@ -274,9 +292,12 @@ function updateAppsTable() {
             formattedDate = 'Fecha desconocida';
         }
         
+        // Asegurarse de que el icono esté definido
+        const iconUrl = app.icon || DEFAULT_ICON_URL;
+        
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td><img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon"></td>
+            <td><img src="${iconUrl}" alt="${app.name}" class="app-icon" data-app-id="${app.id}" onerror="this.src='${DEFAULT_ICON_URL}'"></td>
             <td>${app.name}</td>
             <td><span class="badge bg-secondary">${app.category}</span></td>
             <td>${app.version || ''}</td>
@@ -341,7 +362,7 @@ function updateCounters() {
     // Total de aplicaciones
     const totalAppsCount = document.getElementById('totalAppsCount');
     if (totalAppsCount) {
-        totalAppsCount.textContent = apps.length;
+        totalAppsCount.textContent = allApps.length;
     }
     
     // Total de aplicaciones obligatorias
@@ -827,14 +848,14 @@ async function loadRequiredApps() {
         console.log(`Se encontraron ${requiredAppIds.length} aplicaciones obligatorias en la configuración`);
         
         // Verificar que apps esté definido
-        if (!apps || !Array.isArray(apps)) {
+        if (!allApps || !Array.isArray(allApps)) {
             console.warn('La lista de aplicaciones no está disponible');
             hideLoading();
             return false;
         }
         
         // Distribuir las aplicaciones entre las dos listas
-        apps.forEach(app => {
+        allApps.forEach(app => {
             if (!app || !app.id) {
                 console.warn('Aplicación sin ID encontrada:', app);
                 return;
@@ -1144,7 +1165,7 @@ function showAddAppModal() {
  */
 function editApp(appId) {
     // Buscar aplicación
-    const app = apps.find(a => a.id === appId);
+    const app = allApps.find(a => a.id === appId);
     if (!app) {
         showError('No se encontró la aplicación');
         return;
@@ -1178,14 +1199,14 @@ function deleteApp(appId) {
     }
     
     // Buscar índice
-    const index = apps.findIndex(a => a.id === appId);
+    const index = allApps.findIndex(a => a.id === appId);
     if (index === -1) {
         showError('No se encontró la aplicación');
         return;
     }
     
     // Eliminar aplicación
-    apps.splice(index, 1);
+    allApps.splice(index, 1);
     
     // Actualizar tabla
     updateAppsTable();
@@ -1231,7 +1252,7 @@ function saveApp() {
         currentEditingApp.installationOrder = installationOrder;
     } else {
         // Agregar nueva aplicación
-        apps.push({
+        allApps.push({
             id: `app-${Date.now()}`,
             name: name,
             fileName: fileName,
@@ -1246,7 +1267,7 @@ function saveApp() {
     }
     
     // Ordenar por nombre
-    apps.sort((a, b) => a.name.localeCompare(b.name));
+    allApps.sort((a, b) => a.name.localeCompare(b.name));
     
     // Actualizar tabla
     updateAppsTable();
@@ -1299,11 +1320,11 @@ async function syncAllConfigurations() {
         updateLoadingProgress(40);
         
         // Si no hay configuración o no hay aplicaciones, crear una configuración inicial
-        if (apps.length === 0) {
+        if (allApps.length === 0) {
             console.log('No hay configuración de aplicaciones, creando una inicial basada en los archivos encontrados');
             
             // Crear aplicaciones a partir de los archivos encontrados
-            apps = exeFiles.map((file, index) => {
+            allApps = exeFiles.map((file, index) => {
                 // Extraer extensión y nombre base
                 const fileName = file.name;
                 const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
@@ -1334,10 +1355,10 @@ async function syncAllConfigurations() {
             });
             
             // Ordenar por nombre
-            apps.sort((a, b) => a.name.localeCompare(b.name));
+            allApps.sort((a, b) => a.name.localeCompare(b.name));
         } else {
             // Actualizar información de archivos existentes
-            apps.forEach(app => {
+            allApps.forEach(app => {
                 const file = exeFiles.find(f => f.name === app.fileName);
                 if (file) {
                     app.size = file.size || app.size;
@@ -1346,7 +1367,7 @@ async function syncAllConfigurations() {
             });
             
             // Agregar archivos nuevos
-            const configuredFileNames = apps.map(app => app.fileName);
+            const configuredFileNames = allApps.map(app => app.fileName);
             const newFiles = exeFiles.filter(file => !configuredFileNames.includes(file.name));
             
             if (newFiles.length > 0) {
@@ -1378,16 +1399,16 @@ async function syncAllConfigurations() {
                         version: '',
                         size: file.size || 0,
                         lastModified: file.lastModified ? new Date(file.lastModified) : new Date(),
-                        installationOrder: apps.length + index + 1,
+                        installationOrder: allApps.length + index + 1,
                         icon: DEFAULT_ICON_URL
                     };
                 });
                 
                 // Agregar las nuevas aplicaciones a la lista
-                apps = [...apps, ...newApps];
+                allApps = [...allApps, ...newApps];
                 
                 // Ordenar por nombre
-                apps.sort((a, b) => a.name.localeCompare(b.name));
+                allApps.sort((a, b) => a.name.localeCompare(b.name));
             }
         }
         
@@ -1412,7 +1433,7 @@ async function syncAllConfigurations() {
         // Crear configuración ELITE
         const eliteConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: apps.map(app => ({
+            applications: allApps.map(app => ({
                 sharePointId: app.id,
                 name: app.name,
                 fileName: app.fileName,
@@ -1432,9 +1453,9 @@ async function syncAllConfigurations() {
         // Paso 5: Crear configuración PRO (60% de las apps)
         showLoading('Generando configuración PRO...');
         updateLoadingProgress(80);
-        const proAppsCount = Math.floor(apps.length * 0.6);
+        const proAppsCount = Math.floor(allApps.length * 0.6);
         // Ordenar aleatoriamente y tomar el 60%
-        const proApps = [...apps]
+        const proApps = [...allApps]
             .sort(() => 0.5 - Math.random())
             .slice(0, proAppsCount);
         
@@ -1461,9 +1482,9 @@ async function syncAllConfigurations() {
         // Paso 6: Crear configuración Gratuita (30 apps aleatorias o menos)
         showLoading('Generando configuración Gratuita...');
         updateLoadingProgress(90);
-        const freeAppsCount = Math.min(30, apps.length);
+        const freeAppsCount = Math.min(30, allApps.length);
         // Ordenar aleatoriamente y tomar hasta 30 apps
-        const freeApps = [...apps]
+        const freeApps = [...allApps]
             .sort(() => 0.5 - Math.random())
             .slice(0, freeAppsCount);
         
