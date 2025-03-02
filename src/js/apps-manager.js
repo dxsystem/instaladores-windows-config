@@ -31,12 +31,16 @@ async function initializeAppsManager() {
         appModal = new bootstrap.Modal(document.getElementById('appModal'));
         descriptionModal = new bootstrap.Modal(document.getElementById('descriptionModal'));
         
-        // Inicializar servicio de iconos
-        iconService = new IconService(spGraph);
-        console.log('Servicio de iconos inicializado');
-        
         // Configurar eventos
         setupEventListeners();
+        
+        // Inicializar servicio de iconos - MOVIDO AQUÍ PARA ASEGURAR QUE SE INICIALICE ANTES DE CARGAR APPS
+        if (spGraph) {
+            iconService = new IconService(spGraph);
+            console.log('Servicio de iconos inicializado');
+        } else {
+            console.warn('No se puede inicializar el servicio de iconos: spGraph no está disponible');
+        }
         
         // Cargar aplicaciones
         await loadApps();
@@ -114,19 +118,19 @@ async function loadApps() {
         // Actualizar filtro de categorías
         updateCategoryFilter();
         
-        // Actualizar tabla de aplicaciones
-        updateAppsTable();
-        
-        // Actualizar contadores
-        updateCounters();
-        
-        // Asignar iconos a las aplicaciones
+        // Asignar iconos a las aplicaciones - MOVIDO AQUÍ PARA ASEGURAR QUE LAS APPS ESTÉN CARGADAS
         if (iconService) {
             console.log('Asignando iconos a las aplicaciones...');
             iconService.assignIconsToApps(allApps);
         } else {
             console.warn('Servicio de iconos no inicializado');
         }
+        
+        // Actualizar tabla de aplicaciones - MOVIDO DESPUÉS DE ASIGNAR ICONOS
+        updateAppsTable();
+        
+        // Actualizar contadores
+        updateCounters();
         
         console.log('Aplicaciones cargadas correctamente');
     } catch (error) {
@@ -143,17 +147,17 @@ async function loadApps() {
 function updateAppsTable() {
     console.log('Actualizando tabla de aplicaciones...');
     
-    const tableBody = document.getElementById('appsTableBody');
+    const appsTableBody = document.getElementById('appsTableBody');
     const searchInput = document.getElementById('appSearchInput').value.toLowerCase();
     const categoryFilter = document.getElementById('categoryFilter').value;
     
-    if (!tableBody) {
+    if (!appsTableBody) {
         console.error('No se encontró el elemento appsTableBody');
         return;
     }
     
     // Limpiar tabla
-    tableBody.innerHTML = '';
+    appsTableBody.innerHTML = '';
     
     // Filtrar aplicaciones
     const filteredApps = allApps.filter(app => {
@@ -183,9 +187,10 @@ function updateAppsTable() {
         const iconUrl = app.icon || DEFAULT_ICON_URL;
         console.log(`Icono para ${app.name}: ${iconUrl}`);
         
+        // Crear la fila con el icono
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td><img src="${iconUrl}" alt="${app.name}" class="app-icon" data-app-id="${app.id}"></td>
+            <td><img src="${iconUrl}" alt="${app.name}" class="app-icon" data-app-id="${app.id}" onerror="this.src='${DEFAULT_ICON_URL}'"></td>
             <td>${app.name}</td>
             <td><span class="badge bg-secondary">${app.category}</span></td>
             <td>${app.version}</td>
@@ -201,7 +206,7 @@ function updateAppsTable() {
             </td>
         `;
         
-        tableBody.appendChild(row);
+        appsTableBody.appendChild(row);
     });
     
     // Actualizar contador

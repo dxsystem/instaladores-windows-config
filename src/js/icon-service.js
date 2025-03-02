@@ -267,32 +267,54 @@ class IconService {
      * @param {string} fileExtension - Extensión del archivo
      */
     assignDefaultIcon(app, fileExtension) {
-        console.log(`Asignando icono por defecto para ${app.name} con extensión ${fileExtension}`);
-        
-        let iconUrl;
-        
-        switch (fileExtension) {
-            case '.exe':
-                iconUrl = this.EXE_ICON_URL;
-                console.log(`Usando icono de EXE: ${iconUrl}`);
-                break;
-            case '.bat':
-                iconUrl = this.BAT_ICON_URL;
-                console.log(`Usando icono de BAT: ${iconUrl}`);
-                break;
-            default:
-                iconUrl = this.DEFAULT_ICON_URL;
-                console.log(`Usando icono por defecto: ${iconUrl}`);
-                break;
+        if (!app) {
+            console.error('No se puede asignar icono por defecto: aplicación no válida');
+            return;
         }
         
-        // Asignar directamente el icono
-        app.icon = iconUrl;
+        console.log(`Asignando icono por defecto para ${app.name} con extensión ${fileExtension}`);
         
-        // Actualizar la interfaz
-        this.updateAppIconInUI(app);
+        // Determinar la URL del icono según la extensión
+        let iconUrl;
         
-        console.log(`Icono por defecto asignado: ${iconUrl} para ${app.name}`);
+        try {
+            switch (fileExtension) {
+                case '.exe':
+                    iconUrl = this.EXE_ICON_URL;
+                    console.log(`Usando icono de EXE: ${iconUrl}`);
+                    break;
+                case '.bat':
+                    iconUrl = this.BAT_ICON_URL;
+                    console.log(`Usando icono de BAT: ${iconUrl}`);
+                    break;
+                default:
+                    iconUrl = this.DEFAULT_ICON_URL;
+                    console.log(`Usando icono por defecto: ${iconUrl}`);
+                    break;
+            }
+            
+            // Verificar que el icono exista
+            this.loadIcon(iconUrl)
+                .then(loadedIconUrl => {
+                    // Asignar el icono cargado
+                    app.icon = loadedIconUrl;
+                    console.log(`Icono por defecto asignado y cargado: ${loadedIconUrl} para ${app.name}`);
+                    
+                    // Actualizar la interfaz
+                    this.updateAppIconInUI(app);
+                })
+                .catch(error => {
+                    // Si hay error al cargar el icono, usar el DEFAULT_ICON_URL como último recurso
+                    console.warn(`Error al cargar icono ${iconUrl}, usando DEFAULT_ICON_URL como fallback`, error);
+                    app.icon = this.DEFAULT_ICON_URL;
+                    this.updateAppIconInUI(app);
+                });
+        } catch (error) {
+            console.error(`Error al asignar icono por defecto para ${app.name}:`, error);
+            // Asignar el icono por defecto en caso de error
+            app.icon = this.DEFAULT_ICON_URL;
+            this.updateAppIconInUI(app);
+        }
     }
 
     /**
