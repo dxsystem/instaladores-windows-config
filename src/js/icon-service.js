@@ -180,11 +180,8 @@ class IconService {
         let assignedCount = 0;
         let errorCount = 0;
         
-        // Crear una copia de las aplicaciones para evitar problemas de referencia
-        const appsToProcess = [...apps];
-        
         // Procesar cada aplicación
-        appsToProcess.forEach((app, index) => {
+        apps.forEach((app, index) => {
             if (!app || !app.fileName) {
                 console.warn(`Aplicación ${index} no válida o sin nombre de archivo`);
                 errorCount++;
@@ -195,13 +192,29 @@ class IconService {
                 // Obtener la extensión del archivo
                 const fileExtension = this.getFileExtension(app.fileName);
                 
-                // Asignar icono por defecto según la extensión
-                this.assignDefaultIcon(app, fileExtension);
+                // Buscar un icono personalizado basado en el nombre de la aplicación
+                const iconName = this.findMatchingIcon(app.name);
                 
-                // Intentar encontrar un icono más específico
-                this.findBetterIcon(app);
-                
-                assignedCount++;
+                if (iconName) {
+                    // Si encontramos un icono personalizado, usarlo
+                    const iconUrl = `img/${iconName}.png`;
+                    app.icon = iconUrl;
+                    assignedCount++;
+                } else {
+                    // Si no hay icono personalizado, usar el icono por defecto según la extensión
+                    switch (fileExtension) {
+                        case '.exe':
+                            app.icon = this.EXE_ICON_URL;
+                            break;
+                        case '.bat':
+                            app.icon = this.BAT_ICON_URL;
+                            break;
+                        default:
+                            app.icon = this.DEFAULT_ICON_URL;
+                            break;
+                    }
+                    assignedCount++;
+                }
             } catch (error) {
                 console.error(`Error al asignar icono para ${app.name}:`, error);
                 // Asignar icono por defecto en caso de error

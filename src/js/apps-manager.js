@@ -34,17 +34,17 @@ async function initializeAppsManager() {
         // Configurar eventos
         setupEventListeners();
         
-        // Inicializar servicio de iconos con verificación
-        try {
-            if (typeof IconService === 'function') {
-                iconService = new IconService(spGraph);
-                console.log('Servicio de iconos inicializado correctamente');
-            } else {
-                console.warn('La clase IconService no está disponible');
-            }
-        } catch (iconError) {
-            console.error('Error al inicializar el servicio de iconos:', iconError);
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            console.error('El cliente de SharePoint Graph no está inicializado');
+            hideLoading();
+            showError('Error: El cliente de SharePoint Graph no está inicializado');
+            return;
         }
+        
+        // Inicializar servicio de iconos
+        iconService = new IconService(spGraph);
+        console.log('Servicio de iconos inicializado');
         
         // Cargar aplicaciones
         await loadApps();
@@ -98,52 +98,10 @@ async function loadApps() {
     try {
         showLoading('Cargando aplicaciones...');
         
-        // Verificar que spGraph esté disponible y tenga el método getApps
-        if (!spGraph || typeof spGraph.getApps !== 'function') {
-            console.warn('spGraph.getApps no está disponible. Usando datos de ejemplo.');
-            
-            // Crear datos de ejemplo si no podemos obtener las aplicaciones reales
-            const exampleApps = [
-                {
-                    id: 'app-1',
-                    name: 'Google Chrome',
-                    fileName: 'GoogleChrome.exe',
-                    filePath: 'exe/GoogleChrome.exe',
-                    category: 'Navegadores',
-                    version: '120.0.6099.217',
-                    description: 'Navegador web de Google',
-                    size: 85000000,
-                    lastModified: new Date(),
-                    installationOrder: 1
-                },
-                {
-                    id: 'app-2',
-                    name: 'Microsoft Office',
-                    fileName: 'Office365.exe',
-                    filePath: 'exe/Office365.exe',
-                    category: 'Productividad',
-                    version: '2021',
-                    description: 'Suite de productividad de Microsoft',
-                    size: 4500000000,
-                    lastModified: new Date(),
-                    installationOrder: 2
-                },
-                {
-                    id: 'app-3',
-                    name: 'WinRAR',
-                    fileName: 'winrar.exe',
-                    filePath: 'exe/winrar.exe',
-                    category: 'Utilidades',
-                    version: '6.11',
-                    description: 'Compresor de archivos',
-                    size: 3000000,
-                    lastModified: new Date(),
-                    installationOrder: 3
-                }
-            ];
-            
-            // Usar los datos de ejemplo
-            processApps(exampleApps);
+        // Verificar que spGraph esté disponible
+        if (!spGraph) {
+            console.error('El cliente de SharePoint Graph no está inicializado');
+            hideLoading();
             return;
         }
         
@@ -151,70 +109,34 @@ async function loadApps() {
         const appsData = await spGraph.getApps();
         console.log('Aplicaciones obtenidas:', appsData);
         
-        // Procesar las aplicaciones obtenidas
-        processApps(appsData);
-    } catch (error) {
-        console.error('Error al cargar aplicaciones:', error);
-        showError(`Error al cargar aplicaciones: ${error.message}`);
+        // Procesar aplicaciones
+        allApps = appsData.map(app => ({
+            id: app.id,
+            name: app.name,
+            fileName: app.fileName,
+            filePath: app.filePath,
+            category: app.category || 'General',
+            version: app.version || '',
+            description: app.description || '',
+            size: app.size || 0,
+            lastModified: app.lastModified ? new Date(app.lastModified) : new Date(),
+            installationOrder: app.installationOrder || 0,
+            icon: DEFAULT_ICON_URL // Icono por defecto
+        }));
         
-        // En caso de error, usar datos de ejemplo
-        console.warn('Usando datos de ejemplo debido al error.');
-        const exampleApps = [
-            {
-                id: 'app-error-1',
-                name: 'Ejemplo (Error)',
-                fileName: 'ejemplo.exe',
-                filePath: 'exe/ejemplo.exe',
-                category: 'General',
-                version: '1.0',
-                description: 'Aplicación de ejemplo (creada por error)',
-                size: 1000000,
-                lastModified: new Date(),
-                installationOrder: 1
-            }
-        ];
+        // Extraer categorías
+        categories = new Set(allApps.map(app => app.category).filter(Boolean));
         
-        // Procesar los datos de ejemplo
-        processApps(exampleApps);
-    } finally {
-        hideLoading();
-    }
-}
-
-/**
- * Procesa las aplicaciones y actualiza la interfaz
- * @param {Array} appsData - Datos de las aplicaciones
- */
-function processApps(appsData) {
-    // Procesar aplicaciones
-    allApps = appsData.map(app => ({
-        id: app.id,
-        name: app.name,
-        fileName: app.fileName,
-        filePath: app.filePath,
-        category: app.category || 'General',
-        version: app.version || '',
-        description: app.description || '',
-        size: app.size || 0,
-        lastModified: app.lastModified ? new Date(app.lastModified) : new Date(),
-        installationOrder: app.installationOrder || 0,
-        icon: DEFAULT_ICON_URL // Icono por defecto
-    }));
-    
-    // Extraer categorías
-    categories = new Set(allApps.map(app => app.category).filter(Boolean));
-    
-    // Actualizar filtro de categorías
-    updateCategoryFilter();
-    
-    // Actualizar tabla de aplicaciones
-    updateAppsTable();
-    
-    // Actualizar contadores
-    updateCounters();
-    
-    // Asignar iconos a las aplicaciones DESPUÉS de que estén cargadas
-    setTimeout(() => {
+        // Actualizar filtro de categorías
+        updateCategoryFilter();
+        
+        // Actualizar tabla de aplicaciones
+        updateAppsTable();
+        
+        // Actualizar contadores
+        updateCounters();
+        
+        // Asignar iconos a las aplicaciones DESPUÉS de que estén cargadas
         if (iconService) {
             console.log('Asignando iconos a las aplicaciones...');
             iconService.assignIconsToApps(allApps);
@@ -224,9 +146,14 @@ function processApps(appsData) {
         } else {
             console.warn('Servicio de iconos no inicializado');
         }
-    }, 500); // Pequeño retraso para asegurar que todo esté listo
-    
-    console.log('Aplicaciones cargadas correctamente');
+        
+        console.log('Aplicaciones cargadas correctamente');
+    } catch (error) {
+        console.error('Error al cargar aplicaciones:', error);
+        showError(`Error al cargar aplicaciones: ${error.message}`);
+    } finally {
+        hideLoading();
+    }
 }
 
 /**
@@ -291,10 +218,10 @@ function updateAppsTable() {
             <td>${formattedSize}</td>
             <td>${formattedDate}</td>
             <td>
-                <button class="btn btn-sm btn-outline-primary btn-action" onclick="editApp(${app.id})" title="Editar">
+                <button class="btn btn-sm btn-outline-primary btn-action" onclick="editApp('${app.id}')" title="Editar">
                     <i class="bi bi-pencil"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteApp(${app.id})" title="Eliminar">
+                <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteApp('${app.id}')" title="Eliminar">
                     <i class="bi bi-trash"></i>
                 </button>
             </td>
