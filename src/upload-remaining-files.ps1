@@ -1,0 +1,86 @@
+# Script para subir los archivos restantes a GitHub
+# Este script sube los archivos que no se incluyeron en el commit anterior
+
+# Configuración
+$repoRoot = (Get-Location).Path
+$commitMessage = "Archivos adicionales para el servicio de iconos"
+
+Write-Host "Iniciando proceso de subida de archivos restantes a GitHub..." -ForegroundColor Cyan
+Write-Host "Directorio actual: $repoRoot" -ForegroundColor Cyan
+
+# Verificar si estamos en un repositorio Git
+if (-not (Test-Path -Path ".git")) {
+    Write-Host "No se encontró un repositorio Git en el directorio actual." -ForegroundColor Yellow
+    
+    # Buscar el directorio raíz del repositorio
+    $currentDir = $repoRoot
+    $foundGit = $false
+    
+    while ($currentDir -ne $null -and -not $foundGit) {
+        if (Test-Path -Path (Join-Path $currentDir ".git")) {
+            $repoRoot = $currentDir
+            $foundGit = $true
+            Write-Host "Repositorio Git encontrado en: $repoRoot" -ForegroundColor Green
+            Set-Location $repoRoot
+        } else {
+            $parentDir = Split-Path -Parent $currentDir
+            if ($parentDir -eq $currentDir) {
+                break
+            }
+            $currentDir = $parentDir
+        }
+    }
+    
+    if (-not $foundGit) {
+        Write-Host "No se pudo encontrar un repositorio Git. Asegúrese de estar en un repositorio Git válido." -ForegroundColor Red
+        exit 1
+    }
+}
+
+# Verificar el estado actual del repositorio
+Write-Host "Verificando el estado del repositorio..." -ForegroundColor Cyan
+git status
+
+# Agregar los archivos restantes
+Write-Host "Agregando archivos restantes al área de preparación..." -ForegroundColor Cyan
+
+# Agregar los archivos de prueba y verificación
+git add src/test-icon-loading.html
+git add src/test-icons.html
+git add src/verify-icons.html
+git add src/verify-icons.js
+
+# Agregar los scripts de PowerShell
+git add src/copy-missing-icons.ps1
+git add src/download-icons.ps1
+git add src/upload-icons.ps1
+git add src/upload-to-github.ps1
+git add src/upload-remaining-files.ps1
+
+# Agregar el icono de WinRAR
+git add src/img/winrar.png
+
+# Agregar los archivos JavaScript modificados
+git add src/js/apps-manager.js
+git add src/js/icon-service.js
+
+# Verificar qué archivos se han agregado
+Write-Host "Archivos agregados al área de preparación:" -ForegroundColor Green
+git status
+
+# Confirmar los cambios
+Write-Host "Confirmando cambios..." -ForegroundColor Cyan
+git commit -m "$commitMessage"
+
+# Subir los cambios al repositorio remoto
+Write-Host "Subiendo cambios a GitHub..." -ForegroundColor Cyan
+git push
+
+# Verificar el resultado
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "¡Los archivos restantes se han subido correctamente a GitHub!" -ForegroundColor Green
+} else {
+    Write-Host "Hubo un problema al subir los cambios a GitHub. Código de salida: $LASTEXITCODE" -ForegroundColor Red
+}
+
+Write-Host "Proceso completado." -ForegroundColor Cyan 
