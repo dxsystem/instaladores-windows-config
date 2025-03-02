@@ -417,7 +417,7 @@ function showLoading(message = 'Cargando...') {
 function hideLoading() {
     const loadingState = document.getElementById('loadingState');
     if (loadingState) {
-        loadingState.style.display = 'none';
+        loadingState.style.display = "none"; console.log("Loader ocultado correctamente");
     } else {
         console.warn('Elemento loadingState no encontrado en el DOM');
     }
