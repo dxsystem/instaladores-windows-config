@@ -1446,17 +1446,33 @@ async function syncAllConfigurations() {
         // Crear configuración ELITE
         const eliteConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: allApps.map(app => ({
-                sharePointId: app.id,
-                name: app.name,
-                fileName: app.fileName,
-                category: app.category,
-                description: app.description,
-                version: app.version,
-                size: app.size,
-                lastModified: app.lastModified.toISOString(),
-                installationOrder: app.installationOrder
-            }))
+            applications: allApps.map(app => {
+                // Asegurarse de que lastModified sea un objeto Date válido
+                let lastModifiedDate;
+                if (app.lastModified) {
+                    if (typeof app.lastModified === 'string') {
+                        lastModifiedDate = new Date(app.lastModified);
+                    } else if (app.lastModified instanceof Date) {
+                        lastModifiedDate = app.lastModified;
+                    } else {
+                        lastModifiedDate = new Date(); // Valor por defecto
+                    }
+                } else {
+                    lastModifiedDate = new Date(); // Valor por defecto
+                }
+                
+                return {
+                    sharePointId: app.id,
+                    name: app.name,
+                    fileName: app.fileName,
+                    category: app.category,
+                    description: app.description,
+                    version: app.version,
+                    size: app.size,
+                    lastModified: lastModifiedDate.toISOString(),
+                    installationOrder: app.installationOrder
+                };
+            })
         };
         
         // Guardar configuración ELITE
@@ -1475,17 +1491,33 @@ async function syncAllConfigurations() {
         // Crear configuración PRO
         const proConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: proApps.map(app => ({
-                sharePointId: app.id,
-                name: app.name,
-                fileName: app.fileName,
-                category: app.category,
-                description: app.description,
-                version: app.version,
-                size: app.size,
-                lastModified: app.lastModified.toISOString(),
-                installationOrder: app.installationOrder
-            }))
+            applications: proApps.map(app => {
+                // Asegurarse de que lastModified sea un objeto Date válido
+                let lastModifiedDate;
+                if (app.lastModified) {
+                    if (typeof app.lastModified === 'string') {
+                        lastModifiedDate = new Date(app.lastModified);
+                    } else if (app.lastModified instanceof Date) {
+                        lastModifiedDate = app.lastModified;
+                    } else {
+                        lastModifiedDate = new Date(); // Valor por defecto
+                    }
+                } else {
+                    lastModifiedDate = new Date(); // Valor por defecto
+                }
+                
+                return {
+                    sharePointId: app.id,
+                    name: app.name,
+                    fileName: app.fileName,
+                    category: app.category,
+                    description: app.description,
+                    version: app.version,
+                    size: app.size,
+                    lastModified: lastModifiedDate.toISOString(),
+                    installationOrder: app.installationOrder
+                };
+            })
         };
         
         // Guardar configuración PRO
@@ -1504,17 +1536,33 @@ async function syncAllConfigurations() {
         // Crear configuración Gratuita
         const freeConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: freeApps.map(app => ({
-                sharePointId: app.id,
-                name: app.name,
-                fileName: app.fileName,
-                category: app.category,
-                description: app.description,
-                version: app.version,
-                size: app.size,
-                lastModified: app.lastModified.toISOString(),
-                installationOrder: app.installationOrder
-            }))
+            applications: freeApps.map(app => {
+                // Asegurarse de que lastModified sea un objeto Date válido
+                let lastModifiedDate;
+                if (app.lastModified) {
+                    if (typeof app.lastModified === 'string') {
+                        lastModifiedDate = new Date(app.lastModified);
+                    } else if (app.lastModified instanceof Date) {
+                        lastModifiedDate = app.lastModified;
+                    } else {
+                        lastModifiedDate = new Date(); // Valor por defecto
+                    }
+                } else {
+                    lastModifiedDate = new Date(); // Valor por defecto
+                }
+                
+                return {
+                    sharePointId: app.id,
+                    name: app.name,
+                    fileName: app.fileName,
+                    category: app.category,
+                    description: app.description,
+                    version: app.version,
+                    size: app.size,
+                    lastModified: lastModifiedDate.toISOString(),
+                    installationOrder: app.installationOrder
+                };
+            })
         };
         
         // Guardar configuración Gratuita
