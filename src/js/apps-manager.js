@@ -148,6 +148,18 @@ async function loadApps() {
             }))
         });
         
+        // Verificación adicional para asegurar que solo se procesen archivos .exe y .bat
+        const validExecutableFiles = executableFiles.filter(file => {
+            const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+            return extension === 'exe' || extension === 'bat';
+        });
+        
+        if (validExecutableFiles.length !== executableFiles.length) {
+            console.warn(`Se filtraron ${executableFiles.length - validExecutableFiles.length} archivos que no son .exe o .bat`);
+        }
+        
+        console.log(`Se procesarán ${validExecutableFiles.length} archivos ejecutables válidos`);
+        
         // Actualizar la configuración con los nuevos archivos
         updateLoadingProgress(60);
         showLoading('Actualizando configuración...');
@@ -166,7 +178,7 @@ async function loadApps() {
         let newFilesCount = 0;
         
         // Procesar los archivos ejecutables
-        for (const file of executableFiles) {
+        for (const file of validExecutableFiles) {
             // Verificar si el archivo ya existe en la configuración
             if (!existingAppsById[file.id]) {
                 // Es un archivo nuevo, agregarlo a la configuración
@@ -1330,6 +1342,18 @@ async function syncAllConfigurations() {
             }))
         });
         
+        // Verificación adicional para asegurar que solo se procesen archivos .exe y .bat
+        const validExecutableFiles = executableFiles.filter(file => {
+            const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+            return extension === 'exe' || extension === 'bat';
+        });
+        
+        if (validExecutableFiles.length !== executableFiles.length) {
+            console.warn(`Se filtraron ${executableFiles.length - validExecutableFiles.length} archivos que no son .exe o .bat`);
+        }
+        
+        console.log(`Se procesarán ${validExecutableFiles.length} archivos ejecutables válidos`);
+        
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
         // Paso 2: Cargar y actualizar aplicaciones
@@ -1341,7 +1365,7 @@ async function syncAllConfigurations() {
             console.log('No hay configuración de aplicaciones, creando una inicial basada en los archivos encontrados');
             
             // Crear aplicaciones a partir de los archivos encontrados
-            allApps = executableFiles.map((file, index) => {
+            allApps = validExecutableFiles.map((file, index) => {
                 // Extraer extensión y nombre base
                 const fileName = file.name;
                 const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
@@ -1374,7 +1398,7 @@ async function syncAllConfigurations() {
         } else {
             // Actualizar información de archivos existentes
             allApps.forEach(app => {
-                const file = executableFiles.find(f => f.name === app.fileName);
+                const file = validExecutableFiles.find(f => f.name === app.fileName);
                 if (file) {
                     app.size = file.size || app.size;
                     app.lastModified = file.lastModified ? new Date(file.lastModified) : app.lastModified;
@@ -1383,7 +1407,7 @@ async function syncAllConfigurations() {
             
             // Agregar archivos nuevos
             const configuredFileNames = allApps.map(app => app.fileName);
-            const newFiles = executableFiles.filter(file => !configuredFileNames.includes(file.name));
+            const newFiles = validExecutableFiles.filter(file => !configuredFileNames.includes(file.name));
             
             if (newFiles.length > 0) {
                 console.log(`Se encontraron ${newFiles.length} archivos nuevos que no están en la configuración`);
