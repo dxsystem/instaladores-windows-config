@@ -1572,11 +1572,11 @@ async function syncAllConfigurations() {
         await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
-        // Paso 6: Crear configuración Gratuita (30% de las apps)
+        // Paso 6: Crear configuración Gratuita (30 apps aleatorias o menos)
         showLoading('Generando configuración Gratuita...');
         updateLoadingProgress(90);
-        const freeAppsCount = Math.floor(validApps.length * 0.3);
-        // Ordenar aleatoriamente y tomar el 30%
+        const freeAppsCount = Math.min(30, validApps.length);
+        // Ordenar aleatoriamente y tomar hasta 30 apps
         const freeApps = [...validApps]
             .sort(() => 0.5 - Math.random())
             .slice(0, freeAppsCount);
