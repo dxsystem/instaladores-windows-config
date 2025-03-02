@@ -80,7 +80,9 @@ function setupEventListeners() {
     const requiredAppsList = document.getElementById('requiredAppsList');
     if (requiredAppsList) {
         requiredAppsList.addEventListener('click', function(event) {
-            if (event.target.classList.contains('remove-app-btn')) {
+            // Verificar si se hizo clic en el botón o en el ícono dentro del botón
+            const removeBtn = event.target.closest('.remove-app-btn');
+            if (removeBtn) {
                 const appItem = event.target.closest('.app-list-item');
                 if (appItem) {
                     const appId = appItem.dataset.id;
@@ -996,12 +998,17 @@ function updateRequiredAppsList() {
         appItem.dataset.id = app.id;
         
         appItem.innerHTML = `
-            <div class="d-flex align-items-center">
-                <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                <div>
-                    <h6 class="mb-0">${app.name}</h6>
-                    <small class="text-muted">${app.category || 'General'}</small>
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
+                    <div>
+                        <h6 class="mb-0">${app.name}</h6>
+                        <small class="text-muted">${app.category || 'General'}</small>
+                    </div>
                 </div>
+                <button class="btn btn-sm btn-outline-danger remove-app-btn" title="Quitar de obligatorias">
+                    <i class="bi bi-x-circle"></i>
+                </button>
             </div>
         `;
         
