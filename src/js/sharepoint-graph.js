@@ -1002,8 +1002,26 @@ class SharePointGraph {
                 const folderFiles = await getAllFilesWithPagination(folderUrl);
                 
                 if (folderFiles.length > 0) {
-                    console.log(`Se encontraron ${folderFiles.length} archivos en la carpeta exe usando ID directo`);
-                    allFiles = folderFiles;
+                    console.log(`Se encontraron ${folderFiles.length} archivos totales en la carpeta exe usando ID directo`);
+                    
+                    // Filtrar solo archivos .exe y .bat que estén en la carpeta principal
+                    const executableFiles = folderFiles.filter(file => {
+                        // Verificar que sea un archivo (no una carpeta)
+                        const isFile = file.name && !file.name.endsWith('/');
+                        
+                        // Verificar que sea .exe o .bat
+                        const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
+                                            file.name.toLowerCase().endsWith('.bat');
+                        
+                        // Verificar que no esté en una subcarpeta (no contiene '/' en el nombre)
+                        const isInMainFolder = !file.name.includes('/') && 
+                                              !file.webUrl.includes('/exe/');
+                        
+                        return isFile && isExecutable && isInMainFolder;
+                    });
+                    
+                    console.log(`Se filtraron ${executableFiles.length} archivos .exe y .bat de la carpeta principal`);
+                    allFiles = executableFiles;
                     return allFiles;
                 }
             } catch (directError) {
@@ -1018,8 +1036,26 @@ class SharePointGraph {
                 const driveFiles = await getAllFilesWithPagination(driveUrl);
                 
                 if (driveFiles.length > 0) {
-                    console.log(`Se encontraron ${driveFiles.length} archivos en la carpeta exe usando driveId y ruta`);
-                    allFiles = driveFiles;
+                    console.log(`Se encontraron ${driveFiles.length} archivos totales en la carpeta exe usando driveId y ruta`);
+                    
+                    // Filtrar solo archivos .exe y .bat que estén en la carpeta principal
+                    const executableFiles = driveFiles.filter(file => {
+                        // Verificar que sea un archivo (no una carpeta)
+                        const isFile = file.name && !file.name.endsWith('/');
+                        
+                        // Verificar que sea .exe o .bat
+                        const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
+                                            file.name.toLowerCase().endsWith('.bat');
+                        
+                        // Verificar que no esté en una subcarpeta (no contiene '/' en el nombre)
+                        const isInMainFolder = !file.name.includes('/') && 
+                                              !file.webUrl.includes('/exe/');
+                        
+                        return isFile && isExecutable && isInMainFolder;
+                    });
+                    
+                    console.log(`Se filtraron ${executableFiles.length} archivos .exe y .bat de la carpeta principal`);
+                    allFiles = executableFiles;
                     return allFiles;
                 }
             } catch (driveError) {
@@ -1034,8 +1070,26 @@ class SharePointGraph {
                 const formsFiles = await getAllFilesWithPagination(formsUrl);
                 
                 if (formsFiles.length > 0) {
-                    console.log(`Se encontraron ${formsFiles.length} archivos en la carpeta exe`);
-                    allFiles = formsFiles;
+                    console.log(`Se encontraron ${formsFiles.length} archivos totales en la carpeta exe`);
+                    
+                    // Filtrar solo archivos .exe y .bat que estén en la carpeta principal
+                    const executableFiles = formsFiles.filter(file => {
+                        // Verificar que sea un archivo (no una carpeta)
+                        const isFile = file.name && !file.name.endsWith('/');
+                        
+                        // Verificar que sea .exe o .bat
+                        const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
+                                            file.name.toLowerCase().endsWith('.bat');
+                        
+                        // Verificar que no esté en una subcarpeta (no contiene '/' en el nombre)
+                        const isInMainFolder = !file.name.includes('/') && 
+                                              !file.webUrl.includes('/exe/');
+                        
+                        return isFile && isExecutable && isInMainFolder;
+                    });
+                    
+                    console.log(`Se filtraron ${executableFiles.length} archivos .exe y .bat de la carpeta principal`);
+                    allFiles = executableFiles;
                     return allFiles;
                 }
             } catch (formsError) {
@@ -1045,23 +1099,32 @@ class SharePointGraph {
             // 4. Intentar con búsqueda de archivos ejecutables
             try {
                 // Buscar archivos ejecutables en todo el drive
-                const searchUrl = `${this.graphEndpoint}/drives/${driveId}/root/search(q='.exe')?$top=1000`;
+                const searchUrl = `${this.graphEndpoint}/drives/${driveId}/root/search(q='.exe OR .bat')?$top=1000`;
                 console.log(`Intentando buscar archivos ejecutables: ${searchUrl}`);
                 
                 const searchFiles = await getAllFilesWithPagination(searchUrl);
                 
                 if (searchFiles.length > 0) {
-                    // Filtrar solo archivos ejecutables
-                    const executableFiles = searchFiles.filter(file => 
-                        file.name.toLowerCase().endsWith('.exe') || 
-                        file.name.toLowerCase().endsWith('.msi') || 
-                        file.name.toLowerCase().endsWith('.bat') || 
-                        file.name.toLowerCase().endsWith('.cmd') ||
-                        file.name.toLowerCase().endsWith('.zip') ||
-                        file.name.toLowerCase().endsWith('.rar')
-                    );
+                    console.log(`Se encontraron ${searchFiles.length} archivos totales mediante búsqueda`);
                     
-                    console.log(`Se encontraron ${executableFiles.length} archivos ejecutables mediante búsqueda`);
+                    // Filtrar solo archivos .exe y .bat que estén en la carpeta principal exe
+                    const executableFiles = searchFiles.filter(file => {
+                        // Verificar que sea un archivo (no una carpeta)
+                        const isFile = file.name && !file.name.endsWith('/');
+                        
+                        // Verificar que sea .exe o .bat
+                        const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
+                                            file.name.toLowerCase().endsWith('.bat');
+                        
+                        // Verificar que esté en la carpeta exe principal
+                        const isInExeFolder = file.webUrl.includes('/exe/') && 
+                                             !file.webUrl.includes('/exe/subfolders/') &&
+                                             !file.name.includes('/');
+                        
+                        return isFile && isExecutable && isInExeFolder;
+                    });
+                    
+                    console.log(`Se filtraron ${executableFiles.length} archivos .exe y .bat de la carpeta principal exe mediante búsqueda`);
                     allFiles = executableFiles;
                     
                     if (allFiles.length > 0) {
