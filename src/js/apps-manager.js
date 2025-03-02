@@ -1467,10 +1467,18 @@ async function syncAllConfigurations() {
         showLoading('Sincronizando configuración ELITE...');
         updateLoadingProgress(70);
         
-        // Crear configuración ELITE
+        // Filtrar allApps para asegurar que solo se incluyan archivos .exe y .bat
+        const validApps = allApps.filter(app => {
+            const extension = app.fileName.includes('.') ? app.fileName.split('.').pop().toLowerCase() : '';
+            return extension === 'exe' || extension === 'bat';
+        });
+        
+        console.log(`Filtrando aplicaciones para configuración ELITE: ${allApps.length} totales -> ${validApps.length} válidas (.exe y .bat)`);
+        
+        // Crear configuración ELITE solo con aplicaciones válidas
         const eliteConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: allApps.map(app => {
+            applications: validApps.map(app => {
                 // Asegurarse de que lastModified sea un objeto Date válido
                 let lastModifiedDate;
                 if (app.lastModified) {
@@ -1514,9 +1522,9 @@ async function syncAllConfigurations() {
         // Paso 5: Crear configuración PRO (60% de las apps)
         showLoading('Generando configuración PRO...');
         updateLoadingProgress(80);
-        const proAppsCount = Math.floor(allApps.length * 0.6);
+        const proAppsCount = Math.floor(validApps.length * 0.6);
         // Ordenar aleatoriamente y tomar el 60%
-        const proApps = [...allApps]
+        const proApps = [...validApps]
             .sort(() => 0.5 - Math.random())
             .slice(0, proAppsCount);
         
@@ -1564,12 +1572,12 @@ async function syncAllConfigurations() {
         await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
-        // Paso 6: Crear configuración Gratuita (30 apps aleatorias o menos)
+        // Paso 6: Crear configuración Gratuita (30% de las apps)
         showLoading('Generando configuración Gratuita...');
         updateLoadingProgress(90);
-        const freeAppsCount = Math.min(30, allApps.length);
-        // Ordenar aleatoriamente y tomar hasta 30 apps
-        const freeApps = [...allApps]
+        const freeAppsCount = Math.floor(validApps.length * 0.3);
+        // Ordenar aleatoriamente y tomar el 30%
+        const freeApps = [...validApps]
             .sort(() => 0.5 - Math.random())
             .slice(0, freeAppsCount);
         
