@@ -917,14 +917,30 @@ class SharePointGraph {
             
             // Función para procesar los archivos
             const processFiles = (items) => {
-                return items.map(file => ({
-                    id: file.id,
-                    name: file.name,
-                    size: file.size,
-                    lastModified: file.lastModifiedDateTime,
-                    downloadUrl: file['@microsoft.graph.downloadUrl'],
-                    webUrl: file.webUrl
-                }));
+                // Filtrar solo archivos .exe y .bat que no estén en subcarpetas
+                return items
+                    .filter(file => {
+                        // Verificar si es un archivo (no una carpeta)
+                        const isFile = file.file !== undefined;
+                        
+                        // Verificar si es un archivo .exe o .bat
+                        const isExecutable = isFile && 
+                            (file.name.toLowerCase().endsWith('.exe') || 
+                             file.name.toLowerCase().endsWith('.bat'));
+                        
+                        // Verificar que no esté en una subcarpeta (los elementos directos no tienen '/' en el nombre)
+                        const isNotInSubfolder = !file.name.includes('/');
+                        
+                        return isExecutable && isNotInSubfolder;
+                    })
+                    .map(file => ({
+                        id: file.id,
+                        name: file.name,
+                        size: file.size,
+                        lastModified: file.lastModifiedDateTime,
+                        downloadUrl: file['@microsoft.graph.downloadUrl'],
+                        webUrl: file.webUrl
+                    }));
             };
             
             // Función para obtener todos los archivos con paginación

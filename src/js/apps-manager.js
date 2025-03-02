@@ -133,16 +133,8 @@ async function loadApps() {
         updateLoadingProgress(40);
         showLoading('Obteniendo archivos de SharePoint...');
         
-        const exeFiles = await spGraph.getExeFiles();
-        console.log(`Se encontraron ${exeFiles.length} archivos en la carpeta exe`);
-        
-        // Filtrar solo archivos .exe y .bat como en SharePointService.cs
-        const executableFiles = exeFiles.filter(file => 
-            file.name.toLowerCase().endsWith('.exe') || 
-            file.name.toLowerCase().endsWith('.bat')
-        );
-        
-        console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat)`);
+        const executableFiles = await spGraph.getExeFiles();
+        console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat) en la carpeta principal exe`);
         
         // Actualizar la configuración con los nuevos archivos
         updateLoadingProgress(60);
@@ -1311,24 +1303,7 @@ async function syncAllConfigurations() {
         // Paso 1: Obtener archivos de la carpeta exe
         showLoading('Obteniendo archivos de SharePoint...');
         updateLoadingProgress(20);
-        const exeFiles = await spGraph.getExeFiles();
-        console.log('Archivos encontrados en la carpeta exe:', exeFiles);
-        
-        // Filtrar solo archivos .exe y .bat de la carpeta principal (sin subcarpetas)
-        const executableFiles = exeFiles.filter(file => {
-            // Verificar que sea un archivo .exe o .bat
-            const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
-                                file.name.toLowerCase().endsWith('.bat');
-            
-            // Verificar que no esté en una subcarpeta
-            // Las rutas de subcarpetas contendrían un caracter '/' en el nombre o en la URL
-            const isInSubfolder = file.name.includes('/') || 
-                                (file.webUrl && file.webUrl.split('/exe/').length > 1 && 
-                                file.webUrl.split('/exe/')[1].includes('/'));
-            
-            return isExecutable && !isInSubfolder;
-        });
-        
+        const executableFiles = await spGraph.getExeFiles();
         console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat) en la carpeta principal exe`);
         await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
