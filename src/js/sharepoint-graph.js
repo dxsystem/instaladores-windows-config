@@ -933,7 +933,7 @@ class SharePointGraph {
             // Función para procesar los archivos
             const processFiles = (items) => {
                 // Filtrar solo archivos .exe y .bat que no estén en subcarpetas
-                return items
+                const filteredFiles = items
                     .filter(file => {
                         // Verificar si es un archivo (no una carpeta)
                         const isFile = file.file !== undefined;
@@ -946,6 +946,11 @@ class SharePointGraph {
                         // Verificar que no esté en una subcarpeta (los elementos directos no tienen '/' en el nombre)
                         const isNotInSubfolder = !file.name.includes('/');
                         
+                        // Log para depuración
+                        if (isExecutable) {
+                            console.log(`Procesando archivo: ${file.name}, isFile: ${isFile}, isNotInSubfolder: ${isNotInSubfolder}`);
+                        }
+                        
                         return isExecutable && isNotInSubfolder;
                     })
                     .map(file => ({
@@ -954,8 +959,12 @@ class SharePointGraph {
                         size: file.size,
                         lastModified: file.lastModifiedDateTime,
                         downloadUrl: file['@microsoft.graph.downloadUrl'],
-                        webUrl: file.webUrl
+                        webUrl: file.webUrl,
+                        file: file.file // Añadir la propiedad file para verificaciones posteriores
                     }));
+                
+                console.log(`Procesados ${filteredFiles.length} archivos .exe y .bat`);
+                return filteredFiles;
             };
             
             // Función para obtener todos los archivos con paginación
@@ -1007,15 +1016,19 @@ class SharePointGraph {
                     // Filtrar solo archivos .exe y .bat que estén en la carpeta principal
                     const executableFiles = folderFiles.filter(file => {
                         // Verificar que sea un archivo (no una carpeta)
-                        const isFile = file.name && !file.name.endsWith('/');
+                        const isFile = file.name && file.file !== undefined;
                         
                         // Verificar que sea .exe o .bat
                         const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
                                             file.name.toLowerCase().endsWith('.bat');
                         
-                        // Verificar que no esté en una subcarpeta (no contiene '/' en el nombre)
-                        const isInMainFolder = !file.name.includes('/') && 
-                                              !file.webUrl.includes('/exe/');
+                        // Verificar que no esté en una subcarpeta
+                        const isInMainFolder = !file.name.includes('/');
+                        
+                        // Log para depuración
+                        if (isExecutable) {
+                            console.log(`Archivo ejecutable encontrado: ${file.name}, isFile: ${isFile}, isInMainFolder: ${isInMainFolder}`);
+                        }
                         
                         return isFile && isExecutable && isInMainFolder;
                     });
@@ -1041,15 +1054,19 @@ class SharePointGraph {
                     // Filtrar solo archivos .exe y .bat que estén en la carpeta principal
                     const executableFiles = driveFiles.filter(file => {
                         // Verificar que sea un archivo (no una carpeta)
-                        const isFile = file.name && !file.name.endsWith('/');
+                        const isFile = file.name && file.file !== undefined;
                         
                         // Verificar que sea .exe o .bat
                         const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
                                             file.name.toLowerCase().endsWith('.bat');
                         
-                        // Verificar que no esté en una subcarpeta (no contiene '/' en el nombre)
-                        const isInMainFolder = !file.name.includes('/') && 
-                                              !file.webUrl.includes('/exe/');
+                        // Verificar que no esté en una subcarpeta
+                        const isInMainFolder = !file.name.includes('/');
+                        
+                        // Log para depuración
+                        if (isExecutable) {
+                            console.log(`Archivo ejecutable encontrado: ${file.name}, isFile: ${isFile}, isInMainFolder: ${isInMainFolder}`);
+                        }
                         
                         return isFile && isExecutable && isInMainFolder;
                     });
@@ -1075,15 +1092,19 @@ class SharePointGraph {
                     // Filtrar solo archivos .exe y .bat que estén en la carpeta principal
                     const executableFiles = formsFiles.filter(file => {
                         // Verificar que sea un archivo (no una carpeta)
-                        const isFile = file.name && !file.name.endsWith('/');
+                        const isFile = file.name && file.file !== undefined;
                         
                         // Verificar que sea .exe o .bat
                         const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
                                             file.name.toLowerCase().endsWith('.bat');
                         
-                        // Verificar que no esté en una subcarpeta (no contiene '/' en el nombre)
-                        const isInMainFolder = !file.name.includes('/') && 
-                                              !file.webUrl.includes('/exe/');
+                        // Verificar que no esté en una subcarpeta
+                        const isInMainFolder = !file.name.includes('/');
+                        
+                        // Log para depuración
+                        if (isExecutable) {
+                            console.log(`Archivo ejecutable encontrado: ${file.name}, isFile: ${isFile}, isInMainFolder: ${isInMainFolder}`);
+                        }
                         
                         return isFile && isExecutable && isInMainFolder;
                     });
@@ -1110,7 +1131,7 @@ class SharePointGraph {
                     // Filtrar solo archivos .exe y .bat que estén en la carpeta principal exe
                     const executableFiles = searchFiles.filter(file => {
                         // Verificar que sea un archivo (no una carpeta)
-                        const isFile = file.name && !file.name.endsWith('/');
+                        const isFile = file.name && file.file !== undefined;
                         
                         // Verificar que sea .exe o .bat
                         const isExecutable = file.name.toLowerCase().endsWith('.exe') || 
@@ -1118,8 +1139,12 @@ class SharePointGraph {
                         
                         // Verificar que esté en la carpeta exe principal
                         const isInExeFolder = file.webUrl.includes('/exe/') && 
-                                             !file.webUrl.includes('/exe/subfolders/') &&
                                              !file.name.includes('/');
+                        
+                        // Log para depuración
+                        if (isExecutable) {
+                            console.log(`Archivo ejecutable encontrado por búsqueda: ${file.name}, isFile: ${isFile}, isInExeFolder: ${isInExeFolder}`);
+                        }
                         
                         return isFile && isExecutable && isInExeFolder;
                     });
