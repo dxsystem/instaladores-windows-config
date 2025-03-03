@@ -1328,37 +1328,82 @@ class SharePointGraph {
             // Verificar autenticación
             await this.ensureAuthenticated();
             
+            console.log("Obteniendo configuración desde SharePoint...");
+            
             // Obtener el sitio
             const siteQuery = `${this.siteUrl}:/sites/InstaladoresWindowsC`;
+            console.log(`Consultando sitio: ${siteQuery}`);
             const site = await this.graphClient.api(`/sites/${siteQuery}`).get();
-            if (!site) throw new Error("No se pudo encontrar el sitio");
+            if (!site) {
+                console.error("No se pudo encontrar el sitio");
+                throw new Error("No se pudo encontrar el sitio");
+            }
+            
+            console.log(`Sitio encontrado con ID: ${site.id}`);
             
             // Obtener la biblioteca de documentos
+            console.log("Obteniendo listas del sitio...");
             const lists = await this.graphClient.api(`/sites/${site.id}/lists`).get();
             const documentLibrary = lists.value.find(l => l.name === this.libraryName);
-            if (!documentLibrary) throw new Error("No se pudo encontrar la biblioteca de documentos");
+            if (!documentLibrary) {
+                console.error(`No se pudo encontrar la biblioteca de documentos: ${this.libraryName}`);
+                throw new Error("No se pudo encontrar la biblioteca de documentos");
+            }
+            
+            console.log(`Biblioteca encontrada: ${documentLibrary.name} con ID: ${documentLibrary.id}`);
             
             // Obtener el drive
+            console.log("Obteniendo drive de la biblioteca...");
             const drive = await this.graphClient.api(`/sites/${site.id}/lists/${documentLibrary.id}/drive`).get();
-            if (!drive) throw new Error("No se pudo obtener el drive");
+            if (!drive) {
+                console.error("No se pudo obtener el drive");
+                throw new Error("No se pudo obtener el drive");
+            }
+            
+            console.log(`Drive encontrado con ID: ${drive.id}`);
             
             // Buscar el archivo de configuración
+            console.log("Buscando archivo app_settings.json...");
             const items = await this.graphClient.api(`/drives/${drive.id}/root/children`).get();
             const configFile = items.value.find(i => i.name === "app_settings.json");
             
             if (!configFile) {
+                console.warn("No se encontró el archivo app_settings.json, se usarán valores predeterminados");
                 return this.getDefaultAppSettings();
             }
             
-            // Obtener el contenido del archivo
-            const response = await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`).get();
-            const jsonContent = await response.text();
+            console.log(`Archivo de configuración encontrado con ID: ${configFile.id}`);
             
+            // Obtener el contenido del archivo
+            console.log("Descargando contenido del archivo...");
             try {
-                const appSettings = JSON.parse(jsonContent);
-                return appSettings || this.getDefaultAppSettings();
-            } catch (ex) {
-                console.error("Error al deserializar el archivo de configuración:", ex);
+                const response = await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`).get();
+                const jsonContent = await response.text();
+                
+                console.log("Contenido del archivo obtenido, parseando JSON...");
+                try {
+                    const appSettings = JSON.parse(jsonContent);
+                    console.log("Configuración cargada correctamente:", appSettings);
+                    
+                    // Verificar que la estructura sea válida
+                    if (!appSettings.Course || !appSettings.Videos || !appSettings.TermsAndConditions) {
+                        console.warn("La estructura de la configuración no es completa, completando con valores predeterminados");
+                        const defaultSettings = this.getDefaultAppSettings();
+                        
+                        // Completar secciones faltantes
+                        if (!appSettings.Course) appSettings.Course = defaultSettings.Course;
+                        if (!appSettings.Videos) appSettings.Videos = defaultSettings.Videos;
+                        if (!appSettings.TermsAndConditions) appSettings.TermsAndConditions = defaultSettings.TermsAndConditions;
+                    }
+                    
+                    return appSettings;
+                } catch (ex) {
+                    console.error("Error al deserializar el archivo de configuración:", ex);
+                    console.error("Contenido del archivo:", jsonContent);
+                    return this.getDefaultAppSettings();
+                }
+            } catch (downloadError) {
+                console.error("Error al descargar el contenido del archivo:", downloadError);
                 return this.getDefaultAppSettings();
             }
         } catch (error) {
@@ -1377,49 +1422,88 @@ class SharePointGraph {
             // Verificar autenticación
             await this.ensureAuthenticated();
             
+            console.log("Guardando configuración en SharePoint...");
+            
             // Convertir las URLs de YouTube a formato de incrustación
             if (appSettings.Course) {
+                console.log("Procesando URL del curso...");
                 appSettings.Course.VideoUrl = this.convertToEmbedUrl(appSettings.Course.VideoUrl);
             }
             
             if (appSettings.Videos) {
+                console.log("Procesando URLs de videos...");
                 appSettings.Videos.DefenderVideoUrl = this.convertToEmbedUrl(appSettings.Videos.DefenderVideoUrl);
                 appSettings.Videos.EsetVideoUrl = this.convertToEmbedUrl(appSettings.Videos.EsetVideoUrl);
             }
             
             // Obtener el sitio
+            console.log("Obteniendo sitio...");
             const siteQuery = `${this.siteUrl}:/sites/InstaladoresWindowsC`;
             const site = await this.graphClient.api(`/sites/${siteQuery}`).get();
-            if (!site) throw new Error("No se pudo encontrar el sitio");
+            if (!site) {
+                console.error("No se pudo encontrar el sitio");
+                throw new Error("No se pudo encontrar el sitio");
+            }
+            
+            console.log(`Sitio encontrado con ID: ${site.id}`);
             
             // Obtener la biblioteca de documentos
+            console.log("Obteniendo listas del sitio...");
             const lists = await this.graphClient.api(`/sites/${site.id}/lists`).get();
             const documentLibrary = lists.value.find(l => l.name === this.libraryName);
-            if (!documentLibrary) throw new Error("No se pudo encontrar la biblioteca de documentos");
+            if (!documentLibrary) {
+                console.error(`No se pudo encontrar la biblioteca de documentos: ${this.libraryName}`);
+                throw new Error("No se pudo encontrar la biblioteca de documentos");
+            }
+            
+            console.log(`Biblioteca encontrada: ${documentLibrary.name} con ID: ${documentLibrary.id}`);
             
             // Obtener el drive
+            console.log("Obteniendo drive de la biblioteca...");
             const drive = await this.graphClient.api(`/sites/${site.id}/lists/${documentLibrary.id}/drive`).get();
-            if (!drive) throw new Error("No se pudo obtener el drive");
+            if (!drive) {
+                console.error("No se pudo obtener el drive");
+                throw new Error("No se pudo obtener el drive");
+            }
+            
+            console.log(`Drive encontrado con ID: ${drive.id}`);
             
             // Buscar el archivo de configuración
+            console.log("Buscando archivo app_settings.json...");
             const items = await this.graphClient.api(`/drives/${drive.id}/root/children`).get();
             const configFile = items.value.find(i => i.name === "app_settings.json");
             
             // Convertir la configuración a JSON
+            console.log("Serializando configuración a JSON...");
             const jsonContent = JSON.stringify(appSettings, null, 2);
             
             // Crear un Blob con el contenido
+            console.log("Creando blob con el contenido...");
             const blob = new Blob([jsonContent], { type: 'application/json' });
             const file = new File([blob], "app_settings.json", { type: 'application/json' });
             
             if (configFile) {
                 // Actualizar el archivo existente
-                await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`)
-                    .put(file);
+                console.log(`Actualizando archivo existente con ID: ${configFile.id}...`);
+                try {
+                    await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`)
+                        .put(file);
+                    console.log("Archivo actualizado correctamente");
+                } catch (updateError) {
+                    console.error("Error al actualizar el archivo:", updateError);
+                    throw updateError;
+                }
             } else {
                 // Crear un nuevo archivo
-                await this.graphClient.api(`/drives/${drive.id}/root:/app_settings.json:/content`)
-                    .put(file);
+                console.log("Creando nuevo archivo app_settings.json...");
+                try {
+                    const result = await this.graphClient.api(`/drives/${drive.id}/root:/app_settings.json:/content`)
+                        .put(file);
+                    console.log("Archivo creado correctamente:", result);
+                } catch (createError) {
+                    console.error("Error al crear el archivo:", createError);
+                    throw createError;
+                }
             }
             
             console.log("Configuración guardada correctamente");
