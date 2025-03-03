@@ -577,11 +577,6 @@
             return rtf;
         }
         
-        // Actualizar vista previa de términos y condiciones
-        function updateTermsPreview() {
-            termsPreview.innerHTML = termsEditor.innerHTML || 'No hay términos y condiciones definidos.';
-        }
-        
         // Convertir RTF a HTML
         function rtfToHtml(rtf) {
             // Si no hay contenido RTF, devolver cadena vacía
@@ -593,393 +588,210 @@
             try {
                 console.log('rtfToHtml: Iniciando conversión, longitud RTF:', rtf.length);
                 
-                // Crear una versión simplificada del RTF para buscar patrones
-                const simplifiedRtf = rtf
-                    .replace(/\\[a-z0-9]+/g, ' ')  // Reemplazar códigos RTF con espacios
-                    .replace(/\{|\}/g, ' ')        // Reemplazar llaves con espacios
-                    .replace(/\s+/g, ' ')          // Normalizar espacios
-                    .toLowerCase();                // Convertir a minúsculas para búsqueda insensible
+                // Buscar el inicio del contenido real
+                const contentStart = rtf.indexOf('\\ltrpar\\itap0');
+                if (contentStart === -1) {
+                    throw new Error('No se pudo encontrar el contenido RTF válido');
+                }
+
+                // Extraer el contenido
+                let content = rtf.substring(contentStart);
                 
-                console.log('rtfToHtml: RTF simplificado para búsqueda de patrones');
+                // Crear el HTML base
+                let html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Términos y Condiciones - Instaladores de Windows Online C#</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #000;
+            background-color: #fff;
+        }
+        h1, h2 {
+            color: #000;
+        }
+        ul {
+            padding-left: 40px;
+        }
+        .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>`;
+
+                // Extraer y procesar párrafos
+                const paragraphs = content.split('\\par');
                 
-                // Mejorar la detección de términos y condiciones
-                const hasTermsAndConditions = 
-                    (simplifiedRtf.includes('términos') && simplifiedRtf.includes('condiciones')) ||
-                    simplifiedRtf.includes('descargo de responsabilidad') ||
-                    simplifiedRtf.includes('instaladores de windows online');
+                // Variables para seguimiento
+                let isInList = false;
+                let foundWarning = false;
+                let foundTermsTitle = false;
+                let foundMetadata = false;
                 
-                console.log('rtfToHtml: ¿Contiene términos y condiciones?', hasTermsAndConditions);
-                
-                // Enfoque específico para términos y condiciones
-                if (hasTermsAndConditions) {
-                    console.log('rtfToHtml: Usando enfoque específico para términos y condiciones');
+                // Para el título principal
+                for (let i = 0; i < paragraphs.length; i++) {
+                    let paragraph = paragraphs[i].trim();
                     
-                    // Extraer texto plano eliminando códigos RTF
-                    let plainText = rtf;
-                    
-                    // Reemplazar caracteres especiales RTF
-                    const specialChars = {
-                        '\\\'e1': 'á', '\\\'e9': 'é', '\\\'ed': 'í', '\\\'f3': 'ó', '\\\'fa': 'ú',
-                        '\\\'c1': 'Á', '\\\'c9': 'É', '\\\'cd': 'Í', '\\\'d3': 'Ó', '\\\'da': 'Ú',
-                        '\\\'f1': 'ñ', '\\\'d1': 'Ñ', '\\\'a9': '©', '\\\'ae': '®',
-                        '\\\'e0': 'à', '\\\'e8': 'è', '\\\'ec': 'ì', '\\\'f2': 'ò', '\\\'f9': 'ù',
-                        '\\\'c0': 'À', '\\\'c8': 'È', '\\\'cc': 'Ì', '\\\'d2': 'Ò', '\\\'d9': 'Ù',
-                        '\\\'bf': '¿', '\\\'a1': '¡', '\\\'ba': 'º', '\\\'aa': 'ª',
-                        '\\\'B7': '•', '\\B7': '•', '\\bullet': '•'
-                    };
-                    
-                    // Reemplazar todos los caracteres especiales
-                    Object.entries(specialChars).forEach(([code, char]) => {
-                        plainText = plainText.replace(new RegExp(code, 'g'), char);
-                    });
-                    
-                    // Eliminar códigos RTF comunes y limpiar el texto
-                    plainText = plainText
-                        .replace(/{\\rtf1.*?\\viewkind/s, '')
-                        // Limpiar caracteres iniciales no deseados
-                        .replace(/^[^A-Za-zÁ-Úá-ú\d]*/, '')
-                        .replace(/\\par\s*/g, '\n')
-                        .replace(/\\tab/g, '    ')
-                        // Mejorar manejo de viñetas
-                        .replace(/\\\'b7/g, '•')
-                        .replace(/\\b7/g, '•')
-                        .replace(/\\bullet/g, '•')
-                        .replace(/\\\'B7/g, '•')
-                        .replace(/\\B7/g, '•')
-                        .replace(/\\\*\\\'b7/g, '•')
-                        .replace(/\\\*\'b7/g, '•')
-                        .replace(/\\\*b7/g, '•')
-                        // Limpiar códigos de formato
-                        .replace(/\\b\s+/g, '')  // Negrita
-                        .replace(/\\i\s+/g, '')  // Cursiva
-                        .replace(/\\ul\s+/g, '') // Subrayado
-                        .replace(/\\pntext.*?\\tab/g, '• ')
-                        .replace(/\\f\d+\\fs\d+\\cf\d+/g, '')
-                        .replace(/\\f\d+\\fcharset\d+/g, '')
-                        .replace(/\\lang\d+\\langfe\d+/g, '')
-                        .replace(/\\loch\\af\d+\\hich\\af\d+\\dbch\\af\d+/g, '')
-                        .replace(/\{\\listtext.*?\}/g, '• ')
-                        .replace(/\{\\pntext.*?\}/g, '• ')
-                        .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+/g, '')
-                        .replace(/\\fi-\d+\\li\d+\\ri\d+/g, '')
-                        .replace(/\\tx\d+/g, '')
-                        .replace(/\\cf\d+/g, '')
-                        .replace(/\\kerning\d+/g, '')
-                        .replace(/\\ltrch/g, '')
-                        .replace(/\\fcs\d+/g, '')
-                        .replace(/\{\\nonshppict.*?\\shprslt.*?\}/gs, '')
-                        .replace(/\{\*\\shppict.*?\}/gs, '')
-                        .replace(/\{\*\\themedata.*?\}/gs, '')
-                        .replace(/\{\*\\colorschememapping.*?\}/gs, '')
-                        .replace(/\{\*\\datastore.*?\}/gs, '')
-                        .replace(/\{\*\\generator.*?\}/gs, '')
-                        .replace(/\{\\info.*?\}/gs, '')
-                        .replace(/\{|\}/g, '')
-                        .replace(/\\\\/g, '\\')
-                        .replace(/\\line/g, '\n')
-                        .replace(/\\cell/g, ' | ')
-                        .replace(/\\row/g, '\n')
-                        .replace(/\\emdash/g, '—')
-                        .replace(/\\endash/g, '–')
-                        .replace(/\\~/g, ' ')
-                        .replace(/\.\s*\\~\s*/g, '. ')
-                        .replace(/\n/g, '\n')
-                        .replace(/\s+\n/g, '\n')
-                        .replace(/\n\s+/g, '\n')
-                        .replace(/\n{3,}/g, '\n\n')
-                        // Limpiar códigos numéricos residuales
-                        .replace(/-\d+(\s|$)/g, '')
-                        .replace(/\\[a-z]+\d*/g, ' ')
-                        .replace(/\s+/g, ' ');
-                    
-                    console.log('rtfToHtml: Texto plano extraído');
-                    
-                    // Extraer título principal
-                    let title = 'Términos y Condiciones de Uso';
-                    const titleRegex = /Términos y Condiciones de Uso.*?(?=\n)/i;
-                    const titleMatch = plainText.match(titleRegex);
-                    if (titleMatch) {
-                        title = titleMatch[0].trim();
-                        // Asegurar que incluya el subtítulo completo si está presente
-                        const fullTitleRegex = /Términos y Condiciones de Uso.*?Instaladores de Windows Online C#/i;
-                        const fullTitleMatch = plainText.match(fullTitleRegex);
-                        if (fullTitleMatch) {
-                            title = fullTitleMatch[0].trim();
-                        }
-                        console.log('rtfToHtml: Título encontrado:', title);
+                    // Título "Términos y Condiciones"
+                    if (paragraph.includes('rminos y Condiciones de Uso') && !foundTermsTitle) {
+                        const title = extractCleanText(paragraph);
+                        html += `\n    <h1>${title}</h1>\n`;
+                        foundTermsTitle = true;
+                        continue;
                     }
                     
-                    // Extraer información de la aplicación
-                    let appInfo = '';
-                    const appInfoRegex = /Aplicación:.*?(?=POR FAVOR)/is;
-                    const appInfoMatch = plainText.match(appInfoRegex);
-                    if (appInfoMatch) {
-                        appInfo = appInfoMatch[0].trim();
-                        // Limpiar y formatear la información de la aplicación
-                        appInfo = appInfo
-                            .replace(/\s+/g, ' ')
-                            .replace(/\n+/g, '\n')
-                            .trim();
-                        console.log('rtfToHtml: Información de la aplicación encontrada');
-                    }
-                    
-                    // Extraer advertencia principal
-                    let warning = '';
-                    const warningRegex = /POR FAVOR.*?(?=\s*\d+\.\s+[A-Z])/is;
-                    const warningMatch = plainText.match(warningRegex);
-                    if (warningMatch) {
-                        warning = warningMatch[0].trim();
-                        console.log('rtfToHtml: Advertencia principal encontrada');
-                    }
-                    
-                    // Extraer secciones numeradas
-                    const sections = [];
-                    const sectionRegex = /(\d+)\.\s+([^:\n]+)[:]/g;
-                    let match;
-                    let lastIndex = 0;
-                    
-                    // Crear un mapa de las secciones encontradas
-                    const sectionMap = new Map();
-                    while ((match = sectionRegex.exec(plainText)) !== null) {
-                        const sectionNum = parseInt(match[1]);
-                        const sectionTitle = match[2].trim();
-                        const position = match.index;
+                    // Metadatos (Aplicación, Versión, etc.)
+                    if (paragraph.includes('Aplicaci') && paragraph.includes('Versi') && !foundMetadata) {
+                        html += `\n    <p>\n`;
                         
-                        sectionMap.set(sectionNum, {
-                            title: sectionTitle,
-                            position: position,
-                            endPosition: position + match[0].length
-                        });
+                        // Procesar cada parte de los metadatos
+                        const metaLabels = ['Aplicación:', 'Versión:', 'Empresa:', 'Derechos Reservados:'];
+                        let metaText = extractCleanText(paragraph);
                         
-                        lastIndex = Math.max(lastIndex, position + match[0].length);
-                    }
-                    
-                    console.log(`rtfToHtml: Encontradas ${sectionMap.size} secciones numeradas`);
-                    
-                    // Ordenar las secciones por número
-                    const sectionNumbers = Array.from(sectionMap.keys()).sort((a, b) => a - b);
-                    
-                    // Extraer el contenido de cada sección
-                    for (let i = 0; i < sectionNumbers.length; i++) {
-                        const sectionNum = sectionNumbers[i];
-                        const section = sectionMap.get(sectionNum);
-                        const nextSection = sectionNumbers[i + 1] ? sectionMap.get(sectionNumbers[i + 1]) : null;
-                        
-                        // Determinar dónde termina esta sección
-                        const startPos = section.endPosition;
-                        const endPos = nextSection ? nextSection.position : plainText.length;
-                        
-                        // Extraer el texto de la sección
-                        let sectionText = plainText.substring(startPos, endPos).trim();
-                        
-                        // Limpiar el texto de la sección
-                        sectionText = sectionText
-                            .replace(/\\B7\s*/g, '• ')
-                            .replace(/\\\'b7\s*/g, '• ')
-                            .replace(/\\~/g, ' ')
-                            .replace(/\.\s*\\~\s*/g, '. ')
-                            .replace(/\\[a-z]+\d*/g, ' ')
-                            .replace(/\s+/g, ' ')
-                            .trim();
-                        
-                        // Detectar si hay listas con viñetas
-                        const hasBullets = sectionText.includes('•') || 
-                                          sectionText.includes('\\B7') || 
-                                          sectionText.includes('\\\'b7');
-                        
-                        // Agregar la sección al array
-                        sections.push({
-                            number: sectionNum,
-                            title: section.title,
-                            content: sectionText,
-                            hasBullets
-                        });
-                    }
-                    
-                    // Construir el HTML final
-                    let html = '';
-                    
-                    // Título principal con formato correcto
-                    html += `<h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; color: white; background-color: #343a40; padding: 15px;">Términos y Condiciones</h1>`;
-                    
-                    // Subtítulo completo
-                    if (title) {
-                        html += `<h2 style="font-size: 16px; margin-bottom: 15px;">${title}</h2>`;
-                    }
-                    
-                    // Información de la aplicación
-                    if (appInfo) {
-                        const appInfoLines = appInfo.split('\n').filter(line => line.trim());
-                        html += '<div style="margin-bottom: 20px;">';
-                        appInfoLines.forEach(line => {
-                            const parts = line.split(':');
-                            if (parts.length >= 2) {
-                                const label = parts[0].trim();
-                                const value = parts.slice(1).join(':').trim();
-                                html += `<p style="margin-bottom: 8px;"><strong>${label}:</strong> ${value}</p>`;
-                            } else {
-                                html += `<p style="margin-bottom: 8px;">${line.trim()}</p>`;
-                            }
-                        });
-                        html += '</div>';
-                    }
-                    
-                    // Advertencia principal
-                    if (warning) {
-                        html += `<div style="margin-bottom: 20px;"><strong style="font-size: 14px;">${warning}</strong></div>`;
-                    }
-                    
-                    // Secciones numeradas con formato correcto
-                    sections.forEach(section => {
-                        html += `<div style="margin-bottom: 15px;">`;
-                        html += `<p style="margin-bottom: 10px;"><strong>${section.number}. ${section.title}:</strong></p>`;
-                        
-                        if (section.hasBullets) {
-                            const lines = section.content.split('\n').filter(line => line.trim());
-                            let inList = false;
-                            
-                            lines.forEach(line => {
-                                const trimmedLine = line.trim();
+                        for (let label of metaLabels) {
+                            if (metaText.includes(label)) {
+                                const startIdx = metaText.indexOf(label);
+                                let endIdx;
                                 
-                                if (trimmedLine.startsWith('•') || 
-                                    trimmedLine.includes('\\B7') || 
-                                    trimmedLine.includes('\\\'b7') ||
-                                    trimmedLine.includes('\\bullet')) {
-                                    
-                                    if (!inList) {
-                                        html += '<ul style="margin-left: 20px; margin-bottom: 10px; list-style-type: disc;">';
-                                        inList = true;
-                                    }
-                                    
-                                    let itemText = trimmedLine
-                                        .replace(/^[•\\B7\\\'b7\\bullet\s]+/, '')
-                                        .replace(/\\B7/g, '')
-                                        .replace(/\\\'b7/g, '')
-                                        .replace(/\\\*\\\'b7/g, '')
-                                        .replace(/\\bullet/g, '')
-                                        .replace(/\\~/g, ' ')
-                                        .replace(/\\[a-z]+\d*/g, ' ')
-                                        .replace(/-\d+(\s|$)/g, '')
-                                        .replace(/\s+/g, ' ')
-                                        .trim();
-                                    
-                                    html += `<li style="margin-bottom: 5px;">${itemText}</li>`;
+                                // Encontrar dónde termina esta etiqueta
+                                if (label === 'Derechos Reservados:') {
+                                    endIdx = metaText.length;
                                 } else {
-                                    if (inList) {
-                                        html += '</ul>';
-                                        inList = false;
-                                    }
-                                    
-                                    if (trimmedLine) {
-                                        let cleanPara = trimmedLine
-                                            .replace(/\\~/g, ' ')
-                                            .replace(/\\[a-z]+\d*/g, ' ')
-                                            .replace(/-\d+(\s|$)/g, '')
-                                            .replace(/\s+/g, ' ')
-                                            .trim();
-                                        
-                                        html += `<p style="margin-bottom: 10px;">${cleanPara}</p>`;
-                                    }
+                                    const nextLabel = metaLabels[metaLabels.indexOf(label) + 1];
+                                    endIdx = metaText.indexOf(nextLabel);
                                 }
-                            });
-                            
-                            if (inList) {
-                                html += '</ul>';
-                            }
-                        } else {
-                            const paragraphs = section.content.split('\n\n').filter(p => p.trim());
-                            paragraphs.forEach(paragraph => {
-                                let cleanPara = paragraph
-                                    .replace(/\\~/g, ' ')
-                                    .replace(/\\[a-z]+\d*/g, ' ')
-                                    .replace(/-\d+(\s|$)/g, '')
-                                    .replace(/\s+/g, ' ')
-                                    .trim();
                                 
-                                html += `<p style="margin-bottom: 10px;">${cleanPara}</p>`;
-                            });
+                                if (endIdx > startIdx) {
+                                    const value = metaText.substring(startIdx + label.length, endIdx).trim();
+                                    html += `        <span class="bold">${label}</span> ${value} `;
+                                }
+                            }
                         }
-                        html += '</div>';
-                    });
-                    
-                    // Pie de página (copyright)
-                    const copyrightRegex = /©\s*2025\s*Edudigital\.\s*LATAM\.\s*Todos\s*los\s*derechos\s*reservados/i;
-                    const copyrightMatch = plainText.match(copyrightRegex);
-                    if (copyrightMatch) {
-                        html += `<p class="copyright" style="margin-top: 20px;"><strong>${copyrightMatch[0]}</strong></p>`;
+                        
+                        html += `\n    </p>\n`;
+                        foundMetadata = true;
+                        continue;
                     }
                     
-                    // Limpiar cualquier código RTF residual en el HTML
-                    html = html
-                        .replace(/\\~/g, ' ')
-                        .replace(/\\[a-z]+\d*/g, ' ')
-                        .replace(/\s+/g, ' ')
-                        .replace(/\s+</g, '<')
-                        .replace(/>\s+/g, '>')
-                        .replace(/\s+\/>/g, '/>')
-                        .replace(/<p>\s*<\/p>/g, '');
+                    // Advertencia en negrita
+                    if (paragraph.includes('POR FAVOR, LEA ESTOS') && !foundWarning) {
+                        let warning = extractCleanText(paragraph);
+                        html += `\n    <p class="bold">\n        ${warning}\n    </p>\n`;
+                        foundWarning = true;
+                        continue;
+                    }
                     
-                    console.log('rtfToHtml: HTML generado con éxito');
-                    return html;
+                    // Procesar secciones numeradas
+                    const sectionMatch = paragraph.match(/(\d+)\.\s+([^:]+):/);
+                    if (sectionMatch) {
+                        // Si estábamos en una lista, cerrarla
+                        if (isInList) {
+                            html += `    </ul>\n`;
+                            isInList = false;
+                        }
+                        
+                        const sectionTitle = extractCleanText(paragraph);
+                        html += `\n    <h2>${sectionTitle}</h2>\n`;
+                        
+                        // Caso especial para "Restricciones de Uso"
+                        if (sectionTitle.includes("3. Restricciones de Uso")) {
+                            continue;
+                        }
+                        
+                        continue;
+                    }
+                    
+                    // Mensaje "Usted se compromete a NO:"
+                    if (paragraph.includes('Usted se compromete a NO:')) {
+                        html += `    <p>Usted se compromete a NO:</p>\n`;
+                        html += `    <ul>\n`;
+                        isInList = true;
+                        continue;
+                    }
+                    
+                    // Elementos de lista (viñetas)
+                    if (paragraph.includes('\\pntext') || paragraph.includes('\\\'B7')) {
+                        if (!isInList) {
+                            html += `    <ul>\n`;
+                            isInList = true;
+                        }
+                        
+                        let listContent = extractCleanText(paragraph);
+                        const isBold = paragraph.includes('\\b\\ltrch');
+                        
+                        html += `        <li${isBold ? ' class="bold"' : ''}>${listContent}</li>\n`;
+                        continue;
+                    }
+                    
+                    // Cierra la lista si estamos saliendo de ella y entrando a otra sección
+                    if (isInList && paragraph.includes('4. Descargo')) {
+                        html += `    </ul>\n`;
+                        isInList = false;
+                    }
+                    
+                    // Párrafos normales y especiales
+                    if (paragraph.length > 10 && 
+                        !paragraph.includes('\\ltrpar\\itap0') && 
+                        !paragraph.includes('\\pntext') && 
+                        !paragraph.includes('\\fonttbl') &&
+                        !paragraph.includes('\\colortbl') &&
+                        !paragraph.includes('\\listlevel')) {
+                            
+                        let text = extractCleanText(paragraph);
+                        
+                        // Omitir párrafos que ya hemos procesado
+                        if (text.includes('Términos y Condiciones de Uso') || 
+                            text.includes('Aplicación:') || 
+                            text.includes('POR FAVOR, LEA ESTOS') ||
+                            text.includes('Usted se compromete a NO:') ||
+                            text.length < 5) {
+                            continue;
+                        }
+                        
+                        // Manejo especial de los párrafos de la sección "Descargo de Responsabilidad"
+                        if (paragraph.includes('Edudigital. LATAM no se hace responsable por ning')) {
+                            html += `    <p class="bold">\n        ${text}\n    </p>\n`;
+                            continue;
+                        }
+                        
+                        if (paragraph.includes('Edudigital. LATAM no se hace responsable por el uso indebido')) {
+                            html += `    <p class="bold">\n        ${text}\n    </p>\n`;
+                            continue;
+                        }
+                        
+                        // Sección de contacto con enlace
+                        if (paragraph.includes('Si tiene alguna pregunta')) {
+                            text = text.replace(/(https?:\/\/[^\s\.]+\.[^\s]+)/g, '<a href="$1">$1</a>');
+                            html += `    <p>\n        ${text}\n    </p>\n`;
+                            continue;
+                        }
+                        
+                        // Pie de página (copyright)
+                        if (paragraph.includes('2025 Edudigital. LATAM. Todos los derechos reservados') && 
+                            !paragraph.includes('Aplicación:')) {
+                            html += `    <p class="bold">${text}</p>\n`;
+                            continue;
+                        }
+                        
+                        // Párrafos normales
+                        if (text.trim()) {
+                            html += `    <p>\n        ${text}\n    </p>\n`;
+                        }
+                    }
                 }
                 
-                // Enfoque genérico para cualquier RTF
-                console.log('rtfToHtml: Usando enfoque genérico para RTF');
+                // Cerrar el documento
+                html += `</body>\n</html>`;
                 
-                // Extraer texto plano eliminando códigos RTF
-                let plainText = rtf
-                    .replace(/{\\rtf1.*?}/gs, '')
-                    .replace(/\\~/g, ' ')
-                    .replace(/\.\s*\\~\s*/g, '. ')
-                    .replace(/\\[a-z0-9]+/g, ' ')
-                    .replace(/\{|\}/g, '')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                
-                // Convertir a HTML básico
-                let basicHtml = '<h1>Términos y Condiciones</h1>';
-                
-                // Dividir por líneas y formatear
-                const lines = plainText.split('\n').filter(line => line.trim());
-                let inList = false;
-                
-                lines.forEach(line => {
-                    const trimmedLine = line.trim();
-                    
-                    // Detectar encabezados de sección
-                    if (/^\d+\.\s+[A-Z]/.test(trimmedLine)) {
-                        if (inList) {
-                            basicHtml += '</ul>';
-                            inList = false;
-                        }
-                        basicHtml += `<h2>${trimmedLine}</h2>`;
-                    }
-                    // Detectar elementos de lista
-                    else if (trimmedLine.startsWith('•')) {
-                        if (!inList) {
-                            basicHtml += '<ul>';
-                            inList = true;
-                        }
-                        const itemText = trimmedLine.substring(1).trim();
-                        basicHtml += `<li>${itemText}</li>`;
-                    }
-                    // Párrafos normales
-                    else if (trimmedLine) {
-                        if (inList) {
-                            basicHtml += '</ul>';
-                            inList = false;
-                        }
-                        basicHtml += `<p>${trimmedLine}</p>`;
-                    }
-                });
-                
-                if (inList) {
-                    basicHtml += '</ul>';
-                }
-                
-                console.log('rtfToHtml: HTML básico generado');
-                return basicHtml;
-                
+                return html;
             } catch (error) {
                 console.error('rtfToHtml: Error al convertir RTF a HTML:', error);
                 
@@ -1019,6 +831,77 @@
                     `;
                 }
             }
+        }
+        
+        // Funciones auxiliares para el conversor RTF a HTML
+        function extractCleanText(rtfText) {
+            // Eliminar todas las etiquetas RTF y extraer solo el contenido de texto
+            let text = rtfText
+                .replace(/\\ltrpar\\itap0.*?\\ql/g, '')
+                .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+\\fi\d+\\ql.*/g, '')
+                .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+\\jclisttab\\tx\d+\\fi-\d+\\ql.*/g, '')
+                .replace(/\{\\lang\d+\\ltrch\s+/g, '')
+                .replace(/\{\\lang\d+\\b\\ltrch\s+/g, '')
+                .replace(/\{\\fs\d+\\f\d+(\\\w+)?\s+/g, '')
+                .replace(/\{\\fs\d+\\f\d+\s+\{/g, '')
+                .replace(/\{\\pntext\s+[^}]*\}\{[^}]*\}/g, '')
+                .replace(/\\\*\\pn[^}]*\}/g, '')
+                .replace(/\}\\\w+\d*\\ri\d+\\sa\d+\\sb\d+.*/g, '')
+                .replace(/\{|\}/g, '')
+                .replace(/\\ltrch\s+/g, '')
+                .replace(/\\b\\ltrch\s+/g, '')
+                .replace(/\\cf\d+\\ql/g, '')
+                .replace(/\\~/g, '') // Eliminar \~
+                .replace(/\\\w+\s?/g, '');
+            
+            // Limpieza final y eliminar espacios duplicados
+            text = text.replace(/\s{2,}/g, ' ').trim();
+            
+            // Aplicar decodificación de caracteres RTF
+            text = decodeRtfCharacters(text);
+            
+            return text;
+        }
+
+        function decodeRtfCharacters(text) {
+            // Primero, buscar patrones de caracteres especiales RTF y reemplazarlos
+            const rtfCharMap = {
+                "\\'e9": "é",
+                "\\'e1": "á",
+                "\\'ed": "í",
+                "\\'f3": "ó",
+                "\\'fa": "ú",
+                "\\'f1": "ñ",
+                "\\'c1": "Á",
+                "\\'c9": "É",
+                "\\'cd": "Í",
+                "\\'d3": "Ó",
+                "\\'da": "Ú",
+                "\\'d1": "Ñ",
+                "\\'e0": "à",
+                "\\'e8": "è",
+                "\\'ec": "ì",
+                "\\'f2": "ò",
+                "\\'f9": "ù",
+                "\\'c0": "À",
+                "\\'c8": "È",
+                "\\'cc": "Ì",
+                "\\'d2": "Ò",
+                "\\'d9": "Ù",
+                "\\'a9": "©",
+                "\\u0027": "'",
+                "\u0022": '"'
+            };
+
+            // Reemplazar todos los caracteres especiales
+            for (let rtf in rtfCharMap) {
+                text = text.replace(new RegExp(rtf.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), rtfCharMap[rtf]);
+            }
+
+            // Proceso adicional para encontrar patrones como \á, \é, etc. y eliminar la barra invertida
+            text = text.replace(/\\([áéíóúñÁÉÍÓÚÑàèìòùÀÈÌÒÙ©])/g, '$1');
+            
+            return text;
         }
         
         // Guardar configuración
@@ -1420,6 +1303,11 @@
                 showLoading(false);
                 showAlert('danger', `Error: ${error.message}`);
             }
+        }
+        
+        // Actualizar vista previa de términos y condiciones
+        function updateTermsPreview() {
+            termsPreview.innerHTML = termsEditor.innerHTML || 'No hay términos y condiciones definidos.';
         }
         
         // Inicializar la aplicación
