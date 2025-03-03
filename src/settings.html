@@ -700,6 +700,12 @@
                     const titleMatch = plainText.match(titleRegex);
                     if (titleMatch) {
                         title = titleMatch[0].trim();
+                        // Asegurar que incluya el subtítulo completo si está presente
+                        const fullTitleRegex = /Términos y Condiciones de Uso.*?Instaladores de Windows Online C#/i;
+                        const fullTitleMatch = plainText.match(fullTitleRegex);
+                        if (fullTitleMatch) {
+                            title = fullTitleMatch[0].trim();
+                        }
                         console.log('rtfToHtml: Título encontrado:', title);
                     }
                     
@@ -709,12 +715,17 @@
                     const appInfoMatch = plainText.match(appInfoRegex);
                     if (appInfoMatch) {
                         appInfo = appInfoMatch[0].trim();
+                        // Limpiar y formatear la información de la aplicación
+                        appInfo = appInfo
+                            .replace(/\s+/g, ' ')
+                            .replace(/\n+/g, '\n')
+                            .trim();
                         console.log('rtfToHtml: Información de la aplicación encontrada');
                     }
                     
                     // Extraer advertencia principal
                     let warning = '';
-                    const warningRegex = /POR FAVOR.*?UTILICE LA APLICACIÓN\./is;
+                    const warningRegex = /POR FAVOR.*?(?=\s*\d+\.\s+[A-Z])/is;
                     const warningMatch = plainText.match(warningRegex);
                     if (warningMatch) {
                         warning = warningMatch[0].trim();
@@ -789,20 +800,20 @@
                     let html = '';
                     
                     // Título con formato correcto
-                    html += `<h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">${title}</h1>`;
+                    html += `<h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center;">${title}</h1>`;
                     
                     // Información de la aplicación
                     if (appInfo) {
                         const appInfoLines = appInfo.split('\n').filter(line => line.trim());
-                        html += '<div class="app-info" style="margin-bottom: 20px;">';
+                        html += '<div class="app-info" style="margin-bottom: 20px; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">';
                         appInfoLines.forEach(line => {
                             const parts = line.split(':');
                             if (parts.length >= 2) {
                                 const label = parts[0].trim();
                                 const value = parts.slice(1).join(':').trim();
-                                html += `<p><strong>${label}:</strong> ${value}</p>`;
+                                html += `<p style="margin-bottom: 8px;"><strong>${label}:</strong> ${value}</p>`;
                             } else {
-                                html += `<p>${line.trim()}</p>`;
+                                html += `<p style="margin-bottom: 8px;">${line.trim()}</p>`;
                             }
                         });
                         html += '</div>';
@@ -810,7 +821,7 @@
                     
                     // Advertencia principal
                     if (warning) {
-                        html += `<p class="warning" style="margin-bottom: 20px;"><strong>${warning}</strong></p>`;
+                        html += `<div class="warning" style="margin-bottom: 20px; background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border: 1px solid #ffeeba;"><strong>${warning}</strong></div>`;
                     }
                     
                     // Secciones numeradas con formato correcto
