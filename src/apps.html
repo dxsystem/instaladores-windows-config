@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Aplicaciones - InstallWin#</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Estilos para el encabezado fijo de la tabla */
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Estilos para el loader */
+        #loadingState {
+            backdrop-filter: blur(5px);
+            transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
+        }
+        
+        #loadingState.hidden {
+            opacity: 0;
+            backdrop-filter: none;
+            z-index: -1;
+            display: none !important;
+        }
+        
+        /* Estilos para las tarjetas de estadísticas */
+        .card .card-body {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover .card-body {
+            transform: translateY(-5px);
+        }
+        
+        /* Estilos para los botones de acción en la tabla */
+        .btn-action {
+            width: 36px;
+            height: 36px;
+            padding: 6px;
+            margin: 0 3px;
+            border-radius: 50%;
+        }
+        
+        /* Animación para el botón de actualizar */
+        #refreshButton .bi-arrow-clockwise {
+            transition: transform 0.5s ease;
+        }
+        
+        #refreshButton:hover .bi-arrow-clockwise {
+            transform: rotate(180deg);
+        }
+
+        /* Estilos para las pestañas */
+        .nav-tabs .nav-link {
+            color: #495057;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #0078d4;
+            background-color: #fff;
+            border-bottom-color: transparent;
+            font-weight: 600;
+        }
+
+        /* Estilos para las tarjetas de aplicaciones */
+        .app-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .app-icon {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .app-description {
+            max-height: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+
+        /* Estilos para el editor de descripciones */
+        .description-editor {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        /* Estilos para las listas de aplicaciones */
+        .app-list {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .app-list-item {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .app-list-item:hover {
+            background-color: rgba(0, 120, 212, 0.1);
+        }
+
+        .app-list-item.selected {
+            background-color: rgba(0, 120, 212, 0.2);
+            border-left: 3px solid #0078d4;
+        }
+
+        /* Estilos para el contador de aplicaciones */
+        .app-counter {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        /* Estilos para el buscador */
+        .search-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .search-container .bi-search {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            color: #6c757d;
+        }
+
+        .search-input {
+            padding-left: 35px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="login.html">
+                <i class="bi bi-windows me-2"></i>
+                InstallWin#
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="login.html">Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="users.html">Usuarios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="apps.html">Aplicaciones</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="currentUserName">Usuario</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" id="logoutButton"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container main-container">
+        <div class="row mb-4">
+            <div class="col">
+                <h2><i class="bi bi-grid-3x3-gap me-2"></i>Gestión de Aplicaciones</h2>
+                <p class="text-muted">Administra las aplicaciones disponibles en el sistema</p>
+            </div>
+            <div class="col-auto">
+                <button id="refreshButton" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-arrow-clockwise"></i> Actualizar
+                </button>
+                <button id="syncButton" class="btn btn-primary">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Sincronizar
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarjetas de estadísticas -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title"><i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>Total de Aplicaciones</h5>
+                        <h2 class="display-4 fw-bold" id="totalAppsCount">0</h2>
+                        <p class="text-muted">Aplicaciones disponibles</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title"><i class="bi bi-star-fill text-warning me-2"></i>Aplicaciones Obligatorias</h5>
+                        <h2 class="display-4 fw-bold" id="requiredAppsCount">0</h2>
+                        <p class="text-muted">Instalación automática</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title"><i class="bi bi-tags-fill text-success me-2"></i>Categorías</h5>
+                        <h2 class="display-4 fw-bold" id="categoriesCount">0</h2>
+                        <p class="text-muted">Tipos de aplicaciones</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestañas de navegación -->
+        <ul class="nav nav-tabs mb-4" id="appsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="apps-list-tab" data-bs-toggle="tab" data-bs-target="#apps-list" type="button" role="tab">
+                    <i class="bi bi-grid-3x3-gap me-1"></i> Lista de Aplicaciones
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="descriptions-tab" data-bs-toggle="tab" data-bs-target="#descriptions" type="button" role="tab">
+                    <i class="bi bi-file-text me-1"></i> Descripciones
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="required-apps-tab" data-bs-toggle="tab" data-bs-target="#required-apps" type="button" role="tab">
+                    <i class="bi bi-star me-1"></i> Aplicaciones Obligatorias
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="elite-apps-tab" data-bs-toggle="tab" data-bs-target="#elite-apps" type="button" role="tab">
+                    <i class="bi bi-trophy me-1"></i> Suscripción ELITE
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pro-apps-tab" data-bs-toggle="tab" data-bs-target="#pro-apps" type="button" role="tab">
+                    <i class="bi bi-award me-1"></i> Suscripción PRO
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="free-apps-tab" data-bs-toggle="tab" data-bs-target="#free-apps" type="button" role="tab">
+                    <i class="bi bi-gift me-1"></i> Suscripción Gratuita
+                </button>
+            </li>
+        </ul>
+
+        <!-- Contenido de las pestañas -->
+        <div class="tab-content" id="appsTabsContent">
+            <!-- Pestaña: Lista de Aplicaciones -->
+            <div class="tab-pane fade show active" id="apps-list" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-grid-3x3-gap me-2"></i>Aplicaciones Disponibles</h5>
+                        <div class="d-flex">
+                            <div class="input-group me-2">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" id="appSearchInput" placeholder="Buscar aplicaciones...">
+                            </div>
+                            <select class="form-select me-2" id="categoryFilter">
+                                <option value="">Todas las categorías</option>
+                            </select>
+                            <button class="btn btn-outline-primary" id="addAppButton">
+                                <i class="bi bi-plus-lg me-1"></i> Agregar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="appsTable">
+                                <thead class="sticky-top">
+                                    <tr>
+                                        <th scope="col" style="width: 50px">#</th>
+                                        <th scope="col" style="width: 60px">Icono</th>
+                                        <th scope="col">Nombre</th>
+                                        <th scope="col">Categoría</th>
+                                        <th scope="col">Versión</th>
+                                        <th scope="col">Tamaño</th>
+                                        <th scope="col">Última Modificación</th>
+                                        <th scope="col" style="width: 150px">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="appsTableBody">
+                                    <!-- Las filas se generarán dinámicamente con JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña: Descripciones -->
+            <div class="tab-pane fade" id="descriptions" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Gestión de Descripciones</h5>
+                        <div class="d-flex">
+                            <div class="input-group me-2">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" id="descriptionSearchInput" placeholder="Buscar descripciones...">
+                            </div>
+                            <button class="btn btn-outline-primary" id="addDescriptionButton">
+                                <i class="bi bi-plus-lg me-1"></i> Agregar
+                            </button>
+                            <button class="btn btn-primary ms-2" id="saveDescriptionsButton">
+                                <i class="bi bi-save me-1"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="descriptionsTable">
+                                <thead class="sticky-top">
+                                    <tr>
+                                        <th scope="col" style="width: 50px">#</th>
+                                        <th scope="col">Nombre</th>
+                                        <th scope="col">Categoría</th>
+                                        <th scope="col">Descripción</th>
+                                        <th scope="col" style="width: 150px">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="descriptionsTableBody">
+                                    <!-- Las filas se generarán dinámicamente con JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña: Aplicaciones Obligatorias -->
+            <div class="tab-pane fade" id="required-apps" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-star me-2"></i>Aplicaciones Obligatorias</h5>
+                        <button class="btn btn-primary" id="saveRequiredAppsButton">
+                            <i class="bi bi-save me-1"></i> Guardar Cambios
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="search-container">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control search-input" id="availableAppsSearchInput" placeholder="Buscar aplicaciones disponibles...">
+                                </div>
+                                <div class="app-counter" id="availableAppsCounter">0 aplicaciones disponibles</div>
+                                <div class="app-list" id="availableAppsList">
+                                    <!-- Las aplicaciones disponibles se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Aplicaciones seleccionadas como obligatorias</h6>
+                                <div class="app-counter" id="requiredAppsCounter">0 aplicaciones obligatorias</div>
+                                <div class="app-list" id="requiredAppsList">
+                                    <!-- Las aplicaciones obligatorias se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña: Suscripción ELITE -->
+            <div class="tab-pane fade" id="elite-apps" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Aplicaciones Suscripción ELITE</h5>
+                        <button class="btn btn-primary" id="saveEliteAppsButton">
+                            <i class="bi bi-save me-1"></i> Guardar Cambios
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i> La suscripción ELITE incluye todas las aplicaciones disponibles automáticamente.
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="search-container">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control search-input" id="availableEliteAppsSearchInput" placeholder="Buscar aplicaciones disponibles...">
+                                </div>
+                                <div class="app-counter" id="availableEliteAppsCounter">0 aplicaciones disponibles</div>
+                                <div class="app-list" id="availableEliteAppsList">
+                                    <!-- Las aplicaciones disponibles se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Aplicaciones seleccionadas para ELITE</h6>
+                                <div class="app-counter" id="eliteAppsCounter">0 aplicaciones para ELITE</div>
+                                <div class="app-list" id="eliteAppsList">
+                                    <!-- Las aplicaciones ELITE se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña: Suscripción PRO -->
+            <div class="tab-pane fade" id="pro-apps" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-award me-2"></i>Aplicaciones Suscripción PRO</h5>
+                        <button class="btn btn-primary" id="saveProAppsButton">
+                            <i class="bi bi-save me-1"></i> Guardar Cambios
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="search-container">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control search-input" id="availableProAppsSearchInput" placeholder="Buscar aplicaciones disponibles...">
+                                </div>
+                                <div class="app-counter" id="availableProAppsCounter">0 aplicaciones disponibles</div>
+                                <div class="app-list" id="availableProAppsList">
+                                    <!-- Las aplicaciones disponibles se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Aplicaciones seleccionadas para PRO</h6>
+                                <div class="app-counter" id="proAppsCounter">0 aplicaciones para PRO</div>
+                                <div class="app-list" id="proAppsList">
+                                    <!-- Las aplicaciones PRO se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña: Suscripción Gratuita -->
+            <div class="tab-pane fade" id="free-apps" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-gift me-2"></i>Aplicaciones Suscripción Gratuita</h5>
+                        <button class="btn btn-primary" id="saveFreeAppsButton">
+                            <i class="bi bi-save me-1"></i> Guardar Cambios
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="search-container">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control search-input" id="availableFreeAppsSearchInput" placeholder="Buscar aplicaciones disponibles...">
+                                </div>
+                                <div class="app-counter" id="availableFreeAppsCounter">0 aplicaciones disponibles</div>
+                                <div class="app-list" id="availableFreeAppsList">
+                                    <!-- Las aplicaciones disponibles se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Aplicaciones seleccionadas para Gratuita</h6>
+                                <div class="app-counter" id="freeAppsCounter">0 aplicaciones para Gratuita</div>
+                                <div class="app-list" id="freeAppsList">
+                                    <!-- Las aplicaciones Gratuitas se generarán dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para editar/agregar aplicación -->
+    <div class="modal fade" id="appModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="appModalTitle">Editar Aplicación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="appForm">
+                        <input type="hidden" id="appId">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="appName" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="appName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="appFileName" class="form-label">Nombre de Archivo</label>
+                                <input type="text" class="form-control" id="appFileName" required>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="appCategory" class="form-label">Categoría</label>
+                                <select class="form-select" id="appCategory" required>
+                                    <option value="">Seleccionar categoría</option>
+                                    <option value="General">General</option>
+                                    <option value="Utilidades">Utilidades</option>
+                                    <option value="Productividad">Productividad</option>
+                                    <option value="Multimedia">Multimedia</option>
+                                    <option value="Desarrollo">Desarrollo</option>
+                                    <option value="Seguridad">Seguridad</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="appVersion" class="form-label">Versión</label>
+                                <input type="text" class="form-control" id="appVersion">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="appDescription" class="form-label">Descripción</label>
+                            <textarea class="form-control description-editor" id="appDescription" rows="5"></textarea>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="appSize" class="form-label">Tamaño (bytes)</label>
+                                <input type="number" class="form-control" id="appSize">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="appInstallationOrder" class="form-label">Orden de Instalación</label>
+                                <input type="number" class="form-control" id="appInstallationOrder" min="1">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveAppButton">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para editar/agregar descripción -->
+    <div class="modal fade" id="descriptionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="descriptionModalTitle">Editar Descripción</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="descriptionForm">
+                        <input type="hidden" id="descriptionId">
+                        <div class="mb-3">
+                            <label for="descriptionName" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="descriptionName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descriptionCategory" class="form-label">Categoría</label>
+                            <select class="form-select" id="descriptionCategory" required>
+                                <option value="">Seleccionar categoría</option>
+                                <option value="General">General</option>
+                                <option value="Utilidades">Utilidades</option>
+                                <option value="Productividad">Productividad</option>
+                                <option value="Multimedia">Multimedia</option>
+                                <option value="Desarrollo">Desarrollo</option>
+                                <option value="Seguridad">Seguridad</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descriptionText" class="form-label">Descripción</label>
+                            <textarea class="form-control description-editor" id="descriptionText" rows="5" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveDescriptionButton">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado de carga -->
+    <div id="loadingState" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50" style="z-index: 9999;">
+        <div class="card p-4 shadow">
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <h5 id="loadingMessage" class="mb-0">Cargando datos...</h5>
+                <div class="progress mt-3" style="height: 15px;">
+                    <div id="loadingProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- MSAL -->
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+    <script src="js/sharepoint-auth.js"></script>
+    <script src="js/sharepoint-graph.js"></script>
+    <script src="js/icon-service.js"></script>
+    <script src="js/apps-manager.js"></script>
+    <script>
+        // Variables globales
+        let auth, spGraph, appsManager;
+        
+        // Inicialización cuando el documento esté listo
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                console.log('Inicializando la aplicación...');
+                
+                // Inicializar autenticación
+                auth = new SharePointAuth();
+                console.log('SharePointAuth creado, inicializando...');
+                
+                // Esperar a que la autenticación se inicialice completamente
+                const authInitialized = await auth.initialize();
+                console.log('Autenticación inicializada, resultado:', authInitialized);
+                
+                // Verificar explícitamente la sesión existente
+                const sessionResult = await auth.checkExistingSession();
+                console.log('Verificación de sesión existente:', sessionResult);
+                console.log('Estado de autenticación:', auth.isAuthenticated());
+                
+                // Verificar si el usuario está autenticado
+                if (!auth.isAuthenticated()) {
+                    console.log('Usuario no autenticado, redirigiendo a login.html');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                // Mostrar información del usuario
+                const currentUser = auth.getCurrentUser();
+                console.log('Usuario actual (procesado):', currentUser);
+                
+                if (currentUser) {
+                    // Actualizar el nombre de usuario en la interfaz
+                    const userNameElement = document.getElementById('currentUserName');
+                    if (userNameElement) {
+                        // Intentar usar displayName, name, o username en ese orden
+                        const displayName = currentUser.name || currentUser.displayName || currentUser.username || 'Usuario';
+                        userNameElement.textContent = displayName;
+                        console.log('Nombre de usuario mostrado:', displayName);
+                    }
+                }
+                
+                // Configurar botón de logout
+                const logoutButton = document.getElementById('logoutButton');
+                if (logoutButton) {
+                    logoutButton.addEventListener('click', () => {
+                        console.log('Cerrando sesión...');
+                        auth.logout().then(() => {
+                            window.location.href = 'login.html';
+                        });
+                    });
+                }
+                
+                // Inicializar componentes
+                console.log('Inicializando SharePointGraph...');
+                spGraph = new SharePointGraph(auth);
+                window.spGraph = spGraph; // Hacer disponible globalmente
+                
+                // Inicializar gestión de aplicaciones
+                await initializeAppsManager();
+                
+                // Configurar eventos de pestañas
+                const appsTabs = document.getElementById('appsTabs');
+                appsTabs.addEventListener('shown.bs.tab', async function(event) {
+                    const targetId = event.target.getAttribute('data-bs-target');
+                    
+                    if (targetId === '#required-apps' && !requiredAppsLoaded) {
+                        await loadRequiredApps();
+                        requiredAppsLoaded = true;
+                    } else if (targetId === '#descriptions' && !descriptionsLoaded) {
+                        await loadDescriptions();
+                        descriptionsLoaded = true;
+                    } else if (targetId === '#elite-apps' && !eliteAppsLoaded) {
+                        await loadEliteApps();
+                        eliteAppsLoaded = true;
+                    } else if (targetId === '#pro-apps' && !proAppsLoaded) {
+                        await loadProApps();
+                        proAppsLoaded = true;
+                    } else if (targetId === '#free-apps' && !freeAppsLoaded) {
+                        await loadFreeApps();
+                        freeAppsLoaded = true;
+                    }
+                });
+                
+                // Configurar eventos de botones
+                document.getElementById('refreshButton').addEventListener('click', refreshData);
+                document.getElementById('syncButton').addEventListener('click', syncAllConfigurations);
+                document.getElementById('addAppButton').addEventListener('click', showAddAppModal);
+                document.getElementById('addDescriptionButton').addEventListener('click', showAddDescriptionModal);
+                document.getElementById('saveDescriptionsButton').addEventListener('click', saveAllDescriptions);
+                document.getElementById('saveRequiredAppsButton').addEventListener('click', saveRequiredApps);
+                document.getElementById('saveEliteAppsButton').addEventListener('click', saveEliteApps);
+                document.getElementById('saveProAppsButton').addEventListener('click', saveProApps);
+                document.getElementById('saveFreeAppsButton').addEventListener('click', saveFreeApps);
+                document.getElementById('saveAppButton').addEventListener('click', saveApp);
+                document.getElementById('saveDescriptionButton').addEventListener('click', saveDescription);
+                
+                // Configurar eventos de búsqueda
+                document.getElementById('appSearchInput').addEventListener('input', filterApps);
+                document.getElementById('descriptionSearchInput').addEventListener('input', filterDescriptions);
+                document.getElementById('availableAppsSearchInput').addEventListener('input', filterAvailableApps);
+                document.getElementById('availableEliteAppsSearchInput').addEventListener('input', filterAvailableEliteApps);
+                document.getElementById('availableProAppsSearchInput').addEventListener('input', filterAvailableProApps);
+                document.getElementById('availableFreeAppsSearchInput').addEventListener('input', filterAvailableFreeApps);
+                document.getElementById('categoryFilter').addEventListener('change', filterApps);
+                
+                console.log('Aplicación inicializada correctamente');
+            } catch (error) {
+                console.error('Error al inicializar la aplicación:', error);
+                alert(`Error al inicializar la aplicación: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html> 

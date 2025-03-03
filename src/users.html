@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Usuarios -InstallWin#.</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Estilos para el encabezado fijo de la tabla */
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Estilos para el loader */
+        #loadingState {
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Estilos para las tarjetas de estadísticas */
+        .card .card-body {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover .card-body {
+            transform: translateY(-5px);
+        }
+        
+        /* Estilos para los botones de acción en la tabla */
+        .btn-action {
+            width: 36px;
+            height: 36px;
+            padding: 6px;
+            margin: 0 3px;
+            border-radius: 50%;
+        }
+        
+        /* Animación para el botón de actualizar */
+        #refreshButton .bi-arrow-clockwise {
+            transition: transform 0.5s ease;
+        }
+        
+        #refreshButton:hover .bi-arrow-clockwise {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="login.html">
+                <i class="bi bi-windows me-2"></i>
+               InstallWin#..
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="login.html">Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="users.html">Usuarios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="apps.html">
+                            <i class="bi bi-grid-3x3-gap me-1"></i>
+                            Aplicaciones
+                        </a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="currentUserName">Usuario</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" id="logoutButton"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container main-container">
+        <div class="row mb-4">
+            <div class="col">
+                <h2><i class="bi bi-people me-2"></i>Gestión de Usuarios</h2>
+                <p class="text-muted">Administra los usuarios que tienen acceso al sistema</p>
+            </div>
+            <div class="col-auto">
+                <a href="import-users.html" class="btn btn-outline-success me-2">
+                    <i class="bi bi-file-earmark-excel me-1"></i>
+                    Importar Usuarios
+                </a>
+                <button id="refreshButton" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-arrow-clockwise me-1"></i>
+                    Actualizar
+                </button>
+                <button id="newUserButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal">
+                    <i class="bi bi-person-plus me-1"></i>
+                    Nuevo Usuario
+                </button>
+                <button id="downloadUsersButton" class="btn btn-primary">
+                    <i class="bi bi-download me-1"></i>
+                    Descargar Usuarios
+                </button>
+            </div>
+        </div>
+
+        <!-- Alertas -->
+        <div id="alertContainer"></div>
+
+        <!-- Estado de carga -->
+        <div id="loadingState" class="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center d-none" style="z-index: 1050; background-color: rgba(255, 255, 255, 0.8);">
+            <div class="card shadow" style="width: 400px;">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <h5 class="card-title">Cargando usuarios</h5>
+                    <p class="card-text">Obteniendo datos desde SharePoint...</p>
+                    <div class="progress mt-3" style="height: 15px;">
+                        <div id="loadingProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="loadingProgressText" class="mt-2 text-muted">Preparando...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de búsqueda y filtros -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-search me-2"></i>Buscar y Filtrar Usuarios
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <!-- Estadísticas de usuarios -->
+                    <div class="col-12">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="card bg-light">
+                                    <div class="card-body p-2 text-center">
+                                        <h6 class="card-title mb-0">Total Usuarios</h6>
+                                        <h3 id="totalUserCount" class="mb-0">0</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-success bg-opacity-10">
+                                    <div class="card-body p-2 text-center">
+                                        <h6 class="card-title mb-0">Gratuita</h6>
+                                        <h3 id="freeUserCount" class="mb-0">0</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-primary bg-opacity-10">
+                                    <div class="card-body p-2 text-center">
+                                        <h6 class="card-title mb-0">ELITE</h6>
+                                        <h3 id="eliteUserCount" class="mb-0">0</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning bg-opacity-10">
+                                    <div class="card-body p-2 text-center">
+                                        <h6 class="card-title mb-0">PRO</h6>
+                                        <h3 id="proUserCount" class="mb-0">0</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <!-- Búsqueda por texto -->
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="searchInput" class="form-control" placeholder="Buscar por email o nombre...">
+                            <button id="searchButton" class="btn btn-primary">Buscar</button>
+                            <button id="resetButton" class="btn btn-outline-secondary">Resetear</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtro por tipo de suscripción -->
+                    <div class="col-md-3">
+                        <select id="subscriptionFilter" class="form-select">
+                            <option value="Todos">Todos los tipos</option>
+                            <option value="Gratuita">Gratuita</option>
+                            <option value="ELITE">ELITE</option>
+                            <option value="PRO">PRO</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Filtro por estado -->
+                    <div class="col-md-3">
+                        <select id="statusFilter" class="form-select">
+                            <option value="Todos">Todos los estados</option>
+                            <option value="Activo">Activos</option>
+                            <option value="Inactivo">Inactivos</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Filtros por fecha -->
+                    <div class="col-md-6">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="startDateFilter" class="form-label small">Fecha inicio desde:</label>
+                                <input type="date" id="startDateFilter" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label for="endDateFilter" class="form-label small">Fecha fin hasta:</label>
+                                <input type="date" id="endDateFilter" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contador de resultados -->
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-end align-items-end h-100">
+                            <span class="text-muted">Resultados: <span id="filteredUserCount">0</span> de <span id="totalUserCount">0</span> usuarios</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de usuarios -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-table me-2"></i>Lista de Usuarios</span>
+                <span id="userCount" class="badge bg-primary">0</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="sticky-top">
+                            <tr>
+                                <th>Email</th>
+                                <th>Tipo de Suscripción</th>
+                                <th>Fecha Inicio</th>
+                                <th>Fecha Fin</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <!-- Los usuarios se cargarán aquí dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="emptyState" class="text-center my-4 d-none">
+                    <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                    <p class="mt-2 text-muted">No hay usuarios registrados</p>
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal">
+                        <i class="bi bi-person-plus me-1"></i>
+                        Añadir Primer Usuario
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Usuario -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userModalTitle">Nuevo Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm">
+                        <input type="hidden" id="userId">
+                        
+                        <div class="mb-3">
+                            <label for="userEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="userEmail" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="userPassword" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="userPassword">
+                            <div class="form-text">Dejar en blanco para mantener la contraseña actual (al editar)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="userSubscriptionType" class="form-label">Tipo de Suscripción</label>
+                            <select class="form-select" id="userSubscriptionType" required>
+                                <option value="Gratuita">Gratuita</option>
+                                <option value="PRO">PRO</option>
+                                <option value="ELITE">ELITE</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="userStartDate" class="form-label">Fecha de Inicio</label>
+                            <input type="date" class="form-control" id="userStartDate" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="userEndDate" class="form-label">Fecha de Fin</label>
+                            <input type="date" class="form-control" id="userEndDate" required>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="userIsActive" checked>
+                            <label class="form-check-label" for="userIsActive">Usuario Activo</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveUserButton">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+    <script src="js/sharepoint-auth.js"></script>
+    <script src="js/sharepoint-graph.js"></script>
+    <script src="js/user-manager.js"></script>
+    
+    <script>
+        // Variables globales
+        let auth, spGraph, userManager;
+        
+        // Referencias DOM
+        const userTableBody = document.getElementById('userTableBody');
+        const refreshButton = document.getElementById('refreshButton');
+        const newUserButton = document.getElementById('newUserButton');
+        const saveUserButton = document.getElementById('saveUserButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const loadingState = document.getElementById('loadingState');
+        const alertContainer = document.getElementById('alertContainer');
+        const userCount = document.getElementById('userCount');
+        const userForm = document.getElementById('userForm');
+        const userId = document.getElementById('userId');
+        const userEmail = document.getElementById('userEmail');
+        const userPassword = document.getElementById('userPassword');
+        const userSubscriptionType = document.getElementById('userSubscriptionType');
+        const userStartDate = document.getElementById('userStartDate');
+        const userEndDate = document.getElementById('userEndDate');
+        const userIsActive = document.getElementById('userIsActive');
+        const userModalTitle = document.getElementById('userModalTitle');
+        const userModal = new bootstrap.Modal(document.getElementById('userModal'));
+        
+        // Referencias DOM para búsqueda y filtros
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const resetButton = document.getElementById('resetButton');
+        const subscriptionFilter = document.getElementById('subscriptionFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const startDateFilter = document.getElementById('startDateFilter');
+        const endDateFilter = document.getElementById('endDateFilter');
+        const filteredUserCount = document.getElementById('filteredUserCount');
+        const totalUserCount = document.getElementById('totalUserCount');
+        const loadingProgressBar = document.getElementById('loadingProgressBar');
+        const loadingProgressText = document.getElementById('loadingProgressText');
+        
+        // Funciones auxiliares
+        function showLoading(show) {
+            if (show) {
+                loadingState.classList.remove('d-none');
+                document.body.style.overflow = 'hidden'; // Prevenir scroll
+            } else {
+                loadingState.classList.add('d-none');
+                document.body.style.overflow = ''; // Restaurar scroll
+            }
+        }
+        
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
+            }, 5000);
+        }
+        
+        // Cargar usuarios
+        async function loadUsers() {
+            try {
+                showLoading(true);
+                
+                // Inicializar UserManager y cargar usuarios
+                await userManager.loadUsers(progress => {
+                    if (progress) {
+                        const percentage = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
+                        loadingProgressBar.style.width = `${percentage}%`;
+                        loadingProgressBar.setAttribute('aria-valuenow', percentage);
+                        loadingProgressText.textContent = progress.message || `Cargando ${progress.loaded} de ${progress.total} usuarios...`;
+                    }
+                });
+                
+                // Actualizar contador de usuarios
+                updateUserCount();
+                
+                // Renderizar tabla de usuarios
+                renderUserTable(userManager.getAllUsers());
+                
+                // Mostrar mensaje de éxito
+                showAlert('success', `Se han cargado ${userManager.users.length} usuarios correctamente.`);
+                
+                showLoading(false);
+            } catch (error) {
+                console.error('Error al cargar usuarios:', error);
+                showAlert('danger', `Error al cargar usuarios: ${error.message}`);
+                showLoading(false);
+            }
+        }
+        
+        // Actualizar progreso de carga
+        function updateLoadingProgress(progress) {
+            if (progress) {
+                const percent = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
+                loadingProgressBar.style.width = `${percent}%`;
+                loadingProgressBar.setAttribute('aria-valuenow', percent);
+                loadingProgressText.textContent = progress.message || `Cargando ${progress.loaded} de ${progress.total} usuarios...`;
+            }
+        }
+        
+        // Renderizar tabla de usuarios
+        function renderUserTable(users) {
+            userTableBody.innerHTML = '';
+            
+            if (!users || users.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="6" class="text-center">No hay usuarios para mostrar</td>
+                `;
+                userTableBody.appendChild(row);
+                return;
+            }
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                
+                // Formatear fechas
+                let startDate = 'No definida';
+                if (user.startDate) {
+                    const date = new Date(user.startDate);
+                    startDate = date.toLocaleDateString();
+                }
+                
+                let endDate = 'No definida';
+                if (user.endDate) {
+                    const date = new Date(user.endDate);
+                    endDate = date.toLocaleDateString();
+                }
+                
+                // Determinar clase para el estado
+                let statusClass = user.isActive ? 'text-success' : 'text-danger';
+                let statusText = user.isActive ? 'Activo' : 'Inactivo';
+                
+                // Determinar clase para el tipo de suscripción
+                let subscriptionClass = '';
+                switch (user.subscriptionType) {
+                    case 'ELITE':
+                        subscriptionClass = 'text-primary fw-bold';
+                        break;
+                    case 'PRO':
+                        subscriptionClass = 'text-warning fw-bold';
+                        break;
+                    default:
+                        subscriptionClass = 'text-success';
+                        break;
+                }
+                
+                row.innerHTML = `
+                    <td>${user.email}</td>
+                    <td class="${subscriptionClass}">${user.subscriptionType || 'Gratuita'}</td>
+                    <td>${startDate}</td>
+                    <td>${endDate}</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td>
+                        <button class="btn btn-action btn-outline-primary edit-user" data-id="${user.id}" title="Editar usuario">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-action btn-outline-danger delete-user" data-id="${user.id}" data-email="${user.email}" title="Eliminar usuario">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                userTableBody.appendChild(row);
+            });
+            
+            // Añadir eventos a los botones de acción
+            document.querySelectorAll('.edit-user').forEach(button => {
+                button.addEventListener('click', handleEditUser);
+            });
+            
+            document.querySelectorAll('.delete-user').forEach(button => {
+                button.addEventListener('click', handleDeleteUser);
+            });
+        }
+
+        // Configurar eventos
+        function setupEventListeners() {
+            // Botón de actualizar
+            refreshButton.addEventListener('click', loadUsers);
+            
+            // Botón de nuevo usuario
+            newUserButton.addEventListener('click', function() {
+                resetUserForm();
+                userModalTitle.textContent = 'Nuevo Usuario';
+            });
+            
+            // Botón de guardar usuario
+            saveUserButton.addEventListener('click', handleSaveUser);
+            
+            // Botón de cerrar sesión
+            logoutButton.addEventListener('click', function() {
+                auth.logout();
+            });
+            
+            // Establecer fechas por defecto
+            const today = new Date();
+            const sixMonthsLater = new Date(today);
+            sixMonthsLater.setMonth(today.getMonth() + 6);
+            
+            userStartDate.valueAsDate = today;
+            userEndDate.valueAsDate = sixMonthsLater;
+            
+            // Eventos para búsqueda y filtros
+            searchInput.addEventListener('input', applySearchAndFilters);
+            
+            // Cambios en los filtros
+            subscriptionFilter.addEventListener('change', applySearchAndFilters);
+            statusFilter.addEventListener('change', applySearchAndFilters);
+            startDateFilter.addEventListener('change', applySearchAndFilters);
+            endDateFilter.addEventListener('change', applySearchAndFilters);
+            
+            // Botón de resetear filtros
+            resetButton.addEventListener('click', resetSearchAndFilters);
+            
+            // Botón de descargar usuarios
+            document.getElementById('downloadUsersButton').addEventListener('click', downloadUsers);
+        }
+        
+        // Aplicar búsqueda y filtros
+        function applySearchAndFilters() {
+            const searchTerm = searchInput.value.trim();
+            const filters = {
+                subscriptionType: subscriptionFilter.value,
+                status: statusFilter.value,
+                startDateFrom: startDateFilter.value ? new Date(startDateFilter.value) : null,
+                endDateTo: endDateFilter.value ? new Date(endDateFilter.value) : null
+            };
+            
+            // Aplicar búsqueda
+            userManager.searchUsers(searchTerm);
+            
+            // Aplicar filtros
+            if (filters.subscriptionType !== 'Todos') {
+                userManager.filteredUsers = userManager.filteredUsers.filter(user => 
+                    (user.subscriptionType || 'Gratuita') === filters.subscriptionType
+                );
+            }
+            
+            if (filters.status !== 'Todos') {
+                const isActive = filters.status === 'Activo';
+                userManager.filteredUsers = userManager.filteredUsers.filter(user => 
+                    user.isActive === isActive
+                );
+            }
+            
+            if (filters.startDateFrom) {
+                userManager.filteredUsers = userManager.filteredUsers.filter(user => {
+                    if (!user.startDate) return false;
+                    const userStartDate = new Date(user.startDate);
+                    return userStartDate >= filters.startDateFrom;
+                });
+            }
+            
+            if (filters.endDateTo) {
+                userManager.filteredUsers = userManager.filteredUsers.filter(user => {
+                    if (!user.endDate) return false;
+                    const userEndDate = new Date(user.endDate);
+                    return userEndDate <= filters.endDateTo;
+                });
+            }
+            
+            // Actualizar la tabla con los resultados filtrados
+            renderUserTable(userManager.filteredUsers);
+            
+            // Actualizar contadores
+            updateUserCount();
+            
+            // Mostrar mensaje si no hay resultados
+            if (userManager.filteredUsers.length === 0 && userManager.users.length > 0) {
+                showAlert('info', 'No se encontraron usuarios que coincidan con los criterios de búsqueda.');
+            }
+        }
+        
+        // Resetear búsqueda y filtros
+        function resetSearchAndFilters() {
+            // Limpiar campo de búsqueda
+            searchInput.value = '';
+            
+            // Resetear filtros a valores por defecto
+            subscriptionFilter.value = 'Todos';
+            statusFilter.value = 'Todos';
+            startDateFilter.value = '';
+            endDateFilter.value = '';
+            
+            // Resetear filtros en el UserManager
+            userManager.searchTerm = '';
+            userManager.filteredUsers = [...userManager.users];
+            
+            // Actualizar la tabla con todos los usuarios
+            renderUserTable(userManager.getAllUsers());
+            
+            // Actualizar contadores
+            updateUserCount();
+            
+            // Mostrar mensaje
+            showAlert('success', 'Filtros reseteados. Mostrando todos los usuarios.');
+        }
+
+        // Manejar edición de usuario
+        function handleEditUser(event) {
+            const userId = event.currentTarget.dataset.id;
+            const user = userManager.getUserById(userId);
+            
+            if (user) {
+                userId.value = user.id;
+                userEmail.value = user.email;
+                userPassword.value = '';
+                userSubscriptionType.value = user.subscriptionType || 'Gratuita';
+                userIsActive.checked = user.isActive;
+                
+                if (user.startDate) {
+                    userStartDate.valueAsDate = new Date(user.startDate);
+                }
+                
+                if (user.endDate) {
+                    userEndDate.valueAsDate = new Date(user.endDate);
+                }
+                
+                userModalTitle.textContent = 'Editar Usuario';
+                userModal.show();
+            }
+        }
+
+        // Manejar eliminación de usuario
+        function handleDeleteUser(event) {
+            const userId = event.currentTarget.dataset.id;
+            const userEmail = event.currentTarget.dataset.email;
+            
+            if (confirm(`¿Estás seguro de que deseas eliminar al usuario ${userEmail}?`)) {
+                deleteUser(userId);
+            }
+        }
+
+        // Manejar guardado de usuario
+        async function handleSaveUser() {
+            try {
+                // Obtener datos del formulario
+                const userData = {
+                    id: userId.value,
+                    email: userEmail.value,
+                    password: userPassword.value,
+                    subscriptionType: userSubscriptionType.value,
+                    startDate: userStartDate.valueAsDate.toISOString(),
+                    endDate: userEndDate.valueAsDate.toISOString(),
+                    isActive: userIsActive.checked
+                };
+                
+                let result;
+                
+                if (userData.id) {
+                    // Actualizar usuario existente
+                    result = await userManager.updateUser(userData);
+                    showAlert('success', `Usuario ${userData.email} actualizado correctamente`);
+                } else {
+                    // Crear nuevo usuario
+                    result = await userManager.createUser(userData);
+                    showAlert('success', `Usuario ${userData.email} creado correctamente`);
+                }
+                
+                // Cerrar modal y recargar usuarios
+                userModal.hide();
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error al guardar usuario:', error);
+                showAlert('danger', `Error al guardar usuario: ${error.message}`);
+            }
+        }
+
+        // Eliminar usuario
+        async function deleteUser(userId) {
+            try {
+                await userManager.deleteUser(userId);
+                showAlert('success', 'Usuario eliminado correctamente');
+                await loadUsers();
+            } catch (error) {
+                console.error('Error al eliminar usuario:', error);
+                showAlert('danger', `Error al eliminar usuario: ${error.message}`);
+            }
+        }
+
+        // Resetear formulario de usuario
+        function resetUserForm() {
+            userForm.reset();
+            userId.value = '';
+            
+            const today = new Date();
+            const sixMonthsLater = new Date(today);
+            sixMonthsLater.setMonth(today.getMonth() + 6);
+            
+            userStartDate.valueAsDate = today;
+            userEndDate.valueAsDate = sixMonthsLater;
+        }
+
+        // Mostrar alerta
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-cerrar después de 5 segundos
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
+            }, 5000);
+        }
+        
+        // Función para formatear fecha en formato YYYY-MM-DD
+        function formatDateYMD(date) {
+            if (!date) return '';
+            
+            if (typeof date === 'string') {
+                // Si ya es una cadena, verificar si ya tiene el formato correcto
+                if (/^\d{4}-\d{2}-\d{2}/.test(date)) {
+                    return date.substring(0, 10); // Devolver solo YYYY-MM-DD
+                }
+                // Intentar convertir la cadena a fecha
+                date = new Date(date);
+            }
+            
+            // Verificar si es un objeto Date válido
+            if (!(date instanceof Date) || isNaN(date.getTime())) {
+                return '';
+            }
+            
+            // Formatear como YYYY-MM-DD
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        }
+        
+        // Descargar usuarios
+        function downloadUsers() {
+            try {
+                // Obtener usuarios
+                const users = userManager.getAllUsers();
+                if (!users || users.length === 0) {
+                    showAlert('warning', 'No hay usuarios para descargar');
+                    return;
+                }
+                
+                // Definir encabezados
+                const headers = ['Email', 'Tipo de Suscripción', 'Fecha Inicio', 'Fecha Fin', 'Estado'];
+                
+                // Crear filas
+                const rows = users.map(user => {
+                    // Formatear fechas en formato YYYY-MM-DD
+                    let startDate = user.startDate ? formatDateYMD(user.startDate) : '';
+                    let endDate = user.endDate ? formatDateYMD(user.endDate) : '';
+                    let status = user.isActive ? 'Activo' : 'Inactivo';
+                    
+                    return [
+                        user.email || '',
+                        user.subscriptionType || 'Gratuita',
+                        startDate,
+                        endDate,
+                        status
+                    ].join(',');
+                });
+                
+                // Unir encabezados y filas
+                const csv = [headers.join(',')].concat(rows).join('\n');
+                
+                // Usar el método de descarga más simple y directo
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `usuarios_${timestamp}.csv`;
+                
+                // Método alternativo de descarga que evita problemas con la pantalla gris
+                if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+                    // Para IE
+                    window.navigator.msSaveOrOpenBlob(blob, filename);
+                    showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
+                } else {
+                    // Para navegadores modernos
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Limpiar después de un breve retraso
+                    window.setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        showAlert('success', `Se han descargado ${users.length} usuarios correctamente.`);
+                    }, 0);
+                }
+            } catch (error) {
+                console.error('Error al descargar usuarios:', error);
+                showAlert('danger', `Error al descargar usuarios: ${error.message}`);
+            }
+        }
+        
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                console.log("Inicializando la aplicación...");
+                
+                // Inicializar autenticación
+                auth = new SharePointAuth();
+                
+                try {
+                    // Verificar si hay una respuesta de redirección o una sesión existente
+                    await auth.initialize();
+                    
+                    // Verificar si el usuario está autenticado
+                    if (!auth.isAuthenticated()) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    // Actualizar el nombre de usuario en la interfaz
+                    const currentUserNameElement = document.getElementById('currentUserName');
+                    if (currentUserNameElement && auth.user) {
+                        currentUserNameElement.textContent = auth.user.name || auth.user.username;
+                        console.log("Nombre de usuario actualizado:", auth.user.name || auth.user.username);
+                    }
+                    
+                    // Inicializar componentes
+                    spGraph = new SharePointGraph(auth);
+                    window.spGraph = spGraph; // Hacer disponible globalmente
+                    
+                    userManager = new UserManager(spGraph);
+                    window.userManager = userManager; // Hacer disponible globalmente
+                    
+                    // Inicializar la interfaz
+                    showLoading(true); // Mostrar loader antes de cargar usuarios
+                    await userManager.loadUsers(progress => {
+                        if (progress) {
+                            const percentage = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
+                            loadingProgressBar.style.width = `${percentage}%`;
+                            loadingProgressBar.setAttribute('aria-valuenow', percentage);
+                            loadingProgressText.textContent = progress.message || `Cargando ${progress.loaded} de ${progress.total} usuarios...`;
+                        }
+                    });
+                    
+                    // Renderizar tabla de usuarios
+                    renderUserTable(userManager.getAllUsers());
+                    
+                    // Actualizar contador de usuarios después de cargar todos los usuarios
+                    updateUserCount();
+                    
+                    // Configurar eventos
+                    setupEventListeners();
+                    
+                    // Ocultar loader después de completar la carga
+                    showLoading(false);
+                    
+                    // Mostrar mensaje de éxito
+                    showAlert('success', `Se han cargado ${userManager.users.length} usuarios correctamente.`);
+                } catch (error) {
+                    console.error('Error al inicializar la aplicación:', error);
+                    showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);
+                }
+            } catch (error) {
+                console.error('Error al inicializar la aplicación:', error);
+                showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);
+            }
+        });
+        
+        // Actualizar contador de usuarios
+        function updateUserCount() {
+            const total = userManager.users.length;
+            const filtered = userManager.filteredUsers.length;
+            
+            // Actualizar contadores generales
+            totalUserCount.textContent = total;
+            filteredUserCount.textContent = filtered;
+            userCount.textContent = `${filtered} de ${total}`;
+            
+            // Contar usuarios por tipo de suscripción
+            const freeUsers = userManager.users.filter(user => !user.subscriptionType || user.subscriptionType === 'Gratuita').length;
+            const eliteUsers = userManager.users.filter(user => user.subscriptionType === 'ELITE').length;
+            const proUsers = userManager.users.filter(user => user.subscriptionType === 'PRO').length;
+            
+            // Actualizar contadores por tipo
+            document.getElementById('freeUserCount').textContent = freeUsers;
+            document.getElementById('eliteUserCount').textContent = eliteUsers;
+            document.getElementById('proUserCount').textContent = proUsers;
+        }
+    </script>
+</body>
+</html>
+
