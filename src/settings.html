@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración del Sistema - InstallWin#</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Estilos para el encabezado fijo de la tabla */
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Estilos para el loader */
+        #loadingState {
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Estilos para las tarjetas de estadísticas */
+        .card .card-body {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover .card-body {
+            transform: translateY(-5px);
+        }
+        
+        /* Animación para el botón de actualizar */
+        #refreshButton .bi-arrow-clockwise {
+            transition: transform 0.5s ease;
+        }
+        
+        #refreshButton:hover .bi-arrow-clockwise {
+            transform: rotate(180deg);
+        }
+
+        /* Estilos para las pestañas */
+        .nav-tabs .nav-link {
+            color: #495057;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #0078d4;
+            background-color: #fff;
+            border-bottom-color: transparent;
+            font-weight: 600;
+        }
+
+        /* Estilos para el editor de términos y condiciones */
+        #termsEditor {
+            min-height: 300px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="login.html">
+                <i class="bi bi-windows me-2"></i>
+                InstallWin#
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="login.html">Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="users.html">Usuarios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="apps.html">Aplicaciones</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="settings.html">Configuración</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span id="currentUserName">Usuario</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" id="logoutButton"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container main-container">
+        <div class="row mb-4">
+            <div class="col">
+                <h2><i class="bi bi-gear me-2"></i>Configuración del Sistema</h2>
+                <p class="text-muted">Administra la configuración general de la aplicación</p>
+            </div>
+            <div class="col-auto">
+                <button id="refreshButton" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-arrow-clockwise me-1"></i>
+                    Actualizar
+                </button>
+                <button id="saveConfigButton" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i>
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+
+        <!-- Alertas -->
+        <div id="alertContainer"></div>
+
+        <!-- Estado de carga -->
+        <div id="loadingState" class="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center d-none" style="z-index: 1050; background-color: rgba(255, 255, 255, 0.8);">
+            <div class="card shadow" style="width: 400px;">
+                <div class="card-body text-center">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <h5 class="card-title" id="loadingTitle">Cargando configuración</h5>
+                    <p class="card-text" id="loadingMessage">Obteniendo datos desde SharePoint...</p>
+                    <div class="progress mt-3" style="height: 15px;">
+                        <div id="loadingProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="loadingProgressText" class="mt-2 text-muted">Preparando...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestañas de navegación -->
+        <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="course-tab" data-bs-toggle="tab" data-bs-target="#course" type="button" role="tab">
+                    <i class="bi bi-mortarboard me-1"></i> Curso
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="videos-tab" data-bs-toggle="tab" data-bs-target="#videos" type="button" role="tab">
+                    <i class="bi bi-play-circle me-1"></i> Videos Importantes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms" type="button" role="tab">
+                    <i class="bi bi-file-text me-1"></i> Términos y Condiciones
+                </button>
+            </li>
+        </ul>
+
+        <!-- Contenido de las pestañas -->
+        <div class="tab-content" id="settingsTabsContent">
+            <!-- Pestaña: Curso -->
+            <div class="tab-pane fade show active" id="course" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-mortarboard me-2"></i>Configuración del Curso</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="courseForm">
+                            <div class="mb-3">
+                                <label for="courseTitle" class="form-label">Título del Curso</label>
+                                <input type="text" class="form-control" id="courseTitle" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="courseVideoUrl" class="form-label">URL del Video</label>
+                                <input type="url" class="form-control" id="courseVideoUrl" required>
+                                <div class="form-text">Introduce la URL de YouTube (se convertirá automáticamente al formato de incrustación)</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="courseDescription" class="form-label">Descripción del Curso</label>
+                                <textarea class="form-control" id="courseDescription" rows="3" required></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="paymentUrl" class="form-label">URL de Pago con Tarjeta</label>
+                                        <input type="url" class="form-control" id="paymentUrl">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="whatsappUrl" class="form-label">URL de WhatsApp</label>
+                                        <input type="url" class="form-control" id="whatsappUrl">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <h6>Vista Previa</h6>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 id="courseTitlePreview">Título del Curso</h5>
+                                        <div class="ratio ratio-16x9 mb-3">
+                                            <iframe id="courseVideoPreview" src="" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                                        </div>
+                                        <p id="courseDescriptionPreview">Descripción del curso...</p>
+                                        <div class="d-flex gap-2">
+                                            <a href="#" id="paymentUrlPreview" class="btn btn-primary" target="_blank">
+                                                <i class="bi bi-credit-card me-1"></i> Pagar con Tarjeta
+                                            </a>
+                                            <a href="#" id="whatsappUrlPreview" class="btn btn-success" target="_blank">
+                                                <i class="bi bi-whatsapp me-1"></i> Contactar por WhatsApp
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña: Videos Importantes -->
+            <div class="tab-pane fade" id="videos" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-play-circle me-2"></i>Videos Importantes</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="videosForm">
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <h6 class="border-bottom pb-2">Video de Windows Defender</h6>
+                                    <div class="mb-3">
+                                        <label for="defenderVideoTitle" class="form-label">Título</label>
+                                        <input type="text" class="form-control" id="defenderVideoTitle" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="defenderVideoUrl" class="form-label">URL del Video</label>
+                                        <input type="url" class="form-control" id="defenderVideoUrl" required>
+                                    </div>
+                                    <div class="ratio ratio-16x9 mb-3">
+                                        <iframe id="defenderVideoPreview" src="" title="Windows Defender video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="border-bottom pb-2">Video de ESET Security</h6>
+                                    <div class="mb-3">
+                                        <label for="esetVideoTitle" class="form-label">Título</label>
+                                        <input type="text" class="form-control" id="esetVideoTitle" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="esetVideoUrl" class="form-label">URL del Video</label>
+                                        <input type="url" class="form-control" id="esetVideoUrl" required>
+                                    </div>
+                                    <div class="ratio ratio-16x9 mb-3">
+                                        <iframe id="esetVideoPreview" src="" title="ESET Security video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="antivirusWarning" class="form-label">Advertencia sobre Antivirus</label>
+                                <textarea class="form-control" id="antivirusWarning" rows="3"></textarea>
+                                <div class="form-text">Este mensaje se mostrará como advertencia en la sección de antivirus</div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña: Términos y Condiciones -->
+            <div class="tab-pane fade" id="terms" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Términos y Condiciones</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="termsForm">
+                            <div class="mb-3">
+                                <label for="termsEditor" class="form-label">Contenido de los Términos y Condiciones</label>
+                                <textarea class="form-control" id="termsEditor" rows="15"></textarea>
+                            </div>
+                            <div class="form-text mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Última modificación: <span id="lastModifiedDate">No disponible</span>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                Los términos y condiciones se mostrarán a los usuarios durante el proceso de instalación y deberán aceptarlos para continuar.
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+    <script src="js/sharepoint-auth.js"></script>
+    <script src="js/sharepoint-graph.js"></script>
+    
+    <script>
+        // Variables globales
+        let auth, spGraph;
+        let appSettings = null;
+        
+        // Referencias DOM
+        const loadingState = document.getElementById('loadingState');
+        const loadingTitle = document.getElementById('loadingTitle');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const loadingProgressBar = document.getElementById('loadingProgressBar');
+        const loadingProgressText = document.getElementById('loadingProgressText');
+        const alertContainer = document.getElementById('alertContainer');
+        const saveConfigButton = document.getElementById('saveConfigButton');
+        const refreshButton = document.getElementById('refreshButton');
+        
+        // Referencias DOM - Curso
+        const courseTitle = document.getElementById('courseTitle');
+        const courseVideoUrl = document.getElementById('courseVideoUrl');
+        const courseDescription = document.getElementById('courseDescription');
+        const paymentUrl = document.getElementById('paymentUrl');
+        const whatsappUrl = document.getElementById('whatsappUrl');
+        const courseTitlePreview = document.getElementById('courseTitlePreview');
+        const courseVideoPreview = document.getElementById('courseVideoPreview');
+        const courseDescriptionPreview = document.getElementById('courseDescriptionPreview');
+        const paymentUrlPreview = document.getElementById('paymentUrlPreview');
+        const whatsappUrlPreview = document.getElementById('whatsappUrlPreview');
+        
+        // Referencias DOM - Videos
+        const defenderVideoTitle = document.getElementById('defenderVideoTitle');
+        const defenderVideoUrl = document.getElementById('defenderVideoUrl');
+        const esetVideoTitle = document.getElementById('esetVideoTitle');
+        const esetVideoUrl = document.getElementById('esetVideoUrl');
+        const antivirusWarning = document.getElementById('antivirusWarning');
+        const defenderVideoPreview = document.getElementById('defenderVideoPreview');
+        const esetVideoPreview = document.getElementById('esetVideoPreview');
+        
+        // Referencias DOM - Términos
+        const termsEditor = document.getElementById('termsEditor');
+        const lastModifiedDate = document.getElementById('lastModifiedDate');
+        
+        // Funciones auxiliares
+        function showLoading(show, title = 'Cargando configuración', message = 'Obteniendo datos desde SharePoint...') {
+            if (show) {
+                loadingTitle.textContent = title;
+                loadingMessage.textContent = message;
+                loadingState.classList.remove('d-none');
+                document.body.style.overflow = 'hidden'; // Prevenir scroll
+            } else {
+                loadingState.classList.add('d-none');
+                document.body.style.overflow = ''; // Restaurar scroll
+            }
+        }
+        
+        function updateProgress(percent, message) {
+            loadingProgressBar.style.width = `${percent}%`;
+            loadingProgressBar.setAttribute('aria-valuenow', percent);
+            loadingProgressText.textContent = message;
+        }
+        
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
+            }, 5000);
+        }
+        
+        // Convertir URL de YouTube a formato de incrustación
+        function convertToEmbedUrl(url) {
+            if (!url) return '';
+            
+            // Si ya es una URL de incrustación, devolverla tal cual
+            if (url.includes('youtube.com/embed/')) {
+                return url;
+            }
+            
+            // Extraer el ID del video de diferentes formatos de URL de YouTube
+            let videoId = '';
+            
+            // Formato: https://www.youtube.com/watch?v=VIDEO_ID
+            if (url.includes('youtube.com/watch')) {
+                const urlParams = new URLSearchParams(new URL(url).search);
+                videoId = urlParams.get('v');
+            } 
+            // Formato: https://youtu.be/VIDEO_ID
+            else if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+            }
+            
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            
+            // Si no se pudo extraer el ID, devolver la URL original
+            return url;
+        }
+        
+        // Cargar configuración
+        async function loadConfiguration() {
+            try {
+                showLoading(true);
+                updateProgress(10, 'Conectando con SharePoint...');
+                
+                // Obtener la configuración
+                const response = await spGraph.getAppSettings();
+                appSettings = response;
+                
+                updateProgress(50, 'Actualizando interfaz...');
+                
+                // Actualizar formulario de curso
+                if (appSettings.Course) {
+                    courseTitle.value = appSettings.Course.Title || '';
+                    courseVideoUrl.value = appSettings.Course.VideoUrl || '';
+                    courseDescription.value = appSettings.Course.Description || '';
+                    
+                    if (appSettings.Course.Links) {
+                        paymentUrl.value = appSettings.Course.Links.CardPayment || '';
+                        whatsappUrl.value = appSettings.Course.Links.WhatsApp || '';
+                    }
+                    
+                    // Actualizar vista previa
+                    updateCoursePreview();
+                }
+                
+                // Actualizar formulario de videos
+                if (appSettings.Videos) {
+                    defenderVideoTitle.value = appSettings.Videos.DefenderVideoTitle || '';
+                    defenderVideoUrl.value = appSettings.Videos.DefenderVideoUrl || '';
+                    esetVideoTitle.value = appSettings.Videos.EsetVideoTitle || '';
+                    esetVideoUrl.value = appSettings.Videos.EsetVideoUrl || '';
+                    antivirusWarning.value = appSettings.Videos.AntivirusWarning || '';
+                    
+                    // Actualizar vista previa
+                    updateVideosPreview();
+                }
+                
+                // Actualizar formulario de términos
+                if (appSettings.TermsAndConditions) {
+                    termsEditor.value = appSettings.TermsAndConditions.Content || '';
+                    
+                    if (appSettings.TermsAndConditions.LastModified) {
+                        const date = new Date(appSettings.TermsAndConditions.LastModified);
+                        lastModifiedDate.textContent = date.toLocaleString();
+                    } else {
+                        lastModifiedDate.textContent = 'No disponible';
+                    }
+                }
+                
+                updateProgress(100, '¡Configuración cargada!');
+                setTimeout(() => {
+                    showLoading(false);
+                    showAlert('success', 'Configuración cargada correctamente');
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error al cargar la configuración:', error);
+                showLoading(false);
+                showAlert('danger', `Error al cargar la configuración: ${error.message}`);
+            }
+        }
+        
+        // Guardar configuración
+        async function saveConfiguration() {
+            try {
+                showLoading(true, 'Guardando configuración', 'Enviando datos a SharePoint...');
+                updateProgress(0, 'Preparando configuración...');
+                
+                // Crear objeto de configuración
+                const updatedSettings = {
+                    Course: {
+                        Title: courseTitle.value,
+                        VideoUrl: courseVideoUrl.value,
+                        Description: courseDescription.value,
+                        Links: {
+                            CardPayment: paymentUrl.value,
+                            WhatsApp: whatsappUrl.value
+                        }
+                    },
+                    Videos: {
+                        DefenderVideoTitle: defenderVideoTitle.value,
+                        DefenderVideoUrl: defenderVideoUrl.value,
+                        EsetVideoTitle: esetVideoTitle.value,
+                        EsetVideoUrl: esetVideoUrl.value,
+                        AntivirusWarning: antivirusWarning.value
+                    },
+                    TermsAndConditions: {
+                        Content: termsEditor.value,
+                        LastModified: new Date().toISOString()
+                    }
+                };
+                
+                updateProgress(50, 'Guardando configuración...');
+                
+                // Guardar configuración
+                await spGraph.saveAppSettings(updatedSettings);
+                
+                // Actualizar la configuración local
+                appSettings = updatedSettings;
+                
+                // Actualizar fecha de última modificación
+                if (appSettings.TermsAndConditions && appSettings.TermsAndConditions.LastModified) {
+                    const date = new Date(appSettings.TermsAndConditions.LastModified);
+                    lastModifiedDate.textContent = date.toLocaleString();
+                }
+                
+                updateProgress(100, '¡Configuración guardada!');
+                setTimeout(() => {
+                    showLoading(false);
+                    showAlert('success', 'Configuración guardada correctamente');
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error al guardar la configuración:', error);
+                showLoading(false);
+                showAlert('danger', `Error al guardar la configuración: ${error.message}`);
+            }
+        }
+        
+        // Actualizar vista previa del curso
+        function updateCoursePreview() {
+            courseTitlePreview.textContent = courseTitle.value || 'Título del Curso';
+            courseDescriptionPreview.textContent = courseDescription.value || 'Descripción del curso...';
+            
+            // Actualizar video
+            const embedUrl = convertToEmbedUrl(courseVideoUrl.value);
+            courseVideoPreview.src = embedUrl;
+            
+            // Actualizar enlaces
+            paymentUrlPreview.href = paymentUrl.value || '#';
+            whatsappUrlPreview.href = whatsappUrl.value || '#';
+        }
+        
+        // Actualizar vista previa de videos
+        function updateVideosPreview() {
+            // Actualizar videos
+            const defenderEmbedUrl = convertToEmbedUrl(defenderVideoUrl.value);
+            const esetEmbedUrl = convertToEmbedUrl(esetVideoUrl.value);
+            
+            defenderVideoPreview.src = defenderEmbedUrl;
+            esetVideoPreview.src = esetEmbedUrl;
+        }
+        
+        // Configurar eventos
+        function setupEventListeners() {
+            // Botón de guardar
+            saveConfigButton.addEventListener('click', saveConfiguration);
+            
+            // Botón de actualizar
+            refreshButton.addEventListener('click', loadConfiguration);
+            
+            // Eventos para actualizar vista previa del curso
+            courseTitle.addEventListener('input', updateCoursePreview);
+            courseDescription.addEventListener('input', updateCoursePreview);
+            courseVideoUrl.addEventListener('input', updateCoursePreview);
+            paymentUrl.addEventListener('input', updateCoursePreview);
+            whatsappUrl.addEventListener('input', updateCoursePreview);
+            
+            // Eventos para actualizar vista previa de videos
+            defenderVideoUrl.addEventListener('input', updateVideosPreview);
+            esetVideoUrl.addEventListener('input', updateVideosPreview);
+            
+            // Botón de cerrar sesión
+            document.getElementById('logoutButton').addEventListener('click', function() {
+                auth.logout();
+            });
+        }
+        
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                console.log("Inicializando la aplicación...");
+                
+                // Inicializar autenticación
+                auth = new SharePointAuth();
+                
+                try {
+                    // Verificar si hay una respuesta de redirección o una sesión existente
+                    await auth.initialize();
+                    
+                    // Verificar si el usuario está autenticado
+                    if (!auth.isAuthenticated()) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    // Actualizar el nombre de usuario en la interfaz
+                    const currentUserNameElement = document.getElementById('currentUserName');
+                    if (currentUserNameElement && auth.user) {
+                        currentUserNameElement.textContent = auth.user.name || auth.user.username;
+                        console.log("Nombre de usuario actualizado:", auth.user.name || auth.user.username);
+                    }
+                    
+                    // Inicializar componentes
+                    spGraph = new SharePointGraph(auth);
+                    window.spGraph = spGraph; // Hacer disponible globalmente
+                    
+                    // Configurar eventos
+                    setupEventListeners();
+                    
+                    // Cargar configuración
+                    await loadConfiguration();
+                    
+                } catch (error) {
+                    console.error('Error al inicializar la aplicación:', error);
+                    showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);
+                }
+            } catch (error) {
+                console.error('Error al inicializar la aplicación:', error);
+                showAlert('danger', `Error al inicializar la aplicación: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html> 

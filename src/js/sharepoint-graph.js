@@ -1318,6 +1318,193 @@ class SharePointGraph {
             return [];
         }
     }
+
+    /**
+     * Obtiene la configuración de la aplicación desde SharePoint
+     * @returns {Promise<Object>} Objeto con la configuración de la aplicación
+     */
+    async getAppSettings() {
+        try {
+            // Verificar autenticación
+            await this.ensureAuthenticated();
+            
+            // Obtener el sitio
+            const siteQuery = `${this.siteUrl}:/sites/InstaladoresWindowsC`;
+            const site = await this.graphClient.api(`/sites/${siteQuery}`).get();
+            if (!site) throw new Error("No se pudo encontrar el sitio");
+            
+            // Obtener la biblioteca de documentos
+            const lists = await this.graphClient.api(`/sites/${site.id}/lists`).get();
+            const documentLibrary = lists.value.find(l => l.name === this.libraryName);
+            if (!documentLibrary) throw new Error("No se pudo encontrar la biblioteca de documentos");
+            
+            // Obtener el drive
+            const drive = await this.graphClient.api(`/sites/${site.id}/lists/${documentLibrary.id}/drive`).get();
+            if (!drive) throw new Error("No se pudo obtener el drive");
+            
+            // Buscar el archivo de configuración
+            const items = await this.graphClient.api(`/drives/${drive.id}/root/children`).get();
+            const configFile = items.value.find(i => i.name === "app_settings.json");
+            
+            if (!configFile) {
+                return this.getDefaultAppSettings();
+            }
+            
+            // Obtener el contenido del archivo
+            const response = await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`).get();
+            const jsonContent = await response.text();
+            
+            try {
+                const appSettings = JSON.parse(jsonContent);
+                return appSettings || this.getDefaultAppSettings();
+            } catch (ex) {
+                console.error("Error al deserializar el archivo de configuración:", ex);
+                return this.getDefaultAppSettings();
+            }
+        } catch (error) {
+            console.error("Error al cargar la configuración:", error);
+            return this.getDefaultAppSettings();
+        }
+    }
+
+    /**
+     * Guarda la configuración de la aplicación en SharePoint
+     * @param {Object} appSettings Objeto con la configuración a guardar
+     * @returns {Promise<void>}
+     */
+    async saveAppSettings(appSettings) {
+        try {
+            // Verificar autenticación
+            await this.ensureAuthenticated();
+            
+            // Convertir las URLs de YouTube a formato de incrustación
+            if (appSettings.Course) {
+                appSettings.Course.VideoUrl = this.convertToEmbedUrl(appSettings.Course.VideoUrl);
+            }
+            
+            if (appSettings.Videos) {
+                appSettings.Videos.DefenderVideoUrl = this.convertToEmbedUrl(appSettings.Videos.DefenderVideoUrl);
+                appSettings.Videos.EsetVideoUrl = this.convertToEmbedUrl(appSettings.Videos.EsetVideoUrl);
+            }
+            
+            // Obtener el sitio
+            const siteQuery = `${this.siteUrl}:/sites/InstaladoresWindowsC`;
+            const site = await this.graphClient.api(`/sites/${siteQuery}`).get();
+            if (!site) throw new Error("No se pudo encontrar el sitio");
+            
+            // Obtener la biblioteca de documentos
+            const lists = await this.graphClient.api(`/sites/${site.id}/lists`).get();
+            const documentLibrary = lists.value.find(l => l.name === this.libraryName);
+            if (!documentLibrary) throw new Error("No se pudo encontrar la biblioteca de documentos");
+            
+            // Obtener el drive
+            const drive = await this.graphClient.api(`/sites/${site.id}/lists/${documentLibrary.id}/drive`).get();
+            if (!drive) throw new Error("No se pudo obtener el drive");
+            
+            // Buscar el archivo de configuración
+            const items = await this.graphClient.api(`/drives/${drive.id}/root/children`).get();
+            const configFile = items.value.find(i => i.name === "app_settings.json");
+            
+            // Convertir la configuración a JSON
+            const jsonContent = JSON.stringify(appSettings, null, 2);
+            
+            // Crear un Blob con el contenido
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const file = new File([blob], "app_settings.json", { type: 'application/json' });
+            
+            if (configFile) {
+                // Actualizar el archivo existente
+                await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`)
+                    .put(file);
+            } else {
+                // Crear un nuevo archivo
+                await this.graphClient.api(`/drives/${drive.id}/root:/app_settings.json:/content`)
+                    .put(file);
+            }
+            
+            console.log("Configuración guardada correctamente");
+            return true;
+        } catch (error) {
+            console.error("Error al guardar la configuración:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Convierte una URL de YouTube al formato de incrustación
+     * @param {string} url URL de YouTube
+     * @returns {string} URL en formato de incrustación
+     */
+    convertToEmbedUrl(url) {
+        if (!url) return '';
+        
+        // Si ya es una URL de incrustación, devolverla tal cual
+        if (url.includes('youtube.com/embed/')) {
+            return url;
+        }
+        
+        // Extraer el ID del video de diferentes formatos de URL de YouTube
+        let videoId = '';
+        
+        try {
+            // Formato: https://www.youtube.com/watch?v=VIDEO_ID
+            if (url.includes('youtube.com/watch')) {
+                const urlParams = new URLSearchParams(new URL(url).search);
+                videoId = urlParams.get('v');
+            } 
+            // Formato: https://youtu.be/VIDEO_ID
+            else if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+            }
+            
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+        } catch (e) {
+            console.error("Error al convertir URL de YouTube:", e);
+        }
+        
+        // Si no se pudo extraer el ID, devolver la URL original
+        return url;
+    }
+
+    /**
+     * Obtiene la configuración por defecto de la aplicación
+     * @returns {Object} Configuración por defecto
+     */
+    getDefaultAppSettings() {
+        return {
+            Course: {
+                VideoUrl: "https://www.youtube.com/embed/piP8XlGf3gc",
+                Title: "¡Nuevo Curso Disponible!",
+                Description: "Aprende a configurar y optimizar Windows como un profesional",
+                Links: {
+                    CardPayment: "https://link-to-payment.com",
+                    WhatsApp: "https://wa.me/your_number"
+                }
+            },
+            Videos: {
+                DefenderVideoTitle: "Configurar Windows Defender",
+                DefenderVideoUrl: "https://www.youtube.com/embed/piP8XlGf3gc",
+                EsetVideoTitle: "Configurar Eset Security",
+                EsetVideoUrl: "https://www.youtube.com/embed/OWpecpM3_mw",
+                AntivirusWarning: "Recuerda desactivar tu antivirus antes de instalar aplicaciones"
+            },
+            TermsAndConditions: {
+                Content: "Términos y Condiciones por defecto\n\n" +
+                        "1. Uso del Software\n" +
+                        "   - Este software es proporcionado 'tal cual', sin garantía de ningún tipo.\n" +
+                        "   - El uso de este software implica la aceptación de estos términos.\n\n" +
+                        "2. Responsabilidad\n" +
+                        "   - El usuario es responsable del uso que haga del software.\n" +
+                        "   - No nos hacemos responsables por daños causados por el mal uso del software.\n\n" +
+                        "3. Propiedad Intelectual\n" +
+                        "   - Todos los derechos están reservados.\n" +
+                        "   - No se permite la redistribución sin autorización.",
+                LastModified: new Date().toISOString()
+            }
+        };
+    }
 }
 
 // Exportar la clase para su uso en otros archivos
