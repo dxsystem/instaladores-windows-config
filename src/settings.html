@@ -516,6 +516,75 @@
             termsPreview.innerHTML = termsEditor.innerHTML || 'No hay términos y condiciones definidos.';
         }
         
+        // Convertir RTF a HTML
+        function rtfToHtml(rtf) {
+            // Si no hay contenido RTF, devolver cadena vacía
+            if (!rtf || rtf.trim() === '') {
+                return '';
+            }
+            
+            try {
+                // Extraer el contenido de texto del RTF
+                let content = rtf;
+                
+                // Eliminar el encabezado RTF
+                content = content.replace(/^{\\rtf1.*?\\par\s*/, '');
+                
+                // Eliminar el cierre final
+                content = content.replace(/}$/, '');
+                
+                // Convertir códigos RTF básicos a HTML
+                content = content
+                    // Párrafos
+                    .replace(/\\par\s*/g, '</p><p>')
+                    // Negrita
+                    .replace(/{\\b\s+([^}]*)}/g, '<strong>$1</strong>')
+                    // Cursiva
+                    .replace(/{\\i\s+([^}]*)}/g, '<em>$1</em>')
+                    // Subrayado
+                    .replace(/{\\ul\s+([^}]*)}/g, '<u>$1</u>')
+                    // Tamaños de fuente para títulos
+                    .replace(/{\\fs36\\b\s+([^}]*)}/g, '<h1>$1</h1>')
+                    .replace(/{\\fs28\\b\s+([^}]*)}/g, '<h2>$1</h2>')
+                    .replace(/{\\fs24\\b\s+([^}]*)}/g, '<h3>$1</h3>')
+                    // Viñetas
+                    .replace(/\\bullet\s+([^\\]*)(\\par|$)/g, '<li>$1</li>')
+                    // Limpiar caracteres de escape
+                    .replace(/\\\\/g, '\\')
+                    .replace(/\\{/g, '{')
+                    .replace(/\\}/g, '}');
+                
+                // Envolver en párrafos si es necesario
+                if (!content.startsWith('<')) {
+                    content = '<p>' + content;
+                }
+                if (!content.endsWith('>')) {
+                    content += '</p>';
+                }
+                
+                // Asegurarse de que las listas estén correctamente formateadas
+                content = content.replace(/<li>.*?<\/li>/g, match => {
+                    if (!content.includes('<ul>')) {
+                        return '<ul>' + match + '</ul>';
+                    }
+                    return match;
+                });
+                
+                // Limpiar párrafos vacíos y etiquetas mal formadas
+                content = content
+                    .replace(/<p><\/p>/g, '')
+                    .replace(/<p><h([1-6])>/g, '<h$1>')
+                    .replace(/<\/h([1-6])><\/p>/g, '</h$1>')
+                    .replace(/<p><ul>/g, '<ul>')
+                    .replace(/<\/ul><\/p>/g, '</ul>');
+                
+                return content;
+            } catch (error) {
+                console.error('Error al convertir RTF a HTML:', error);
+                return '<p>Error al convertir el contenido RTF a HTML. Por favor, edite manualmente.</p>';
+            }
+        }
+        
         // Guardar configuración
         async function saveConfiguration() {
             try {
@@ -621,14 +690,39 @@
                 
                 // Actualizar formulario de términos
                 if (appSettings.TermsAndConditions) {
-                    // Preferir el contenido HTML si está disponible
-                    const content = appSettings.TermsAndConditions.HtmlContent || '';
+                    let htmlContent = '';
                     
-                    // Si no hay contenido HTML pero hay RTF, mostrar un mensaje informativo
-                    if (!content && appSettings.TermsAndConditions.Content) {
-                        termsEditor.innerHTML = '<p>El contenido está en formato RTF. Edítelo para convertirlo a HTML.</p>';
+                    // Preferir el contenido HTML si está disponible
+                    if (appSettings.TermsAndConditions.HtmlContent && appSettings.TermsAndConditions.HtmlContent.trim() !== '') {
+                        htmlContent = appSettings.TermsAndConditions.HtmlContent;
+                        console.log('Usando contenido HTML existente');
+                    } 
+                    // Si no hay HTML pero hay RTF, convertir RTF a HTML
+                    else if (appSettings.TermsAndConditions.Content && appSettings.TermsAndConditions.Content.trim() !== '') {
+                        console.log('Convirtiendo RTF a HTML');
+                        htmlContent = rtfToHtml(appSettings.TermsAndConditions.Content);
+                        
+                        // Guardar la versión HTML convertida para futuras cargas
+                        if (htmlContent && htmlContent !== '') {
+                            appSettings.TermsAndConditions.HtmlContent = htmlContent;
+                            
+                            // Guardar silenciosamente la versión actualizada con el HTML convertido
+                            setTimeout(async () => {
+                                try {
+                                    await spGraph.saveAppSettings(appSettings);
+                                    console.log('Versión HTML guardada correctamente');
+                                } catch (error) {
+                                    console.error('Error al guardar la versión HTML convertida:', error);
+                                }
+                            }, 1000);
+                        }
+                    }
+                    
+                    // Actualizar el editor con el contenido HTML
+                    if (htmlContent && htmlContent.trim() !== '') {
+                        termsEditor.innerHTML = htmlContent;
                     } else {
-                        termsEditor.innerHTML = content;
+                        termsEditor.innerHTML = '<p>No hay términos y condiciones definidos. Agregue contenido aquí.</p>';
                     }
                     
                     if (appSettings.TermsAndConditions.LastModified) {
