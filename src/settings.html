@@ -594,7 +594,6 @@
                 console.log('rtfToHtml: Iniciando conversión, longitud RTF:', rtf.length);
                 
                 // Crear una versión simplificada del RTF para buscar patrones
-                // Esto ayuda a manejar diferentes formatos de RTF
                 const simplifiedRtf = rtf
                     .replace(/\\[a-z0-9]+/g, ' ')  // Reemplazar códigos RTF con espacios
                     .replace(/\{|\}/g, ' ')        // Reemplazar llaves con espacios
@@ -603,11 +602,11 @@
                 
                 console.log('rtfToHtml: RTF simplificado para búsqueda de patrones');
                 
-                // Detectar si contiene términos y condiciones
+                // Mejorar la detección de términos y condiciones
                 const hasTermsAndConditions = 
-                    simplifiedRtf.includes('términos') && 
-                    simplifiedRtf.includes('condiciones') &&
-                    (simplifiedRtf.includes('aceptación') || simplifiedRtf.includes('aceptacion'));
+                    (simplifiedRtf.includes('términos') && simplifiedRtf.includes('condiciones')) ||
+                    simplifiedRtf.includes('descargo de responsabilidad') ||
+                    simplifiedRtf.includes('instaladores de windows online');
                 
                 console.log('rtfToHtml: ¿Contiene términos y condiciones?', hasTermsAndConditions);
                 
@@ -625,7 +624,8 @@
                         '\\\'f1': 'ñ', '\\\'d1': 'Ñ', '\\\'a9': '©', '\\\'ae': '®',
                         '\\\'e0': 'à', '\\\'e8': 'è', '\\\'ec': 'ì', '\\\'f2': 'ò', '\\\'f9': 'ù',
                         '\\\'c0': 'À', '\\\'c8': 'È', '\\\'cc': 'Ì', '\\\'d2': 'Ò', '\\\'d9': 'Ù',
-                        '\\\'bf': '¿', '\\\'a1': '¡', '\\\'ba': 'º', '\\\'aa': 'ª'
+                        '\\\'bf': '¿', '\\\'a1': '¡', '\\\'ba': 'º', '\\\'aa': 'ª',
+                        '\\\'B7': '•', '\\B7': '•', '\\bullet': '•'
                     };
                     
                     // Reemplazar todos los caracteres especiales
@@ -633,7 +633,7 @@
                         plainText = plainText.replace(new RegExp(code, 'g'), char);
                     });
                     
-                    // Eliminar códigos RTF comunes
+                    // Eliminar códigos RTF comunes y limpiar el texto
                     plainText = plainText
                         .replace(/{\\rtf1.*?\\viewkind/s, '')
                         // Limpiar caracteres iniciales no deseados
@@ -761,7 +761,7 @@
                         // Extraer el texto de la sección
                         let sectionText = plainText.substring(startPos, endPos).trim();
                         
-                        // Limpiar el texto de la sección de caracteres problemáticos
+                        // Limpiar el texto de la sección
                         sectionText = sectionText
                             .replace(/\\B7\s*/g, '• ')
                             .replace(/\\\'b7\s*/g, '• ')
@@ -789,12 +789,12 @@
                     let html = '';
                     
                     // Título con formato correcto
-                    html += `<h1 style="font-size: 24px; font-weight: bold;">${title}</h1>`;
+                    html += `<h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">${title}</h1>`;
                     
                     // Información de la aplicación
                     if (appInfo) {
                         const appInfoLines = appInfo.split('\n').filter(line => line.trim());
-                        html += '<div class="app-info">';
+                        html += '<div class="app-info" style="margin-bottom: 20px;">';
                         appInfoLines.forEach(line => {
                             const parts = line.split(':');
                             if (parts.length >= 2) {
@@ -810,13 +810,14 @@
                     
                     // Advertencia principal
                     if (warning) {
-                        html += `<p class="warning"><strong>${warning}</strong></p>`;
+                        html += `<p class="warning" style="margin-bottom: 20px;"><strong>${warning}</strong></p>`;
                     }
                     
                     // Secciones numeradas con formato correcto
                     sections.forEach(section => {
-                        // Usar strong en lugar de estilo de fuente grande para los títulos de sección
-                        html += `<h2 style="font-size: inherit;"><strong>${section.number}. ${section.title}</strong></h2>`;
+                        // Usar strong para los títulos de sección
+                        html += `<div class="section" style="margin-bottom: 15px;">`;
+                        html += `<h2 style="font-size: inherit; margin-bottom: 10px;"><strong>${section.number}. ${section.title}</strong></h2>`;
                         
                         if (section.hasBullets) {
                             // Procesar contenido con viñetas
@@ -833,7 +834,7 @@
                                     trimmedLine.includes('\\bullet')) {
                                     
                                     if (!inList) {
-                                        html += '<ul style="margin-left: 20px;">';
+                                        html += '<ul style="margin-left: 20px; margin-bottom: 10px;">';
                                         inList = true;
                                     }
                                     
@@ -850,7 +851,7 @@
                                         .replace(/\s+/g, ' ')
                                         .trim();
                                     
-                                    html += `<li>${itemText}</li>`;
+                                    html += `<li style="margin-bottom: 5px;">${itemText}</li>`;
                                 } else {
                                     if (inList) {
                                         html += '</ul>';
@@ -866,7 +867,7 @@
                                             .replace(/\s+/g, ' ')
                                             .trim();
                                         
-                                        html += `<p>${cleanPara}</p>`;
+                                        html += `<p style="margin-bottom: 10px;">${cleanPara}</p>`;
                                     }
                                 }
                             });
@@ -886,16 +887,17 @@
                                     .replace(/\s+/g, ' ')
                                     .trim();
                                 
-                                html += `<p>${cleanPara}</p>`;
+                                html += `<p style="margin-bottom: 10px;">${cleanPara}</p>`;
                             });
                         }
+                        html += '</div>';
                     });
                     
                     // Pie de página (copyright)
                     const copyrightRegex = /©\s*2025\s*Edudigital\.\s*LATAM\.\s*Todos\s*los\s*derechos\s*reservados/i;
                     const copyrightMatch = plainText.match(copyrightRegex);
                     if (copyrightMatch) {
-                        html += `<p class="copyright"><strong>${copyrightMatch[0]}</strong></p>`;
+                        html += `<p class="copyright" style="margin-top: 20px;"><strong>${copyrightMatch[0]}</strong></p>`;
                     }
                     
                     // Limpiar cualquier código RTF residual en el HTML
