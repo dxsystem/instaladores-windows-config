@@ -42,6 +42,15 @@ function htmlToRtf(html) {
     const elementsToRemove = tempDiv.querySelectorAll('style, script, head');
     elementsToRemove.forEach(el => el.remove());
     
+    // Eliminar el título principal si existe
+    const titles = tempDiv.querySelectorAll('h1');
+    titles.forEach(title => {
+        if (title.textContent.includes('Términos y Condiciones') && 
+            title.textContent.includes('Instaladores de Windows')) {
+            title.remove();
+        }
+    });
+    
     // Función recursiva para procesar nodos
     function processNode(node, inList = false) {
         if (node.nodeType === Node.TEXT_NODE) {
@@ -61,25 +70,26 @@ function htmlToRtf(html) {
                     break;
                 case 'h1':
                     // Verificar si es el título principal que queremos eliminar
-                    if (node.textContent.includes('Términos y Condiciones - Instaladores de Windows Online C#')) {
+                    if (node.textContent.includes('Términos y Condiciones') && 
+                        node.textContent.includes('Instaladores de Windows')) {
                         return ''; // Omitir este título
                     }
-                    // Título centrado en color blanco
-                    prefix = '{\\pard\\sa40\\sl220\\slmult1\\qc\\b\\f0\\fs28\\cf4 ';
-                    suffix = '\\par}\r\n';
+                    // Título centrado en color blanco con menos espacio
+                    prefix = '{\\pard\\sa10\\sl220\\slmult0\\qc\\b\\f0\\fs28\\cf4 ';
+                    suffix = '\\par}';
                     break;
                 case 'h2':
-                    // Subtítulos alineados a la izquierda en color blanco
-                    prefix = '{\\pard\\sa40\\sl220\\slmult1\\ql\\b\\f0\\fs24\\cf4 ';
-                    suffix = '\\par}\r\n';
+                    // Subtítulos alineados a la izquierda en color blanco con menos espacio
+                    prefix = '{\\pard\\sa10\\sl220\\slmult0\\ql\\b\\f0\\fs24\\cf4 ';
+                    suffix = '\\par}';
                     break;
                 case 'p':
                     if (node.className === 'bold') {
-                        prefix = '{\\pard\\sa30\\sl220\\slmult1\\ql\\b\\f0\\fs22\\cf4 ';
-                        suffix = '\\par}\r\n';
+                        prefix = '{\\pard\\sa0\\sl220\\slmult0\\ql\\b\\f0\\fs22\\cf4 ';
+                        suffix = '\\par}';
                     } else {
-                        prefix = '{\\pard\\sa30\\sl220\\slmult1\\ql\\f0\\fs22\\cf4 ';
-                        suffix = '\\par}\r\n';
+                        prefix = '{\\pard\\sa0\\sl220\\slmult0\\ql\\f0\\fs22\\cf4 ';
+                        suffix = '\\par}';
                     }
                     break;
                 case 'span':
@@ -106,14 +116,14 @@ function htmlToRtf(html) {
                     suffix = '}';
                     break;
                 case 'br':
-                    return '\\line ';
+                    return ' '; // Reemplazar <br> con espacio en lugar de salto de línea
                 case 'ul':
                     prefix = '{\\pard\\sa0\\sb0\\f0\\fs22\\cf4 ';
-                    suffix = '\\par}\r\n';
+                    suffix = '\\par}';
                     break;
                 case 'li':
-                    prefix = '{\\pard\\fi-360\\li720\\sa20\\sl220\\slmult1\\ql\\tx720{\\*\\pn\\pnlvlblt\\pnf1\\pnindent360{\\pntxtb\\bullet}}\\f0\\fs22\\cf4 ';
-                    suffix = '\\par}\r\n';
+                    prefix = '{\\pard\\fi-360\\li720\\sa0\\sl220\\slmult0\\ql\\tx720{\\*\\pn\\pnlvlblt\\pnf1\\pnindent360{\\pntxtb\\bullet}}\\f0\\fs22\\cf4 ';
+                    suffix = '\\par}';
                     break;
                 case 'a':
                     // Para enlaces, usar color azul
@@ -144,12 +154,29 @@ function htmlToRtf(html) {
     
     // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
     if (!content.trim()) {
-        content = '{\\pard\\sa30\\sl220\\slmult1\\ql\\f0\\fs22\\cf4 \\par}\r\n';
+        content = '{\\pard\\sa0\\sl220\\slmult0\\ql\\f0\\fs22\\cf4 \\par}';
     }
+    
+    // Procesar el contenido para asegurar que solo haya un salto de línea después de cada punto
+    content = processParagraphBreaks(content);
     
     // Finalizar el RTF
     rtf += content + '}';
     return rtf;
+}
+
+// Función para procesar los saltos de párrafo y asegurar que solo haya uno después de cada punto
+function processParagraphBreaks(content) {
+    // Reemplazar múltiples \par seguidos por un solo \par
+    content = content.replace(/\\par\s*\\par+/g, '\\par');
+    
+    // Asegurar que haya un salto de línea después de cada punto que termina una oración
+    content = content.replace(/\.\s*\\par\}/g, '.\\par}');
+    
+    // Eliminar saltos de línea innecesarios
+    content = content.replace(/\\par\}\s*\{\\pard/g, '\\par}{\\pard');
+    
+    return content;
 }
 
 // Función mejorada para escapar caracteres especiales en RTF
@@ -161,7 +188,7 @@ function escapeRtf(text) {
         '\\': '\\\\',
         '{': '\\{',
         '}': '\\}',
-        '\n': '\\line ',
+        '\n': ' ', // Reemplazar saltos de línea con espacios
         '\r': '',
         '\t': '\\tab ',
         'á': '\\\'e1',
