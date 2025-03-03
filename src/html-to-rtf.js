@@ -12,13 +12,13 @@ function htmlToRtf(html) {
     // Tabla de fuentes - Usar fuentes estándar de Windows
     rtf += '{\\fonttbl{\\f0\\fswiss\\fcharset0 Segoe UI;}{\\f1\\froman\\fcharset0 Times New Roman;}{\\f2\\fswiss\\fcharset0 Arial;}}';
     
-    // Tabla de colores
-    rtf += '{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;\\red255\\green0\\blue0;}';
+    // Tabla de colores - Añadir color blanco (255,255,255)
+    rtf += '{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;\\red255\\green0\\blue0;\\red255\\green255\\blue255;}';
     
     // Información del documento
     rtf += '{\\info{\\title Términos y Condiciones}{\\author Edudigital.LATAM}}';
     
-    // Configuración de página
+    // Configuración de página - Fondo oscuro
     rtf += '\\viewkind4\\uc1\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440';
     
     // Agregar tabla de listas para soportar listas con viñetas
@@ -31,7 +31,8 @@ function htmlToRtf(html) {
     rtf += '}\r\n';
     
     // Iniciar el cuerpo del documento - Usar \ltrpar\itap0 para compatibilidad con rtf-to-html.js
-    rtf += '\\ltrpar\\itap0{\\lang1033\\fs22\\f0\\cf1 \\cf1\\ql';
+    // Usar color blanco (cf4)
+    rtf += '\\ltrpar\\itap0{\\lang1033\\fs22\\f0\\cf4 \\cf4\\ql';
     
     // Crear un elemento temporal para procesar el HTML
     const tempDiv = document.createElement('div');
@@ -59,55 +60,59 @@ function htmlToRtf(html) {
                     // Procesar directamente el contenido del body
                     break;
                 case 'h1':
-                    // Título centrado
-                    prefix = '{\\pard\\sa80\\sl240\\slmult1\\qc\\b\\f0\\fs28 ';
+                    // Verificar si es el título principal que queremos eliminar
+                    if (node.textContent.includes('Términos y Condiciones - Instaladores de Windows Online C#')) {
+                        return ''; // Omitir este título
+                    }
+                    // Título centrado en color blanco
+                    prefix = '{\\pard\\sa40\\sl220\\slmult1\\qc\\b\\f0\\fs28\\cf4 ';
                     suffix = '\\par}\r\n';
                     break;
                 case 'h2':
-                    // Subtítulos alineados a la izquierda
-                    prefix = '{\\pard\\sa80\\sl240\\slmult1\\ql\\b\\f0\\fs24 ';
+                    // Subtítulos alineados a la izquierda en color blanco
+                    prefix = '{\\pard\\sa40\\sl220\\slmult1\\ql\\b\\f0\\fs24\\cf4 ';
                     suffix = '\\par}\r\n';
                     break;
                 case 'p':
                     if (node.className === 'bold') {
-                        prefix = '{\\pard\\sa60\\sl240\\slmult1\\ql\\b\\f0\\fs22 ';
+                        prefix = '{\\pard\\sa30\\sl220\\slmult1\\ql\\b\\f0\\fs22\\cf4 ';
                         suffix = '\\par}\r\n';
                     } else {
-                        prefix = '{\\pard\\sa60\\sl240\\slmult1\\ql\\f0\\fs22 ';
+                        prefix = '{\\pard\\sa30\\sl220\\slmult1\\ql\\f0\\fs22\\cf4 ';
                         suffix = '\\par}\r\n';
                     }
                     break;
                 case 'span':
                     if (node.className === 'bold') {
-                        prefix = '{\\b ';
+                        prefix = '{\\b\\cf4 ';
                         suffix = '}';
                     } else {
-                        prefix = '{';
+                        prefix = '{\\cf4 ';
                         suffix = '}';
                     }
                     break;
                 case 'b':
                 case 'strong':
-                    prefix = '{\\b ';
+                    prefix = '{\\b\\cf4 ';
                     suffix = '}';
                     break;
                 case 'i':
                 case 'em':
-                    prefix = '{\\i ';
+                    prefix = '{\\i\\cf4 ';
                     suffix = '}';
                     break;
                 case 'u':
-                    prefix = '{\\ul ';
+                    prefix = '{\\ul\\cf4 ';
                     suffix = '}';
                     break;
                 case 'br':
                     return '\\line ';
                 case 'ul':
-                    prefix = '{\\pard\\sa0\\sb0\\f0\\fs22 ';
+                    prefix = '{\\pard\\sa0\\sb0\\f0\\fs22\\cf4 ';
                     suffix = '\\par}\r\n';
                     break;
                 case 'li':
-                    prefix = '{\\pard\\fi-360\\li720\\sa40\\sl240\\slmult1\\ql\\tx720{\\*\\pn\\pnlvlblt\\pnf1\\pnindent360{\\pntxtb\\bullet}}\\f0\\fs22 ';
+                    prefix = '{\\pard\\fi-360\\li720\\sa20\\sl220\\slmult1\\ql\\tx720{\\*\\pn\\pnlvlblt\\pnf1\\pnindent360{\\pntxtb\\bullet}}\\f0\\fs22\\cf4 ';
                     suffix = '\\par}\r\n';
                     break;
                 case 'a':
@@ -139,7 +144,7 @@ function htmlToRtf(html) {
     
     // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
     if (!content.trim()) {
-        content = '{\\pard\\sa60\\sl240\\slmult1\\ql\\f0\\fs22 \\par}\r\n';
+        content = '{\\pard\\sa30\\sl220\\slmult1\\ql\\f0\\fs22\\cf4 \\par}\r\n';
     }
     
     // Finalizar el RTF
