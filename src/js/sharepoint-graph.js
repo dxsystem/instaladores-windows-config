@@ -1320,20 +1320,47 @@ class SharePointGraph {
     }
 
     /**
+     * Asegura que el usuario está autenticado antes de realizar operaciones
+     * @returns {Promise<string>} Token de acceso
+     */
+    async ensureAuthenticated() {
+        try {
+            console.log('Verificando autenticación...');
+            return await this.getAccessToken(true);
+        } catch (error) {
+            console.error('Error al verificar autenticación:', error);
+            throw new Error('No se pudo autenticar con SharePoint: ' + error.message);
+        }
+    }
+
+    /**
      * Obtiene la configuración de la aplicación desde SharePoint
      * @returns {Promise<Object>} Objeto con la configuración de la aplicación
      */
     async getAppSettings() {
         try {
             // Verificar autenticación
-            await this.ensureAuthenticated();
+            const token = await this.getAccessToken(true);
             
             console.log("Obteniendo configuración desde SharePoint...");
             
             // Obtener el sitio
-            const siteQuery = `${this.siteUrl}:/sites/InstaladoresWindowsC`;
+            const siteQuery = `ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC`;
             console.log(`Consultando sitio: ${siteQuery}`);
-            const site = await this.graphClient.api(`/sites/${siteQuery}`).get();
+            
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteQuery}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error al obtener el sitio: ${response.status} ${response.statusText}`);
+            }
+            
+            const site = await response.json();
             if (!site) {
                 console.error("No se pudo encontrar el sitio");
                 throw new Error("No se pudo encontrar el sitio");
@@ -1343,10 +1370,22 @@ class SharePointGraph {
             
             // Obtener la biblioteca de documentos
             console.log("Obteniendo listas del sitio...");
-            const lists = await this.graphClient.api(`/sites/${site.id}/lists`).get();
-            const documentLibrary = lists.value.find(l => l.name === this.libraryName);
+            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${site.id}/lists`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!listsResponse.ok) {
+                throw new Error(`Error al obtener las listas: ${listsResponse.status} ${listsResponse.statusText}`);
+            }
+            
+            const lists = await listsResponse.json();
+            const documentLibrary = lists.value.find(l => l.name === "InstaladoresWindowsCOnline");
             if (!documentLibrary) {
-                console.error(`No se pudo encontrar la biblioteca de documentos: ${this.libraryName}`);
+                console.error(`No se pudo encontrar la biblioteca de documentos: InstaladoresWindowsCOnline`);
                 throw new Error("No se pudo encontrar la biblioteca de documentos");
             }
             
@@ -1354,7 +1393,19 @@ class SharePointGraph {
             
             // Obtener el drive
             console.log("Obteniendo drive de la biblioteca...");
-            const drive = await this.graphClient.api(`/sites/${site.id}/lists/${documentLibrary.id}/drive`).get();
+            const driveResponse = await fetch(`${this.graphEndpoint}/sites/${site.id}/lists/${documentLibrary.id}/drive`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!driveResponse.ok) {
+                throw new Error(`Error al obtener el drive: ${driveResponse.status} ${driveResponse.statusText}`);
+            }
+            
+            const drive = await driveResponse.json();
             if (!drive) {
                 console.error("No se pudo obtener el drive");
                 throw new Error("No se pudo obtener el drive");
@@ -1364,7 +1415,19 @@ class SharePointGraph {
             
             // Buscar el archivo de configuración
             console.log("Buscando archivo app_settings.json...");
-            const items = await this.graphClient.api(`/drives/${drive.id}/root/children`).get();
+            const itemsResponse = await fetch(`${this.graphEndpoint}/drives/${drive.id}/root/children`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!itemsResponse.ok) {
+                throw new Error(`Error al obtener los items: ${itemsResponse.status} ${itemsResponse.statusText}`);
+            }
+            
+            const items = await itemsResponse.json();
             const configFile = items.value.find(i => i.name === "app_settings.json");
             
             if (!configFile) {
@@ -1377,13 +1440,23 @@ class SharePointGraph {
             // Obtener el contenido del archivo
             console.log("Descargando contenido del archivo...");
             try {
-                const response = await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`).get();
-                const jsonContent = await response.text();
+                const contentResponse = await fetch(`${this.graphEndpoint}/drives/${drive.id}/items/${configFile.id}/content`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!contentResponse.ok) {
+                    throw new Error(`Error al obtener el contenido: ${contentResponse.status} ${contentResponse.statusText}`);
+                }
+                
+                const jsonContent = await contentResponse.text();
                 
                 console.log("Contenido del archivo obtenido, parseando JSON...");
                 try {
                     const appSettings = JSON.parse(jsonContent);
-                    console.log("Configuración cargada correctamente:", appSettings);
+                    console.log("Configuración cargada correctamente");
                     
                     // Verificar que la estructura sea válida
                     if (!appSettings.Course || !appSettings.Videos || !appSettings.TermsAndConditions) {
@@ -1420,7 +1493,7 @@ class SharePointGraph {
     async saveAppSettings(appSettings) {
         try {
             // Verificar autenticación
-            await this.ensureAuthenticated();
+            const token = await this.getAccessToken(true);
             
             console.log("Guardando configuración en SharePoint...");
             
@@ -1438,8 +1511,21 @@ class SharePointGraph {
             
             // Obtener el sitio
             console.log("Obteniendo sitio...");
-            const siteQuery = `${this.siteUrl}:/sites/InstaladoresWindowsC`;
-            const site = await this.graphClient.api(`/sites/${siteQuery}`).get();
+            const siteQuery = `ldcigroup.sharepoint.com:/sites/InstaladoresWindowsC`;
+            
+            const response = await fetch(`${this.graphEndpoint}/sites/${siteQuery}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error al obtener el sitio: ${response.status} ${response.statusText}`);
+            }
+            
+            const site = await response.json();
             if (!site) {
                 console.error("No se pudo encontrar el sitio");
                 throw new Error("No se pudo encontrar el sitio");
@@ -1449,10 +1535,22 @@ class SharePointGraph {
             
             // Obtener la biblioteca de documentos
             console.log("Obteniendo listas del sitio...");
-            const lists = await this.graphClient.api(`/sites/${site.id}/lists`).get();
-            const documentLibrary = lists.value.find(l => l.name === this.libraryName);
+            const listsResponse = await fetch(`${this.graphEndpoint}/sites/${site.id}/lists`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!listsResponse.ok) {
+                throw new Error(`Error al obtener las listas: ${listsResponse.status} ${listsResponse.statusText}`);
+            }
+            
+            const lists = await listsResponse.json();
+            const documentLibrary = lists.value.find(l => l.name === "InstaladoresWindowsCOnline");
             if (!documentLibrary) {
-                console.error(`No se pudo encontrar la biblioteca de documentos: ${this.libraryName}`);
+                console.error(`No se pudo encontrar la biblioteca de documentos: InstaladoresWindowsCOnline`);
                 throw new Error("No se pudo encontrar la biblioteca de documentos");
             }
             
@@ -1460,7 +1558,19 @@ class SharePointGraph {
             
             // Obtener el drive
             console.log("Obteniendo drive de la biblioteca...");
-            const drive = await this.graphClient.api(`/sites/${site.id}/lists/${documentLibrary.id}/drive`).get();
+            const driveResponse = await fetch(`${this.graphEndpoint}/sites/${site.id}/lists/${documentLibrary.id}/drive`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!driveResponse.ok) {
+                throw new Error(`Error al obtener el drive: ${driveResponse.status} ${driveResponse.statusText}`);
+            }
+            
+            const drive = await driveResponse.json();
             if (!drive) {
                 console.error("No se pudo obtener el drive");
                 throw new Error("No se pudo obtener el drive");
@@ -1470,7 +1580,19 @@ class SharePointGraph {
             
             // Buscar el archivo de configuración
             console.log("Buscando archivo app_settings.json...");
-            const items = await this.graphClient.api(`/drives/${drive.id}/root/children`).get();
+            const itemsResponse = await fetch(`${this.graphEndpoint}/drives/${drive.id}/root/children`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!itemsResponse.ok) {
+                throw new Error(`Error al obtener los items: ${itemsResponse.status} ${itemsResponse.statusText}`);
+            }
+            
+            const items = await itemsResponse.json();
             const configFile = items.value.find(i => i.name === "app_settings.json");
             
             // Convertir la configuración a JSON
@@ -1480,14 +1602,24 @@ class SharePointGraph {
             // Crear un Blob con el contenido
             console.log("Creando blob con el contenido...");
             const blob = new Blob([jsonContent], { type: 'application/json' });
-            const file = new File([blob], "app_settings.json", { type: 'application/json' });
             
             if (configFile) {
                 // Actualizar el archivo existente
                 console.log(`Actualizando archivo existente con ID: ${configFile.id}...`);
                 try {
-                    await this.graphClient.api(`/drives/${drive.id}/items/${configFile.id}/content`)
-                        .put(file);
+                    const updateResponse = await fetch(`${this.graphEndpoint}/drives/${drive.id}/items/${configFile.id}/content`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: jsonContent
+                    });
+                    
+                    if (!updateResponse.ok) {
+                        throw new Error(`Error al actualizar el archivo: ${updateResponse.status} ${updateResponse.statusText}`);
+                    }
+                    
                     console.log("Archivo actualizado correctamente");
                 } catch (updateError) {
                     console.error("Error al actualizar el archivo:", updateError);
@@ -1497,8 +1629,20 @@ class SharePointGraph {
                 // Crear un nuevo archivo
                 console.log("Creando nuevo archivo app_settings.json...");
                 try {
-                    const result = await this.graphClient.api(`/drives/${drive.id}/root:/app_settings.json:/content`)
-                        .put(file);
+                    const createResponse = await fetch(`${this.graphEndpoint}/drives/${drive.id}/root:/app_settings.json:/content`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: jsonContent
+                    });
+                    
+                    if (!createResponse.ok) {
+                        throw new Error(`Error al crear el archivo: ${createResponse.status} ${createResponse.statusText}`);
+                    }
+                    
+                    const result = await createResponse.json();
                     console.log("Archivo creado correctamente:", result);
                 } catch (createError) {
                     console.error("Error al crear el archivo:", createError);
