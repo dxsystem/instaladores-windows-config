@@ -799,13 +799,18 @@
                     // Construir el HTML final
                     let html = '';
                     
-                    // Título con formato correcto
-                    html += `<h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center;">${title}</h1>`;
+                    // Título principal con formato correcto
+                    html += `<h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; color: white; background-color: #343a40; padding: 15px;">Términos y Condiciones</h1>`;
+                    
+                    // Subtítulo completo
+                    if (title) {
+                        html += `<h2 style="font-size: 16px; margin-bottom: 15px;">${title}</h2>`;
+                    }
                     
                     // Información de la aplicación
                     if (appInfo) {
                         const appInfoLines = appInfo.split('\n').filter(line => line.trim());
-                        html += '<div class="app-info" style="margin-bottom: 20px; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">';
+                        html += '<div style="margin-bottom: 20px;">';
                         appInfoLines.forEach(line => {
                             const parts = line.split(':');
                             if (parts.length >= 2) {
@@ -821,35 +826,31 @@
                     
                     // Advertencia principal
                     if (warning) {
-                        html += `<div class="warning" style="margin-bottom: 20px; background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border: 1px solid #ffeeba;"><strong>${warning}</strong></div>`;
+                        html += `<div style="margin-bottom: 20px;"><strong style="font-size: 14px;">${warning}</strong></div>`;
                     }
                     
                     // Secciones numeradas con formato correcto
                     sections.forEach(section => {
-                        // Usar strong para los títulos de sección
-                        html += `<div class="section" style="margin-bottom: 15px;">`;
-                        html += `<h2 style="font-size: inherit; margin-bottom: 10px;"><strong>${section.number}. ${section.title}</strong></h2>`;
+                        html += `<div style="margin-bottom: 15px;">`;
+                        html += `<p style="margin-bottom: 10px;"><strong>${section.number}. ${section.title}:</strong></p>`;
                         
                         if (section.hasBullets) {
-                            // Procesar contenido con viñetas
                             const lines = section.content.split('\n').filter(line => line.trim());
                             let inList = false;
                             
                             lines.forEach(line => {
                                 const trimmedLine = line.trim();
                                 
-                                // Mejorar la detección de viñetas
                                 if (trimmedLine.startsWith('•') || 
                                     trimmedLine.includes('\\B7') || 
                                     trimmedLine.includes('\\\'b7') ||
                                     trimmedLine.includes('\\bullet')) {
                                     
                                     if (!inList) {
-                                        html += '<ul style="margin-left: 20px; margin-bottom: 10px;">';
+                                        html += '<ul style="margin-left: 20px; margin-bottom: 10px; list-style-type: disc;">';
                                         inList = true;
                                     }
                                     
-                                    // Limpiar el texto del elemento de lista
                                     let itemText = trimmedLine
                                         .replace(/^[•\\B7\\\'b7\\bullet\s]+/, '')
                                         .replace(/\\B7/g, '')
@@ -870,7 +871,6 @@
                                     }
                                     
                                     if (trimmedLine) {
-                                        // Limpiar el texto del párrafo
                                         let cleanPara = trimmedLine
                                             .replace(/\\~/g, ' ')
                                             .replace(/\\[a-z]+\d*/g, ' ')
@@ -887,10 +887,8 @@
                                 html += '</ul>';
                             }
                         } else {
-                            // Procesar contenido normal
                             const paragraphs = section.content.split('\n\n').filter(p => p.trim());
                             paragraphs.forEach(paragraph => {
-                                // Limpiar el texto del párrafo
                                 let cleanPara = paragraph
                                     .replace(/\\~/g, ' ')
                                     .replace(/\\[a-z]+\d*/g, ' ')
