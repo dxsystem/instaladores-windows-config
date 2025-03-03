@@ -287,10 +287,12 @@
                         <form id="termsForm">
                             <div class="mb-3">
                                 <label for="termsEditor" class="form-label">Contenido de los Términos y Condiciones</label>
-                                <textarea class="form-control" id="termsEditor" rows="15" style="font-family: monospace;"></textarea>
-                                <div class="form-text">
+                                <div id="termsEditorContainer">
+                                    <textarea class="form-control" id="termsEditor" rows="15"></textarea>
+                                </div>
+                                <div class="form-text mt-2">
                                     <i class="bi bi-info-circle me-1"></i>
-                                    Puedes usar formato HTML básico para dar estilo al texto.
+                                    Usa el editor para dar formato al texto. También puedes usar formato RTF para compatibilidad con la aplicación de escritorio.
                                 </div>
                                 <div class="form-text mt-2">
                                     <i class="bi bi-clock-history me-1"></i>
@@ -319,6 +321,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <script src="js/sharepoint-auth.js"></script>
     <script src="js/sharepoint-graph.js"></script>
     
@@ -326,6 +329,7 @@
         // Variables globales
         let auth, spGraph;
         let appSettings = null;
+        let tinyMCEEditor = null;
         
         // Referencias DOM
         const loadingState = document.getElementById('loadingState');
@@ -363,69 +367,131 @@
         const lastModifiedDate = document.getElementById('lastModifiedDate');
         const termsPreview = document.getElementById('termsPreview');
         
-        // Funciones auxiliares
-        function showLoading(show, title = 'Cargando configuración', message = 'Obteniendo datos desde SharePoint...') {
-            if (show) {
-                loadingTitle.textContent = title;
-                loadingMessage.textContent = message;
-                loadingState.classList.remove('d-none');
-                document.body.style.overflow = 'hidden'; // Prevenir scroll
-            } else {
-                loadingState.classList.add('d-none');
-                document.body.style.overflow = ''; // Restaurar scroll
+        // Inicializar TinyMCE
+        function initTinyMCE() {
+            tinymce.init({
+                selector: '#termsEditor',
+                height: 400,
+                menubar: true,
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                ],
+                toolbar: 'undo redo | formatselect | ' +
+                    'bold italic backcolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | help',
+                content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px }',
+                setup: function(editor) {
+                    tinyMCEEditor = editor;
+                    editor.on('Change', function(e) {
+                        updateTermsPreview();
+                    });
+                }
+            });
+        }
+        
+        // Convertir HTML a RTF
+        function htmlToRtf(html) {
+            // Esta es una conversión muy básica, para una implementación completa
+            // se necesitaría una biblioteca de conversión HTML a RTF
+            let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}{\\colortbl\\red0\\green0\\blue0;\\red255\\green255\\blue255;} {\\*\\listtable {\\list\\listtemplateid1\\listhybrid {\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'01\\\'b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\'02\\\'01.;}{\\levelnumbers\\\'01;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid7\\\'02\\\'02.;}{\\levelnumbers\\\'01;}\\fi-360\\li2160\\lin2160\\jclisttab\\tx2160} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid8\\\'02\\\'03.;}{\\levelnumbers\\\'01;}\\fi-360\\li2880\\lin2880\\jclisttab\\tx2880}\n\n';
+            
+            // Convertir etiquetas HTML básicas a RTF
+            let content = html.replace(/<p>(.*?)<\/p>/g, '$1\\par\n')
+                             .replace(/<strong>(.*?)<\/strong>/g, '{\\b $1}')
+                             .replace(/<b>(.*?)<\/b>/g, '{\\b $1}')
+                             .replace(/<em>(.*?)<\/em>/g, '{\\i $1}')
+                             .replace(/<i>(.*?)<\/i>/g, '{\\i $1}')
+                             .replace(/<u>(.*?)<\/u>/g, '{\\ul $1}')
+                             .replace(/<h1>(.*?)<\/h1>/g, '{\\fs36 $1}\\par\n')
+                             .replace(/<h2>(.*?)<\/h2>/g, '{\\fs28 $1}\\par\n')
+                             .replace(/<h3>(.*?)<\/h3>/g, '{\\fs24 $1}\\par\n')
+                             .replace(/<li>(.*?)<\/li>/g, '\\bullet $1\\par\n')
+                             .replace(/<br\s*\/?>/g, '\\par\n')
+                             .replace(/&nbsp;/g, ' ')
+                             .replace(/&lt;/g, '<')
+                             .replace(/&gt;/g, '>')
+                             .replace(/&amp;/g, '&');
+            
+            // Eliminar todas las demás etiquetas HTML
+            content = content.replace(/<[^>]*>/g, '');
+            
+            rtf += content + '}';
+            return rtf;
+        }
+        
+        // Actualizar vista previa de términos y condiciones
+        function updateTermsPreview() {
+            if (tinyMCEEditor) {
+                const htmlContent = tinyMCEEditor.getContent();
+                termsPreview.innerHTML = htmlContent || 'No hay términos y condiciones definidos.';
             }
         }
         
-        function updateProgress(percent, message) {
-            loadingProgressBar.style.width = `${percent}%`;
-            loadingProgressBar.setAttribute('aria-valuenow', percent);
-            loadingProgressText.textContent = message;
-        }
-        
-        function showAlert(type, message) {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-            alertDiv.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            alertContainer.appendChild(alertDiv);
-            
-            // Auto-dismiss after 5 seconds
-            setTimeout(() => {
-                alertDiv.classList.remove('show');
-                setTimeout(() => alertDiv.remove(), 150);
-            }, 5000);
-        }
-        
-        // Convertir URL de YouTube a formato de incrustación
-        function convertToEmbedUrl(url) {
-            if (!url) return '';
-            
-            // Si ya es una URL de incrustación, devolverla tal cual
-            if (url.includes('youtube.com/embed/')) {
-                return url;
+        // Guardar configuración
+        async function saveConfiguration() {
+            try {
+                showLoading(true, 'Guardando configuración', 'Enviando datos a SharePoint...');
+                updateProgress(0, 'Preparando configuración...');
+                
+                // Obtener contenido del editor
+                const htmlContent = tinyMCEEditor ? tinyMCEEditor.getContent() : termsEditor.value;
+                
+                // Convertir a RTF para compatibilidad con la aplicación de escritorio
+                const rtfContent = htmlToRtf(htmlContent);
+                
+                // Crear objeto de configuración
+                const updatedSettings = {
+                    Course: {
+                        Title: courseTitle.value,
+                        VideoUrl: courseVideoUrl.value,
+                        Description: courseDescription.value,
+                        Links: {
+                            CardPayment: paymentUrl.value,
+                            WhatsApp: whatsappUrl.value
+                        }
+                    },
+                    Videos: {
+                        DefenderVideoTitle: defenderVideoTitle.value,
+                        DefenderVideoUrl: defenderVideoUrl.value,
+                        EsetVideoTitle: esetVideoTitle.value,
+                        EsetVideoUrl: esetVideoUrl.value,
+                        AntivirusWarning: antivirusWarning.value
+                    },
+                    TermsAndConditions: {
+                        Content: rtfContent, // Guardar en formato RTF
+                        HtmlContent: htmlContent, // También guardar el HTML para la web
+                        LastModified: new Date().toISOString()
+                    }
+                };
+                
+                updateProgress(50, 'Guardando configuración...');
+                
+                // Guardar configuración
+                await spGraph.saveAppSettings(updatedSettings);
+                
+                // Actualizar la configuración local
+                appSettings = updatedSettings;
+                
+                // Actualizar fecha de última modificación
+                if (appSettings.TermsAndConditions && appSettings.TermsAndConditions.LastModified) {
+                    const date = new Date(appSettings.TermsAndConditions.LastModified);
+                    lastModifiedDate.textContent = date.toLocaleString();
+                }
+                
+                updateProgress(100, '¡Configuración guardada!');
+                setTimeout(() => {
+                    showLoading(false);
+                    showAlert('success', 'Configuración guardada correctamente');
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error al guardar la configuración:', error);
+                showLoading(false);
+                showAlert('danger', `Error al guardar la configuración: ${error.message}`);
             }
-            
-            // Extraer el ID del video de diferentes formatos de URL de YouTube
-            let videoId = '';
-            
-            // Formato: https://www.youtube.com/watch?v=VIDEO_ID
-            if (url.includes('youtube.com/watch')) {
-                const urlParams = new URLSearchParams(new URL(url).search);
-                videoId = urlParams.get('v');
-            } 
-            // Formato: https://youtu.be/VIDEO_ID
-            else if (url.includes('youtu.be/')) {
-                videoId = url.split('youtu.be/')[1].split('?')[0];
-            }
-            
-            if (videoId) {
-                return `https://www.youtube.com/embed/${videoId}`;
-            }
-            
-            // Si no se pudo extraer el ID, devolver la URL original
-            return url;
         }
         
         // Cargar configuración
@@ -469,7 +535,15 @@
                 
                 // Actualizar formulario de términos
                 if (appSettings.TermsAndConditions) {
-                    termsEditor.value = appSettings.TermsAndConditions.Content || '';
+                    // Preferir el contenido HTML si está disponible
+                    const content = appSettings.TermsAndConditions.HtmlContent || appSettings.TermsAndConditions.Content || '';
+                    
+                    // Actualizar el editor
+                    if (tinyMCEEditor) {
+                        tinyMCEEditor.setContent(content);
+                    } else {
+                        termsEditor.value = content;
+                    }
                     
                     if (appSettings.TermsAndConditions.LastModified) {
                         const date = new Date(appSettings.TermsAndConditions.LastModified);
@@ -492,63 +566,6 @@
                 console.error('Error al cargar la configuración:', error);
                 showLoading(false);
                 showAlert('danger', `Error al cargar la configuración: ${error.message}`);
-            }
-        }
-        
-        // Guardar configuración
-        async function saveConfiguration() {
-            try {
-                showLoading(true, 'Guardando configuración', 'Enviando datos a SharePoint...');
-                updateProgress(0, 'Preparando configuración...');
-                
-                // Crear objeto de configuración
-                const updatedSettings = {
-                    Course: {
-                        Title: courseTitle.value,
-                        VideoUrl: courseVideoUrl.value,
-                        Description: courseDescription.value,
-                        Links: {
-                            CardPayment: paymentUrl.value,
-                            WhatsApp: whatsappUrl.value
-                        }
-                    },
-                    Videos: {
-                        DefenderVideoTitle: defenderVideoTitle.value,
-                        DefenderVideoUrl: defenderVideoUrl.value,
-                        EsetVideoTitle: esetVideoTitle.value,
-                        EsetVideoUrl: esetVideoUrl.value,
-                        AntivirusWarning: antivirusWarning.value
-                    },
-                    TermsAndConditions: {
-                        Content: termsEditor.value,
-                        LastModified: new Date().toISOString()
-                    }
-                };
-                
-                updateProgress(50, 'Guardando configuración...');
-                
-                // Guardar configuración
-                await spGraph.saveAppSettings(updatedSettings);
-                
-                // Actualizar la configuración local
-                appSettings = updatedSettings;
-                
-                // Actualizar fecha de última modificación
-                if (appSettings.TermsAndConditions && appSettings.TermsAndConditions.LastModified) {
-                    const date = new Date(appSettings.TermsAndConditions.LastModified);
-                    lastModifiedDate.textContent = date.toLocaleString();
-                }
-                
-                updateProgress(100, '¡Configuración guardada!');
-                setTimeout(() => {
-                    showLoading(false);
-                    showAlert('success', 'Configuración guardada correctamente');
-                }, 500);
-                
-            } catch (error) {
-                console.error('Error al guardar la configuración:', error);
-                showLoading(false);
-                showAlert('danger', `Error al guardar la configuración: ${error.message}`);
             }
         }
         
@@ -576,9 +593,69 @@
             esetVideoPreview.src = esetEmbedUrl;
         }
         
-        // Actualizar vista previa de términos y condiciones
-        function updateTermsPreview() {
-            termsPreview.innerHTML = termsEditor.value || 'No hay términos y condiciones definidos.';
+        // Convertir URL de YouTube a formato de incrustación
+        function convertToEmbedUrl(url) {
+            if (!url) return '';
+            
+            // Si ya es una URL de incrustación, devolverla tal cual
+            if (url.includes('youtube.com/embed/')) {
+                return url;
+            }
+            
+            // Extraer el ID del video de diferentes formatos de URL de YouTube
+            let videoId = '';
+            
+            // Formato: https://www.youtube.com/watch?v=VIDEO_ID
+            if (url.includes('youtube.com/watch')) {
+                const urlParams = new URLSearchParams(new URL(url).search);
+                videoId = urlParams.get('v');
+            } 
+            // Formato: https://youtu.be/VIDEO_ID
+            else if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+            }
+            
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            
+            // Si no se pudo extraer el ID, devolver la URL original
+            return url;
+        }
+        
+        // Funciones auxiliares
+        function showLoading(show, title = 'Cargando configuración', message = 'Obteniendo datos desde SharePoint...') {
+            if (show) {
+                loadingTitle.textContent = title;
+                loadingMessage.textContent = message;
+                loadingState.classList.remove('d-none');
+                document.body.style.overflow = 'hidden'; // Prevenir scroll
+            } else {
+                loadingState.classList.add('d-none');
+                document.body.style.overflow = ''; // Restaurar scroll
+            }
+        }
+        
+        function updateProgress(percent, message) {
+            loadingProgressBar.style.width = `${percent}%`;
+            loadingProgressBar.setAttribute('aria-valuenow', percent);
+            loadingProgressText.textContent = message;
+        }
+        
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+                setTimeout(() => alertDiv.remove(), 150);
+            }, 5000);
         }
         
         // Configurar eventos
@@ -600,9 +677,6 @@
             defenderVideoUrl.addEventListener('input', updateVideosPreview);
             esetVideoUrl.addEventListener('input', updateVideosPreview);
             
-            // Eventos para actualizar vista previa de términos
-            termsEditor.addEventListener('input', updateTermsPreview);
-            
             // Botón de cerrar sesión
             document.getElementById('logoutButton').addEventListener('click', function() {
                 auth.logout();
@@ -613,6 +687,9 @@
         document.addEventListener('DOMContentLoaded', async function() {
             try {
                 console.log("Inicializando la aplicación...");
+                
+                // Inicializar TinyMCE
+                initTinyMCE();
                 
                 // Inicializar autenticación
                 auth = new SharePointAuth();
