@@ -665,6 +665,15 @@
                         console.warn('No hay contenido RTF ni HTML disponible');
                     }
                     
+                    // Extraer solo el contenido del body para no afectar los estilos de la página
+                    if (htmlContent && htmlContent.trim() !== '') {
+                        if (htmlContent.includes('<body>') && htmlContent.includes('</body>')) {
+                            const bodyStartIndex = htmlContent.indexOf('<body>') + 6;
+                            const bodyEndIndex = htmlContent.indexOf('</body>');
+                            htmlContent = htmlContent.substring(bodyStartIndex, bodyEndIndex).trim();
+                        }
+                    }
+                    
                     // Actualizar el editor con el contenido HTML
                     if (htmlContent && htmlContent.trim() !== '') {
                         termsEditor.innerHTML = htmlContent;
@@ -865,8 +874,16 @@
                         if (htmlContent && htmlContent.trim() !== '') {
                             console.log('HTML generado correctamente');
                             
+                            // Extraer solo el contenido del body para no afectar los estilos de la página
+                            let bodyContent = htmlContent;
+                            if (htmlContent.includes('<body>') && htmlContent.includes('</body>')) {
+                                const bodyStartIndex = htmlContent.indexOf('<body>') + 6;
+                                const bodyEndIndex = htmlContent.indexOf('</body>');
+                                bodyContent = htmlContent.substring(bodyStartIndex, bodyEndIndex).trim();
+                            }
+                            
                             // Actualizar el editor y la vista previa
-                            termsEditor.innerHTML = htmlContent;
+                            termsEditor.innerHTML = bodyContent;
                             updateTermsPreview();
                             
                             // No guardar el HTML generado para evitar actualizaciones automáticas
