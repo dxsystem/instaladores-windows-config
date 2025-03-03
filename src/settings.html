@@ -524,14 +524,114 @@
             }
             
             try {
+                console.log('RTF original:', rtf);
+                
+                // Detectar si es un formato RTF específico de la aplicación de escritorio
+                if (rtf.includes('\\listlevel\\levelnfc') || rtf.includes('\\leveltext\\leveltemplateid')) {
+                    // Este es un formato RTF más complejo, intentar extraer el texto plano primero
+                    let plainText = '';
+                    
+                    // Extraer secciones de texto significativas
+                    const sections = rtf.match(/\\ltrch\s+([^\\}]+)/g) || [];
+                    sections.forEach(section => {
+                        plainText += section.replace(/\\ltrch\s+/, '') + '\n';
+                    });
+                    
+                    // Si encontramos secciones de texto, procesarlas
+                    if (plainText.trim()) {
+                        console.log('Texto extraído de RTF complejo:', plainText);
+                        
+                        // Extraer información de versión y fecha
+                        let appInfo = '';
+                        const versionMatch = rtf.match(/Versi[óo]n:\s*([^\\}]+)/);
+                        if (versionMatch) {
+                            appInfo += `<p><strong>Versión:</strong> ${versionMatch[1].trim()}</p>`;
+                        }
+                        
+                        const dateMatch = rtf.match(/\(Actualizado el ([^)]+)\)/);
+                        if (dateMatch) {
+                            appInfo += `<p><strong>Actualizado:</strong> ${dateMatch[1].trim()}</p>`;
+                        }
+                        
+                        // Extraer título principal
+                        let title = '';
+                        const titleMatch = rtf.match(/Términos y Condiciones de Uso \(Descargo de Responsabilidad\)[^\\}]+/);
+                        if (titleMatch) {
+                            title = `<h1>${titleMatch[0].trim()}</h1>`;
+                        }
+                        
+                        // Extraer secciones numeradas
+                        let content = '';
+                        const sections = rtf.match(/\d+\.\s+[^\\}]+/g) || [];
+                        sections.forEach(section => {
+                            const sectionTitle = section.trim();
+                            content += `<h2>${sectionTitle}</h2>`;
+                        });
+                        
+                        // Si no pudimos extraer secciones estructuradas, usar el texto plano
+                        if (!content) {
+                            // Dividir por líneas y convertir a párrafos
+                            const lines = plainText.split('\n').filter(line => line.trim());
+                            content = lines.map(line => `<p>${line.trim()}</p>`).join('');
+                        }
+                        
+                        // Combinar todo
+                        return title + appInfo + content;
+                    }
+                }
+                
                 // Extraer el contenido de texto del RTF
                 let content = rtf;
                 
                 // Eliminar el encabezado RTF
-                content = content.replace(/^{\\rtf1.*?\\par\s*/, '');
+                content = content.replace(/^{\\rtf1.*?\\par\s*/s, '');
                 
                 // Eliminar el cierre final
                 content = content.replace(/}$/, '');
+                
+                // Manejar códigos de nivel específicos
+                content = content.replace(/\\listlevel.*?\\tx\d+/g, '');
+                content = content.replace(/\\leveltext.*?}/g, '');
+                content = content.replace(/\\levelnumbers.*?}/g, '');
+                content = content.replace(/\\leveljc\d+\\leveljcn\d+/g, '');
+                content = content.replace(/\\levelfollow\d+\\levelstartat\d+/g, '');
+                content = content.replace(/\\levelspace\d+\\levelindent\d+/g, '');
+                content = content.replace(/\\fi-\d+\\li\d+\\lin\d+\\jclisttab/g, '');
+                
+                // Manejar códigos de formato específicos
+                content = content.replace(/\\f\d+\\fcharset\d+/g, '');
+                content = content.replace(/\\ansicpg\d+\\uc\d+\\htmautsp/g, '');
+                content = content.replace(/\\deff\d+/g, '');
+                content = content.replace(/\\red\d+\\green\d+\\blue\d+/g, '');
+                
+                // Extraer secciones de texto significativas
+                const textSections = content.match(/\\ltrch\s+([^\\}]+)/g) || [];
+                if (textSections.length > 0) {
+                    content = textSections.map(section => 
+                        section.replace(/\\ltrch\s+/, '')
+                    ).join('\n');
+                }
+                
+                // Extraer secciones numeradas (como "1. Aceptación de los Términos y Condiciones:")
+                const numberedSections = content.match(/\d+\.\s+[^\\}]+/g) || [];
+                if (numberedSections.length > 0) {
+                    let htmlContent = '';
+                    numberedSections.forEach(section => {
+                        htmlContent += `<h2>${section.trim()}</h2>`;
+                    });
+                    
+                    if (htmlContent) {
+                        // Agregar título principal si lo encontramos
+                        const titleMatch = content.match(/Términos y Condiciones de Uso/);
+                        if (titleMatch) {
+                            htmlContent = `<h1>Términos y Condiciones de Uso (Descargo de Responsabilidad)</h1>` + htmlContent;
+                        }
+                        
+                        return htmlContent;
+                    }
+                }
+                
+                // Si no pudimos extraer secciones estructuradas, intentar con el enfoque general
                 
                 // Convertir códigos RTF básicos a HTML
                 content = content
@@ -578,10 +678,25 @@
                     .replace(/<p><ul>/g, '<ul>')
                     .replace(/<\/ul><\/p>/g, '</ul>');
                 
+                // Si después de todo el procesamiento no tenemos contenido HTML válido,
+                // crear un HTML básico con el texto extraído
+                if (!content.includes('<')) {
+                    content = content.split('\n')
+                        .filter(line => line.trim())
+                        .map(line => `<p>${line.trim()}</p>`)
+                        .join('');
+                }
+                
+                console.log('HTML convertido:', content);
                 return content;
             } catch (error) {
                 console.error('Error al convertir RTF a HTML:', error);
-                return '<p>Error al convertir el contenido RTF a HTML. Por favor, edite manualmente.</p>';
+                // Crear un HTML básico con el texto del error y un mensaje para el usuario
+                return `
+                    <h1>Términos y Condiciones</h1>
+                    <p>El contenido está en formato RTF. Por favor, edite manualmente para dar formato.</p>
+                    <p><em>Error de conversión: ${error.message}</em></p>
+                `;
             }
         }
         
