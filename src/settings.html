@@ -386,6 +386,13 @@
                                 <i class="bi bi-info-circle-fill me-2"></i>
                                 Los términos y condiciones se mostrarán a los usuarios durante el proceso de instalación y deberán aceptarlos para continuar.
                             </div>
+                            <div class="mt-3">
+                                <button type="button" id="forceConversionBtn" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                    Forzar conversión RTF a HTML
+                                </button>
+                                <small class="text-muted ms-2">Usar solo para depuración</small>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -579,282 +586,351 @@
         function rtfToHtml(rtf) {
             // Si no hay contenido RTF, devolver cadena vacía
             if (!rtf || rtf.trim() === '') {
+                console.warn('rtfToHtml: No hay contenido RTF para convertir');
                 return '';
             }
             
             try {
-                console.log('RTF original recibido, longitud:', rtf.length);
+                console.log('rtfToHtml: Iniciando conversión, longitud RTF:', rtf.length);
                 
-                // Enfoque directo: extraer el texto plano y aplicar formato manualmente
-                // Este enfoque es más robusto para el formato específico de los términos y condiciones
+                // Crear una versión simplificada del RTF para buscar patrones
+                // Esto ayuda a manejar diferentes formatos de RTF
+                const simplifiedRtf = rtf
+                    .replace(/\\[a-z0-9]+/g, ' ')  // Reemplazar códigos RTF con espacios
+                    .replace(/\{|\}/g, ' ')        // Reemplazar llaves con espacios
+                    .replace(/\s+/g, ' ')          // Normalizar espacios
+                    .toLowerCase();                // Convertir a minúsculas para búsqueda insensible
                 
-                // 1. Extraer el texto plano del RTF eliminando códigos RTF
-                let plainText = rtf;
+                console.log('rtfToHtml: RTF simplificado para búsqueda de patrones');
                 
-                // Eliminar encabezados RTF y códigos de formato complejos
-                plainText = plainText.replace(/{\\rtf1.*?\\loch\\hich\\dbch/s, '');
-                plainText = plainText.replace(/\\plain\\ltrpar\\itap0{.*?\\cf1\\ql/s, '');
+                // Detectar si contiene términos y condiciones
+                const hasTermsAndConditions = 
+                    simplifiedRtf.includes('términos') && 
+                    simplifiedRtf.includes('condiciones') &&
+                    (simplifiedRtf.includes('aceptación') || simplifiedRtf.includes('aceptacion'));
                 
-                // 2. Extraer secciones principales
-                // Título principal
-                let title = '';
-                const titleMatch = rtf.match(/T\'e9rminos y Condiciones de Uso.*?Instaladores de Windows Online C#/);
-                if (titleMatch) {
-                    title = titleMatch[0]
-                        .replace(/T\'e9rminos/, 'Términos')
-                        .replace(/Condiciones/, 'Condiciones')
-                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
-                        .trim();
-                }
+                console.log('rtfToHtml: ¿Contiene términos y condiciones?', hasTermsAndConditions);
                 
-                // Información de la aplicación
-                let appInfo = '';
-                const appInfoMatch = rtf.match(/Aplicaci\'f3n:.*?Derechos Reservados:.*?reservados/s);
-                if (appInfoMatch) {
-                    appInfo = appInfoMatch[0]
-                        .replace(/Aplicaci\'f3n:/, 'Aplicación:')
-                        .replace(/Versi\'f3n:/, 'Versión:')
-                        .replace(/\'a9/, '©')
-                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
-                        .trim();
-                }
-                
-                // Advertencia principal
-                let warning = '';
-                const warningMatch = rtf.match(/POR FAVOR, LEA ESTOS T\'c9RMINOS.*?UTILICE LA APLICACI\'d3N/s);
-                if (warningMatch) {
-                    warning = warningMatch[0]
-                        .replace(/T\'c9RMINOS/, 'TÉRMINOS')
-                        .replace(/CONDICIONES/, 'CONDICIONES')
-                        .replace(/APLICACI\'d3N/, 'APLICACIÓN')
-                        .replace(/EST\'c1/, 'ESTÁ')
-                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
-                        .trim();
-                }
-                
-                // 3. Extraer secciones numeradas
-                const sections = [];
-                const sectionRegex = /(\d+)\.\s+([^:]+):/g;
-                let match;
-                
-                // Crear un mapa de las secciones encontradas
-                const sectionMap = new Map();
-                while ((match = sectionRegex.exec(rtf)) !== null) {
-                    const sectionNum = match[1];
-                    const sectionTitle = match[2]
-                        .replace(/Aceptaci\'f3n/, 'Aceptación')
-                        .replace(/T\'e9rminos/, 'Términos')
-                        .replace(/Condiciones/, 'Condiciones')
-                        .replace(/Restricciones/, 'Restricciones')
-                        .replace(/Propiedad Intelectual/, 'Propiedad Intelectual')
-                        .replace(/Terminaci\'f3n/, 'Terminación')
-                        .replace(/Jurisdicci\'f3n/, 'Jurisdicción')
-                        .replace(/Divisibilidad/, 'Divisibilidad')
-                        .replace(/Acuerdo Completo/, 'Acuerdo Completo')
-                        .replace(/Contacto/, 'Contacto')
-                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
-                        .trim();
+                // Enfoque específico para términos y condiciones
+                if (hasTermsAndConditions) {
+                    console.log('rtfToHtml: Usando enfoque específico para términos y condiciones');
                     
-                    sectionMap.set(parseInt(sectionNum), {
-                        title: sectionTitle,
-                        position: match.index
+                    // Extraer texto plano eliminando códigos RTF
+                    let plainText = rtf;
+                    
+                    // Reemplazar caracteres especiales RTF
+                    const specialChars = {
+                        '\\\'e1': 'á', '\\\'e9': 'é', '\\\'ed': 'í', '\\\'f3': 'ó', '\\\'fa': 'ú',
+                        '\\\'c1': 'Á', '\\\'c9': 'É', '\\\'cd': 'Í', '\\\'d3': 'Ó', '\\\'da': 'Ú',
+                        '\\\'f1': 'ñ', '\\\'d1': 'Ñ', '\\\'a9': '©', '\\\'ae': '®',
+                        '\\\'e0': 'à', '\\\'e8': 'è', '\\\'ec': 'ì', '\\\'f2': 'ò', '\\\'f9': 'ù',
+                        '\\\'c0': 'À', '\\\'c8': 'È', '\\\'cc': 'Ì', '\\\'d2': 'Ò', '\\\'d9': 'Ù',
+                        '\\\'bf': '¿', '\\\'a1': '¡', '\\\'ba': 'º', '\\\'aa': 'ª'
+                    };
+                    
+                    // Reemplazar todos los caracteres especiales
+                    Object.entries(specialChars).forEach(([code, char]) => {
+                        plainText = plainText.replace(new RegExp(code, 'g'), char);
                     });
-                }
-                
-                // Ordenar las secciones por número
-                const sectionNumbers = Array.from(sectionMap.keys()).sort((a, b) => a - b);
-                
-                // Extraer el contenido de cada sección
-                for (let i = 0; i < sectionNumbers.length; i++) {
-                    const sectionNum = sectionNumbers[i];
-                    const section = sectionMap.get(sectionNum);
-                    const nextSection = sectionNumbers[i + 1] ? sectionMap.get(sectionNumbers[i + 1]) : null;
                     
-                    // Determinar dónde termina esta sección
-                    const startPos = section.position;
-                    const endPos = nextSection ? nextSection.position : rtf.length;
-                    
-                    // Extraer el texto de la sección
-                    let sectionText = rtf.substring(startPos, endPos);
-                    
-                    // Limpiar el texto de la sección
-                    sectionText = sectionText
-                        .replace(/\d+\.\s+[^:]+:/, '') // Eliminar el título de la sección
-                        .replace(/\\par\s*/g, '\n') // Convertir párrafos RTF en saltos de línea
-                        .replace(/\\tab/g, '    ') // Convertir tabs
-                        .replace(/\\bullet/g, '•') // Convertir viñetas
-                        .replace(/\\\'[0-9a-f]{2}/g, match => { // Convertir caracteres especiales
-                            const hex = match.substring(2);
-                            const charCode = parseInt(hex, 16);
-                            return String.fromCharCode(charCode);
-                        })
-                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+|\\pntext|\\pn|\\listtext|\\jclisttab|\\tx\d+|\\fi-\d+|\\li\d+|\\lin\d+|\\sa\d+|\\sb\d+|\\qj|\\ql/g, '')
+                    // Eliminar códigos RTF comunes
+                    plainText = plainText
+                        .replace(/{\\rtf1.*?\\viewkind/s, '')
+                        .replace(/\\par\s*/g, '\n')
+                        .replace(/\\tab/g, '    ')
+                        .replace(/\\bullet/g, '•')
+                        .replace(/\\b\s+/g, '')  // Negrita
+                        .replace(/\\i\s+/g, '')  // Cursiva
+                        .replace(/\\ul\s+/g, '') // Subrayado
+                        .replace(/\\pntext.*?\\tab/g, '• ')
+                        .replace(/\\f\d+\\fs\d+\\cf\d+/g, '')
+                        .replace(/\\f\d+\\fcharset\d+/g, '')
+                        .replace(/\\lang\d+\\langfe\d+/g, '')
+                        .replace(/\\loch\\af\d+\\hich\\af\d+\\dbch\\af\d+/g, '')
+                        .replace(/\{\\listtext.*?\}/g, '• ')
+                        .replace(/\{\\pntext.*?\}/g, '• ')
+                        .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+/g, '')
+                        .replace(/\\fi-\d+\\li\d+\\ri\d+/g, '')
+                        .replace(/\\tx\d+/g, '')
+                        .replace(/\\cf\d+/g, '')
+                        .replace(/\\kerning\d+/g, '')
+                        .replace(/\\ltrch/g, '')
+                        .replace(/\\fcs\d+/g, '')
+                        .replace(/\{\\nonshppict.*?\\shprslt.*?\}/gs, '')
+                        .replace(/\{\*\\shppict.*?\}/gs, '')
+                        .replace(/\{\*\\themedata.*?\}/gs, '')
+                        .replace(/\{\*\\colorschememapping.*?\}/gs, '')
+                        .replace(/\{\*\\datastore.*?\}/gs, '')
+                        .replace(/\{\*\\generator.*?\}/gs, '')
+                        .replace(/\{\\info.*?\}/gs, '')
                         .replace(/\{|\}/g, '')
-                        .replace(/\\~/g, ' ')
-                        .trim();
+                        .replace(/\\\\/g, '\\')
+                        .replace(/\\line/g, '\n')
+                        .replace(/\\cell/g, ' | ')
+                        .replace(/\\row/g, '\n')
+                        .replace(/\\emdash/g, '—')
+                        .replace(/\\endash/g, '–')
+                        .replace(/\\~\s+/g, ' ')
+                        .replace(/\\\n/g, '\n')
+                        .replace(/\s+\n/g, '\n')
+                        .replace(/\n\s+/g, '\n')
+                        .replace(/\n{3,}/g, '\n\n');  // Limitar a máximo 2 saltos de línea consecutivos
                     
-                    // Detectar si hay listas con viñetas
-                    const hasBullets = sectionText.includes('•');
+                    console.log('rtfToHtml: Texto plano extraído');
                     
-                    // Agregar la sección al array
-                    sections.push({
-                        number: sectionNum,
-                        title: section.title,
-                        content: sectionText,
-                        hasBullets
-                    });
-                }
-                
-                // 4. Construir el HTML final
-                let html = '';
-                
-                // Título
-                if (title) {
-                    html += `<h1>${title}</h1>`;
-                } else {
-                    html += '<h1>Términos y Condiciones de Uso</h1>';
-                }
-                
-                // Información de la aplicación
-                if (appInfo) {
-                    const appInfoLines = appInfo.split('\n').filter(line => line.trim());
-                    html += '<div class="app-info">';
-                    appInfoLines.forEach(line => {
-                        const parts = line.split(':');
-                        if (parts.length >= 2) {
-                            const label = parts[0].trim();
-                            const value = parts.slice(1).join(':').trim();
-                            html += `<p><strong>${label}:</strong> ${value}</p>`;
-                        } else {
-                            html += `<p>${line.trim()}</p>`;
-                        }
-                    });
-                    html += '</div>';
-                }
-                
-                // Advertencia principal
-                if (warning) {
-                    html += `<p class="warning"><strong>${warning}</strong></p>`;
-                }
-                
-                // Secciones numeradas
-                sections.forEach(section => {
-                    html += `<h2>${section.number}. ${section.title}</h2>`;
+                    // Extraer título principal
+                    let title = 'Términos y Condiciones de Uso';
+                    const titleRegex = /Términos y Condiciones de Uso.*?(?=\n)/i;
+                    const titleMatch = plainText.match(titleRegex);
+                    if (titleMatch) {
+                        title = titleMatch[0].trim();
+                        console.log('rtfToHtml: Título encontrado:', title);
+                    }
                     
-                    if (section.hasBullets) {
-                        // Procesar contenido con viñetas
-                        const lines = section.content.split('\n').filter(line => line.trim());
-                        let inList = false;
+                    // Extraer información de la aplicación
+                    let appInfo = '';
+                    const appInfoRegex = /Aplicación:.*?(?=POR FAVOR)/is;
+                    const appInfoMatch = plainText.match(appInfoRegex);
+                    if (appInfoMatch) {
+                        appInfo = appInfoMatch[0].trim();
+                        console.log('rtfToHtml: Información de la aplicación encontrada');
+                    }
+                    
+                    // Extraer advertencia principal
+                    let warning = '';
+                    const warningRegex = /POR FAVOR.*?UTILICE LA APLICACIÓN\./is;
+                    const warningMatch = plainText.match(warningRegex);
+                    if (warningMatch) {
+                        warning = warningMatch[0].trim();
+                        console.log('rtfToHtml: Advertencia principal encontrada');
+                    }
+                    
+                    // Extraer secciones numeradas
+                    const sections = [];
+                    const sectionRegex = /(\d+)\.\s+([^:\n]+)[:]/g;
+                    let match;
+                    let lastIndex = 0;
+                    
+                    // Crear un mapa de las secciones encontradas
+                    const sectionMap = new Map();
+                    while ((match = sectionRegex.exec(plainText)) !== null) {
+                        const sectionNum = parseInt(match[1]);
+                        const sectionTitle = match[2].trim();
+                        const position = match.index;
                         
-                        lines.forEach(line => {
-                            const trimmedLine = line.trim();
-                            
-                            if (trimmedLine.startsWith('•')) {
-                                if (!inList) {
-                                    html += '<ul>';
-                                    inList = true;
-                                }
-                                const itemText = trimmedLine.substring(1).trim();
-                                html += `<li>${itemText}</li>`;
+                        sectionMap.set(sectionNum, {
+                            title: sectionTitle,
+                            position: position,
+                            endPosition: position + match[0].length
+                        });
+                        
+                        lastIndex = Math.max(lastIndex, position + match[0].length);
+                    }
+                    
+                    console.log(`rtfToHtml: Encontradas ${sectionMap.size} secciones numeradas`);
+                    
+                    // Ordenar las secciones por número
+                    const sectionNumbers = Array.from(sectionMap.keys()).sort((a, b) => a - b);
+                    
+                    // Extraer el contenido de cada sección
+                    for (let i = 0; i < sectionNumbers.length; i++) {
+                        const sectionNum = sectionNumbers[i];
+                        const section = sectionMap.get(sectionNum);
+                        const nextSection = sectionNumbers[i + 1] ? sectionMap.get(sectionNumbers[i + 1]) : null;
+                        
+                        // Determinar dónde termina esta sección
+                        const startPos = section.endPosition;
+                        const endPos = nextSection ? nextSection.position : plainText.length;
+                        
+                        // Extraer el texto de la sección
+                        let sectionText = plainText.substring(startPos, endPos).trim();
+                        
+                        // Detectar si hay listas con viñetas
+                        const hasBullets = sectionText.includes('•');
+                        
+                        // Agregar la sección al array
+                        sections.push({
+                            number: sectionNum,
+                            title: section.title,
+                            content: sectionText,
+                            hasBullets
+                        });
+                    }
+                    
+                    // Construir el HTML final
+                    let html = '';
+                    
+                    // Título
+                    html += `<h1>${title}</h1>`;
+                    
+                    // Información de la aplicación
+                    if (appInfo) {
+                        const appInfoLines = appInfo.split('\n').filter(line => line.trim());
+                        html += '<div class="app-info">';
+                        appInfoLines.forEach(line => {
+                            const parts = line.split(':');
+                            if (parts.length >= 2) {
+                                const label = parts[0].trim();
+                                const value = parts.slice(1).join(':').trim();
+                                html += `<p><strong>${label}:</strong> ${value}</p>`;
                             } else {
-                                if (inList) {
-                                    html += '</ul>';
-                                    inList = false;
-                                }
-                                if (trimmedLine) {
-                                    html += `<p>${trimmedLine}</p>`;
-                                }
+                                html += `<p>${line.trim()}</p>`;
                             }
                         });
+                        html += '</div>';
+                    }
+                    
+                    // Advertencia principal
+                    if (warning) {
+                        html += `<p class="warning"><strong>${warning}</strong></p>`;
+                    }
+                    
+                    // Secciones numeradas
+                    sections.forEach(section => {
+                        html += `<h2>${section.number}. ${section.title}</h2>`;
                         
-                        if (inList) {
-                            html += '</ul>';
+                        if (section.hasBullets) {
+                            // Procesar contenido con viñetas
+                            const lines = section.content.split('\n').filter(line => line.trim());
+                            let inList = false;
+                            
+                            lines.forEach(line => {
+                                const trimmedLine = line.trim();
+                                
+                                if (trimmedLine.startsWith('•')) {
+                                    if (!inList) {
+                                        html += '<ul>';
+                                        inList = true;
+                                    }
+                                    const itemText = trimmedLine.substring(1).trim();
+                                    html += `<li>${itemText}</li>`;
+                                } else {
+                                    if (inList) {
+                                        html += '</ul>';
+                                        inList = false;
+                                    }
+                                    if (trimmedLine) {
+                                        html += `<p>${trimmedLine}</p>`;
+                                    }
+                                }
+                            });
+                            
+                            if (inList) {
+                                html += '</ul>';
+                            }
+                        } else {
+                            // Procesar contenido normal
+                            const paragraphs = section.content.split('\n\n').filter(p => p.trim());
+                            paragraphs.forEach(paragraph => {
+                                html += `<p>${paragraph.trim()}</p>`;
+                            });
                         }
-                    } else {
-                        // Procesar contenido normal
-                        const paragraphs = section.content.split('\n\n').filter(p => p.trim());
-                        paragraphs.forEach(paragraph => {
-                            html += `<p>${paragraph.trim()}</p>`;
-                        });
+                    });
+                    
+                    // Pie de página (copyright)
+                    const copyrightRegex = /©\s*2025\s*Edudigital\.\s*LATAM\.\s*Todos\s*los\s*derechos\s*reservados/i;
+                    const copyrightMatch = plainText.match(copyrightRegex);
+                    if (copyrightMatch) {
+                        html += `<p class="copyright"><strong>${copyrightMatch[0]}</strong></p>`;
+                    }
+                    
+                    console.log('rtfToHtml: HTML generado con éxito');
+                    return html;
+                }
+                
+                // Enfoque genérico para cualquier RTF
+                console.log('rtfToHtml: Usando enfoque genérico para RTF');
+                
+                // Extraer texto plano eliminando códigos RTF
+                let plainText = rtf
+                    .replace(/{\\rtf1.*?\\par/s, '')
+                    .replace(/\\par/g, '\n\n')
+                    .replace(/\\tab/g, '    ')
+                    .replace(/\\bullet/g, '• ')
+                    .replace(/\\\'[0-9a-f]{2}/g, match => {
+                        const hex = match.substring(2);
+                        const charCode = parseInt(hex, 16);
+                        return String.fromCharCode(charCode);
+                    })
+                    .replace(/\\[a-z0-9]+/g, '')
+                    .replace(/\{|\}/g, '')
+                    .replace(/\\\\/g, '\\')
+                    .trim();
+                
+                // Convertir a HTML básico
+                let basicHtml = '<h1>Términos y Condiciones</h1>';
+                
+                // Dividir por líneas y formatear
+                const lines = plainText.split('\n').filter(line => line.trim());
+                let inList = false;
+                
+                lines.forEach(line => {
+                    const trimmedLine = line.trim();
+                    
+                    // Detectar encabezados de sección
+                    if (/^\d+\.\s+[A-Z]/.test(trimmedLine)) {
+                        if (inList) {
+                            basicHtml += '</ul>';
+                            inList = false;
+                        }
+                        basicHtml += `<h2>${trimmedLine}</h2>`;
+                    }
+                    // Detectar elementos de lista
+                    else if (trimmedLine.startsWith('•')) {
+                        if (!inList) {
+                            basicHtml += '<ul>';
+                            inList = true;
+                        }
+                        const itemText = trimmedLine.substring(1).trim();
+                        basicHtml += `<li>${itemText}</li>`;
+                    }
+                    // Párrafos normales
+                    else if (trimmedLine) {
+                        if (inList) {
+                            basicHtml += '</ul>';
+                            inList = false;
+                        }
+                        basicHtml += `<p>${trimmedLine}</p>`;
                     }
                 });
                 
-                // Pie de página (copyright)
-                const copyrightMatch = rtf.match(/\'a9 2025 Edudigital\. LATAM\. Todos los derechos reservados/);
-                if (copyrightMatch) {
-                    html += '<p class="copyright"><strong>© 2025 Edudigital. LATAM. Todos los derechos reservados.</strong></p>';
+                if (inList) {
+                    basicHtml += '</ul>';
                 }
                 
-                console.log('HTML generado con éxito');
-                return html;
+                console.log('rtfToHtml: HTML básico generado');
+                return basicHtml;
                 
             } catch (error) {
-                console.error('Error al convertir RTF a HTML:', error);
+                console.error('rtfToHtml: Error al convertir RTF a HTML:', error);
                 
-                // Enfoque de respaldo: extraer texto plano y formatearlo básicamente
+                // Método de respaldo en caso de error
                 try {
+                    console.log('rtfToHtml: Intentando método de respaldo');
+                    
                     // Extraer texto plano eliminando códigos RTF
                     let plainText = rtf
-                        .replace(/{\\rtf1.*?\\par/s, '')
-                        .replace(/\\par/g, '\n\n')
-                        .replace(/\\tab/g, '    ')
-                        .replace(/\\bullet/g, '• ')
-                        .replace(/\\\'[0-9a-f]{2}/g, match => {
-                            const hex = match.substring(2);
-                            const charCode = parseInt(hex, 16);
-                            return String.fromCharCode(charCode);
-                        })
-                        .replace(/\\[a-z0-9]+/g, '')
+                        .replace(/{\\rtf1.*?}/gs, '')
+                        .replace(/\\[a-z0-9]+/g, ' ')
                         .replace(/\{|\}/g, '')
-                        .replace(/\\\\/g, '\\')
+                        .replace(/\s+/g, ' ')
                         .trim();
                     
-                    // Convertir a HTML básico
-                    let basicHtml = '<h1>Términos y Condiciones</h1>';
+                    // Crear HTML básico
+                    let fallbackHtml = `
+                        <h1>Términos y Condiciones</h1>
+                        <p>El contenido original está en formato RTF. A continuación se muestra una versión simplificada:</p>
+                        <div style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; background-color: #f9f9f9;">
+                            ${plainText.split(/\.\s+/).map(sentence => `<p>${sentence.trim()}.</p>`).join('')}
+                        </div>
+                        <p><em>Nota: Esta es una versión simplificada. Para ver el formato completo, edite manualmente el contenido.</em></p>
+                    `;
                     
-                    // Dividir por líneas y formatear
-                    const lines = plainText.split('\n').filter(line => line.trim());
-                    let inList = false;
-                    
-                    lines.forEach(line => {
-                        const trimmedLine = line.trim();
-                        
-                        // Detectar encabezados de sección
-                        if (/^\d+\.\s+[A-Z]/.test(trimmedLine)) {
-                            if (inList) {
-                                basicHtml += '</ul>';
-                                inList = false;
-                            }
-                            basicHtml += `<h2>${trimmedLine}</h2>`;
-                        }
-                        // Detectar elementos de lista
-                        else if (trimmedLine.startsWith('•')) {
-                            if (!inList) {
-                                basicHtml += '<ul>';
-                                inList = true;
-                            }
-                            const itemText = trimmedLine.substring(1).trim();
-                            basicHtml += `<li>${itemText}</li>`;
-                        }
-                        // Párrafos normales
-                        else if (trimmedLine) {
-                            if (inList) {
-                                basicHtml += '</ul>';
-                                inList = false;
-                            }
-                            basicHtml += `<p>${trimmedLine}</p>`;
-                        }
-                    });
-                    
-                    if (inList) {
-                        basicHtml += '</ul>';
-                    }
-                    
-                    console.log('HTML básico generado como respaldo');
-                    return basicHtml;
+                    console.log('rtfToHtml: HTML de respaldo generado');
+                    return fallbackHtml;
                     
                 } catch (backupError) {
-                    console.error('Error en el método de respaldo:', backupError);
+                    console.error('rtfToHtml: Error en el método de respaldo:', backupError);
                     return `
                         <h1>Términos y Condiciones</h1>
                         <p>No se pudo procesar el contenido RTF. Por favor, contacte al administrador.</p>
@@ -971,6 +1047,22 @@
                 if (appSettings.TermsAndConditions) {
                     let htmlContent = '';
                     
+                    // Verificar si tenemos contenido RTF
+                    if (appSettings.TermsAndConditions.Content) {
+                        console.log('Contenido RTF disponible, longitud:', 
+                            appSettings.TermsAndConditions.Content ? appSettings.TermsAndConditions.Content.length : 0);
+                    } else {
+                        console.warn('No hay contenido RTF disponible');
+                    }
+                    
+                    // Verificar si tenemos contenido HTML
+                    if (appSettings.TermsAndConditions.HtmlContent) {
+                        console.log('Contenido HTML disponible, longitud:', 
+                            appSettings.TermsAndConditions.HtmlContent ? appSettings.TermsAndConditions.HtmlContent.length : 0);
+                    } else {
+                        console.warn('No hay contenido HTML disponible');
+                    }
+                    
                     // Preferir el contenido HTML si está disponible
                     if (appSettings.TermsAndConditions.HtmlContent && appSettings.TermsAndConditions.HtmlContent.trim() !== '') {
                         htmlContent = appSettings.TermsAndConditions.HtmlContent;
@@ -978,11 +1070,19 @@
                     } 
                     // Si no hay HTML pero hay RTF, convertir RTF a HTML
                     else if (appSettings.TermsAndConditions.Content && appSettings.TermsAndConditions.Content.trim() !== '') {
-                        console.log('Convirtiendo RTF a HTML');
+                        console.log('Iniciando conversión de RTF a HTML...');
+                        
+                        // Mostrar una muestra del RTF para depuración
+                        const rtfSample = appSettings.TermsAndConditions.Content.substring(0, 200) + '...';
+                        console.log('Muestra del RTF:', rtfSample);
+                        
+                        // Llamar a la función de conversión
                         htmlContent = rtfToHtml(appSettings.TermsAndConditions.Content);
+                        console.log('Conversión RTF a HTML completada');
                         
                         // Guardar la versión HTML convertida para futuras cargas
                         if (htmlContent && htmlContent !== '') {
+                            console.log('HTML generado correctamente, guardando para uso futuro');
                             appSettings.TermsAndConditions.HtmlContent = htmlContent;
                             
                             // Guardar silenciosamente la versión actualizada con el HTML convertido
@@ -994,14 +1094,20 @@
                                     console.error('Error al guardar la versión HTML convertida:', error);
                                 }
                             }, 1000);
+                        } else {
+                            console.error('La conversión RTF a HTML no generó contenido válido');
                         }
+                    } else {
+                        console.warn('No hay contenido RTF ni HTML disponible');
                     }
                     
                     // Actualizar el editor con el contenido HTML
                     if (htmlContent && htmlContent.trim() !== '') {
                         termsEditor.innerHTML = htmlContent;
+                        console.log('Editor actualizado con contenido HTML');
                     } else {
                         termsEditor.innerHTML = '<p>No hay términos y condiciones definidos. Agregue contenido aquí.</p>';
+                        console.warn('No se encontró contenido para mostrar en el editor');
                     }
                     
                     if (appSettings.TermsAndConditions.LastModified) {
@@ -1013,6 +1119,8 @@
                     
                     // Actualizar vista previa de términos
                     updateTermsPreview();
+                } else {
+                    console.warn('No hay sección de TermsAndConditions en la configuración');
                 }
                 
                 updateProgress(100, '¡Configuración cargada!');
@@ -1156,10 +1264,81 @@
             defenderVideoUrl.addEventListener('input', updateVideosPreview);
             esetVideoUrl.addEventListener('input', updateVideosPreview);
             
+            // Botón para forzar conversión RTF a HTML
+            document.getElementById('forceConversionBtn').addEventListener('click', forceRtfConversion);
+            
             // Botón de cerrar sesión
             document.getElementById('logoutButton').addEventListener('click', function() {
                 auth.logout();
             });
+        }
+        
+        // Forzar conversión de RTF a HTML
+        function forceRtfConversion() {
+            try {
+                console.log('Forzando conversión RTF a HTML...');
+                
+                if (!appSettings || !appSettings.TermsAndConditions || !appSettings.TermsAndConditions.Content) {
+                    console.error('No hay contenido RTF disponible para convertir');
+                    showAlert('danger', 'No hay contenido RTF disponible para convertir');
+                    return;
+                }
+                
+                console.log('Contenido RTF disponible, longitud:', appSettings.TermsAndConditions.Content.length);
+                const rtfSample = appSettings.TermsAndConditions.Content.substring(0, 200) + '...';
+                console.log('Muestra del RTF:', rtfSample);
+                
+                // Mostrar estado de carga
+                showLoading(true, 'Convirtiendo RTF a HTML', 'Procesando contenido...');
+                
+                // Usar setTimeout para permitir que la UI se actualice
+                setTimeout(() => {
+                    try {
+                        // Llamar a la función de conversión
+                        const htmlContent = rtfToHtml(appSettings.TermsAndConditions.Content);
+                        console.log('Conversión RTF a HTML completada');
+                        
+                        if (htmlContent && htmlContent.trim() !== '') {
+                            console.log('HTML generado correctamente');
+                            
+                            // Actualizar el editor y la vista previa
+                            termsEditor.innerHTML = htmlContent;
+                            updateTermsPreview();
+                            
+                            // Guardar el HTML generado
+                            appSettings.TermsAndConditions.HtmlContent = htmlContent;
+                            
+                            showLoading(false);
+                            showAlert('success', 'Conversión RTF a HTML completada correctamente');
+                            
+                            // Guardar silenciosamente la versión actualizada
+                            setTimeout(async () => {
+                                try {
+                                    await spGraph.saveAppSettings(appSettings);
+                                    console.log('Versión HTML guardada correctamente');
+                                    showAlert('info', 'Versión HTML guardada en la configuración');
+                                } catch (error) {
+                                    console.error('Error al guardar la versión HTML convertida:', error);
+                                    showAlert('warning', 'Error al guardar la versión HTML: ' + error.message);
+                                }
+                            }, 1000);
+                        } else {
+                            console.error('La conversión RTF a HTML no generó contenido válido');
+                            showLoading(false);
+                            showAlert('danger', 'La conversión no generó contenido HTML válido');
+                        }
+                    } catch (error) {
+                        console.error('Error durante la conversión RTF a HTML:', error);
+                        showLoading(false);
+                        showAlert('danger', `Error durante la conversión: ${error.message}`);
+                    }
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error al forzar la conversión RTF a HTML:', error);
+                showLoading(false);
+                showAlert('danger', `Error: ${error.message}`);
+            }
         }
         
         // Inicializar la aplicación
