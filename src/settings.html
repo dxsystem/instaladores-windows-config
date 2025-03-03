@@ -583,419 +583,284 @@
             }
             
             try {
-                console.log('RTF original:', rtf);
+                console.log('RTF original recibido, longitud:', rtf.length);
                 
-                // Verificar si es el formato RTF específico de los términos y condiciones
-                if (rtf.includes('\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2')) {
-                    console.log('Detectado formato RTF específico de términos y condiciones');
+                // Enfoque directo: extraer el texto plano y aplicar formato manualmente
+                // Este enfoque es más robusto para el formato específico de los términos y condiciones
+                
+                // 1. Extraer el texto plano del RTF eliminando códigos RTF
+                let plainText = rtf;
+                
+                // Eliminar encabezados RTF y códigos de formato complejos
+                plainText = plainText.replace(/{\\rtf1.*?\\loch\\hich\\dbch/s, '');
+                plainText = plainText.replace(/\\plain\\ltrpar\\itap0{.*?\\cf1\\ql/s, '');
+                
+                // 2. Extraer secciones principales
+                // Título principal
+                let title = '';
+                const titleMatch = rtf.match(/T\'e9rminos y Condiciones de Uso.*?Instaladores de Windows Online C#/);
+                if (titleMatch) {
+                    title = titleMatch[0]
+                        .replace(/T\'e9rminos/, 'Términos')
+                        .replace(/Condiciones/, 'Condiciones')
+                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
+                        .trim();
+                }
+                
+                // Información de la aplicación
+                let appInfo = '';
+                const appInfoMatch = rtf.match(/Aplicaci\'f3n:.*?Derechos Reservados:.*?reservados/s);
+                if (appInfoMatch) {
+                    appInfo = appInfoMatch[0]
+                        .replace(/Aplicaci\'f3n:/, 'Aplicación:')
+                        .replace(/Versi\'f3n:/, 'Versión:')
+                        .replace(/\'a9/, '©')
+                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
+                        .trim();
+                }
+                
+                // Advertencia principal
+                let warning = '';
+                const warningMatch = rtf.match(/POR FAVOR, LEA ESTOS T\'c9RMINOS.*?UTILICE LA APLICACI\'d3N/s);
+                if (warningMatch) {
+                    warning = warningMatch[0]
+                        .replace(/T\'c9RMINOS/, 'TÉRMINOS')
+                        .replace(/CONDICIONES/, 'CONDICIONES')
+                        .replace(/APLICACI\'d3N/, 'APLICACIÓN')
+                        .replace(/EST\'c1/, 'ESTÁ')
+                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
+                        .trim();
+                }
+                
+                // 3. Extraer secciones numeradas
+                const sections = [];
+                const sectionRegex = /(\d+)\.\s+([^:]+):/g;
+                let match;
+                
+                // Crear un mapa de las secciones encontradas
+                const sectionMap = new Map();
+                while ((match = sectionRegex.exec(rtf)) !== null) {
+                    const sectionNum = match[1];
+                    const sectionTitle = match[2]
+                        .replace(/Aceptaci\'f3n/, 'Aceptación')
+                        .replace(/T\'e9rminos/, 'Términos')
+                        .replace(/Condiciones/, 'Condiciones')
+                        .replace(/Restricciones/, 'Restricciones')
+                        .replace(/Propiedad Intelectual/, 'Propiedad Intelectual')
+                        .replace(/Terminaci\'f3n/, 'Terminación')
+                        .replace(/Jurisdicci\'f3n/, 'Jurisdicción')
+                        .replace(/Divisibilidad/, 'Divisibilidad')
+                        .replace(/Acuerdo Completo/, 'Acuerdo Completo')
+                        .replace(/Contacto/, 'Contacto')
+                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+/g, '')
+                        .trim();
                     
-                    // Extraer el título principal
-                    let title = '';
-                    const titleMatch = rtf.match(/T\'e9rminos y Condiciones de Uso[^\}]+/);
-                    if (titleMatch) {
-                        title = `<h1>${titleMatch[0].replace(/\\ltrch|\\/g, '').trim()}</h1>`;
-                    } else {
-                        title = '<h1>Términos y Condiciones de Uso</h1>';
-                    }
+                    sectionMap.set(parseInt(sectionNum), {
+                        title: sectionTitle,
+                        position: match.index
+                    });
+                }
+                
+                // Ordenar las secciones por número
+                const sectionNumbers = Array.from(sectionMap.keys()).sort((a, b) => a - b);
+                
+                // Extraer el contenido de cada sección
+                for (let i = 0; i < sectionNumbers.length; i++) {
+                    const sectionNum = sectionNumbers[i];
+                    const section = sectionMap.get(sectionNum);
+                    const nextSection = sectionNumbers[i + 1] ? sectionMap.get(sectionNumbers[i + 1]) : null;
                     
-                    // Extraer información de versión y fecha
-                    let appInfo = '';
-                    const versionInfo = rtf.match(/Versi\'f3n:([^}]+)Empresa:/);
-                    if (versionInfo) {
-                        const versionText = versionInfo[1].replace(/\\ltrch|\\/g, '').trim();
-                        appInfo += `<p><strong>Versión:</strong> ${versionText}</p>`;
-                    }
+                    // Determinar dónde termina esta sección
+                    const startPos = section.position;
+                    const endPos = nextSection ? nextSection.position : rtf.length;
                     
-                    // Extraer secciones numeradas y su contenido
-                    let content = '';
-                    const sections = [];
+                    // Extraer el texto de la sección
+                    let sectionText = rtf.substring(startPos, endPos);
                     
-                    // Buscar todos los encabezados de sección (1. Aceptación, 2. Licencia, etc.)
-                    const sectionHeaders = rtf.match(/\d+\.\s+[^:}]+:/g) || [];
+                    // Limpiar el texto de la sección
+                    sectionText = sectionText
+                        .replace(/\d+\.\s+[^:]+:/, '') // Eliminar el título de la sección
+                        .replace(/\\par\s*/g, '\n') // Convertir párrafos RTF en saltos de línea
+                        .replace(/\\tab/g, '    ') // Convertir tabs
+                        .replace(/\\bullet/g, '•') // Convertir viñetas
+                        .replace(/\\\'[0-9a-f]{2}/g, match => { // Convertir caracteres especiales
+                            const hex = match.substring(2);
+                            const charCode = parseInt(hex, 16);
+                            return String.fromCharCode(charCode);
+                        })
+                        .replace(/\\b|\\f\d+|\\cf\d+|\\ltrch|\\lang\d+|\\pntext|\\pn|\\listtext|\\jclisttab|\\tx\d+|\\fi-\d+|\\li\d+|\\lin\d+|\\sa\d+|\\sb\d+|\\qj|\\ql/g, '')
+                        .replace(/\{|\}/g, '')
+                        .replace(/\\~/g, ' ')
+                        .trim();
                     
-                    sectionHeaders.forEach((header, index) => {
-                        // Limpiar el encabezado
-                        const cleanHeader = header.replace(/\\b\\ltrch|\\ltrch\\b|\\ltrch|\\b/g, '').trim();
-                        
-                        // Crear un elemento h2 para el encabezado
-                        const h2 = `<h2>${cleanHeader}</h2>`;
-                        
-                        // Buscar el contenido de esta sección (texto entre este encabezado y el siguiente)
-                        const startPos = rtf.indexOf(header) + header.length;
-                        const nextHeader = sectionHeaders[index + 1];
-                        const endPos = nextHeader ? rtf.indexOf(nextHeader) : rtf.length;
-                        
-                        let sectionContent = rtf.substring(startPos, endPos);
-                        
-                        // Procesar el contenido de la sección
-                        let processedContent = '';
-                        
-                        // Detectar si hay listas con viñetas
-                        if (sectionContent.includes('\\pntext \'B7\\tab')) {
-                            // Extraer elementos de lista
-                            const listItems = sectionContent.match(/\\pntext\s+\'B7\\tab[^}]+\}/g) || [];
-                            
-                            if (listItems.length > 0) {
-                                processedContent += '<ul>';
-                                
-                                listItems.forEach(item => {
-                                    // Extraer el texto del elemento de lista
-                                    const itemText = item.match(/\\lang\d+\\ltrch\s+([^}]+)/);
-                                    if (itemText && itemText[1]) {
-                                        // Limpiar el texto y convertir a elemento de lista
-                                        const cleanItemText = itemText[1]
-                                            .replace(/\\ltrch|\\b/g, '')
-                                            .replace(/\\\\/g, '\\')
-                                            .replace(/\\'/g, "'")
-                                            .trim();
-                                        
-                                        processedContent += `<li>${cleanItemText}</li>`;
-                                    }
-                                });
-                                
-                                processedContent += '</ul>';
-                            }
+                    // Detectar si hay listas con viñetas
+                    const hasBullets = sectionText.includes('•');
+                    
+                    // Agregar la sección al array
+                    sections.push({
+                        number: sectionNum,
+                        title: section.title,
+                        content: sectionText,
+                        hasBullets
+                    });
+                }
+                
+                // 4. Construir el HTML final
+                let html = '';
+                
+                // Título
+                if (title) {
+                    html += `<h1>${title}</h1>`;
+                } else {
+                    html += '<h1>Términos y Condiciones de Uso</h1>';
+                }
+                
+                // Información de la aplicación
+                if (appInfo) {
+                    const appInfoLines = appInfo.split('\n').filter(line => line.trim());
+                    html += '<div class="app-info">';
+                    appInfoLines.forEach(line => {
+                        const parts = line.split(':');
+                        if (parts.length >= 2) {
+                            const label = parts[0].trim();
+                            const value = parts.slice(1).join(':').trim();
+                            html += `<p><strong>${label}:</strong> ${value}</p>`;
                         } else {
-                            // Procesar párrafos normales
-                            const paragraphs = sectionContent.match(/\\lang\d+\\ltrch\s+([^}]+)/g) || [];
-                            
-                            paragraphs.forEach(para => {
-                                // Limpiar el texto del párrafo
-                                const cleanPara = para
-                                    .replace(/\\lang\d+\\ltrch\s+/, '')
-                                    .replace(/\\ltrch|\\b/g, '')
-                                    .replace(/\\\\/g, '\\')
-                                    .replace(/\\'/g, "'")
-                                    .replace(/\\~\s+/g, ' ')
-                                    .trim();
-                                
-                                if (cleanPara) {
-                                    processedContent += `<p>${cleanPara}</p>`;
-                                }
-                            });
+                            html += `<p>${line.trim()}</p>`;
                         }
-                        
-                        // Agregar el encabezado y contenido procesado a las secciones
-                        sections.push(h2 + processedContent);
                     });
+                    html += '</div>';
+                }
+                
+                // Advertencia principal
+                if (warning) {
+                    html += `<p class="warning"><strong>${warning}</strong></p>`;
+                }
+                
+                // Secciones numeradas
+                sections.forEach(section => {
+                    html += `<h2>${section.number}. ${section.title}</h2>`;
                     
-                    // Combinar todas las secciones
-                    content = sections.join('');
-                    
-                    // Si no se pudo extraer contenido estructurado, intentar un enfoque más general
-                    if (!content) {
-                        // Extraer todos los párrafos
-                        const allParagraphs = rtf.match(/\\lang\d+\\ltrch\s+([^}]+)/g) || [];
+                    if (section.hasBullets) {
+                        // Procesar contenido con viñetas
+                        const lines = section.content.split('\n').filter(line => line.trim());
+                        let inList = false;
                         
-                        allParagraphs.forEach(para => {
-                            // Detectar si es un encabezado (texto en negrita)
-                            const isBold = para.includes('\\b\\ltrch') || para.includes('\\ltrch\\b');
+                        lines.forEach(line => {
+                            const trimmedLine = line.trim();
                             
-                            // Limpiar el texto
-                            const cleanText = para
-                                .replace(/\\lang\d+\\ltrch\s+/, '')
-                                .replace(/\\ltrch|\\b/g, '')
-                                .replace(/\\\\/g, '\\')
-                                .replace(/\\'/g, "'")
-                                .replace(/\\~\s+/g, ' ')
-                                .trim();
-                            
-                            if (cleanText) {
-                                // Si es un encabezado numerado (1. Algo:)
-                                if (/^\d+\.\s+.+:$/.test(cleanText)) {
-                                    content += `<h2>${cleanText}</h2>`;
+                            if (trimmedLine.startsWith('•')) {
+                                if (!inList) {
+                                    html += '<ul>';
+                                    inList = true;
                                 }
-                                // Si es texto en negrita pero no un encabezado numerado
-                                else if (isBold) {
-                                    content += `<p><strong>${cleanText}</strong></p>`;
+                                const itemText = trimmedLine.substring(1).trim();
+                                html += `<li>${itemText}</li>`;
+                            } else {
+                                if (inList) {
+                                    html += '</ul>';
+                                    inList = false;
                                 }
-                                // Texto normal
-                                else {
-                                    content += `<p>${cleanText}</p>`;
+                                if (trimmedLine) {
+                                    html += `<p>${trimmedLine}</p>`;
                                 }
                             }
                         });
-                    }
-                    
-                    // Procesar formato adicional
-                    content = content
-                        // Negrita
-                        .replace(/\\b\s+([^\\]+)\\b/g, '<strong>$1</strong>')
-                        // Cursiva
-                        .replace(/\\i\s+([^\\]+)\\i0/g, '<em>$1</em>')
-                        // Subrayado
-                        .replace(/\\ul\s+([^\\]+)\\ulnone/g, '<u>$1</u>')
-                        // Caracteres especiales
-                        .replace(/\\\'e1/g, 'á')
-                        .replace(/\\\'e9/g, 'é')
-                        .replace(/\\\'ed/g, 'í')
-                        .replace(/\\\'f3/g, 'ó')
-                        .replace(/\\\'fa/g, 'ú')
-                        .replace(/\\\'c1/g, 'Á')
-                        .replace(/\\\'c9/g, 'É')
-                        .replace(/\\\'cd/g, 'Í')
-                        .replace(/\\\'d3/g, 'Ó')
-                        .replace(/\\\'da/g, 'Ú')
-                        .replace(/\\\'f1/g, 'ñ')
-                        .replace(/\\\'d1/g, 'Ñ')
-                        .replace(/\\\'a9/g, '©');
-                    
-                    // Combinar todo
-                    const htmlResult = title + appInfo + content;
-                    console.log('HTML generado:', htmlResult);
-                    return htmlResult;
-                }
-                
-                // Detectar si es un formato RTF específico de la aplicación de escritorio
-                if (rtf.includes('\\listlevel\\levelnfc') || rtf.includes('\\leveltext\\leveltemplateid')) {
-                    console.log('Detectado formato RTF específico de la aplicación de escritorio');
-                    
-                    // Extraer el texto principal del RTF
-                    let mainText = '';
-                    
-                    // Buscar secciones de texto significativas
-                    const textMatches = rtf.match(/\\f\d+\\fcharset\d+\s+([^\\{}]+)/g) || [];
-                    const ltrchMatches = rtf.match(/\\ltrch\s+([^\\{}]+)/g) || [];
-                    const plainTextMatches = rtf.match(/[^\\{}]+/g) || [];
-                    
-                    // Combinar todas las coincidencias de texto
-                    const allTextMatches = [...textMatches, ...ltrchMatches, ...plainTextMatches];
-                    
-                    // Filtrar y limpiar el texto extraído
-                    allTextMatches.forEach(match => {
-                        let text = match
-                            .replace(/\\f\d+\\fcharset\d+\s+/, '')
-                            .replace(/\\ltrch\s+/, '')
-                            .trim();
                         
-                        // Solo agregar texto significativo (más de 3 caracteres y no solo números o símbolos)
-                        if (text.length > 3 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(text)) {
-                            mainText += text + '\n';
+                        if (inList) {
+                            html += '</ul>';
                         }
-                    });
-                    
-                    console.log('Texto extraído:', mainText);
-                    
-                    // Extraer título principal
-                    let title = '';
-                    const titleMatch = mainText.match(/Términos y Condiciones de Uso[^\\}]+/i) || 
-                                      rtf.match(/Términos y Condiciones de Uso[^\\}]+/i);
-                    if (titleMatch) {
-                        title = `<h1>${titleMatch[0].trim()}</h1>`;
                     } else {
-                        title = '<h1>Términos y Condiciones de Uso</h1>';
-                    }
-                    
-                    // Extraer información de versión y fecha
-                    let appInfo = '';
-                    const versionMatch = mainText.match(/Versi[óo]n:\s*([^\\}\n]+)/i) || 
-                                        rtf.match(/Versi[óo]n:\s*([^\\}\n]+)/i);
-                    if (versionMatch) {
-                        appInfo += `<p><strong>Versión:</strong> ${versionMatch[1].trim()}</p>`;
-                    }
-                    
-                    const dateMatch = mainText.match(/Actualizado el\s+([^\\}\n)]+)/i) || 
-                                     rtf.match(/Actualizado el\s+([^\\}\n)]+)/i);
-                    if (dateMatch) {
-                        appInfo += `<p><strong>Actualizado:</strong> ${dateMatch[1].trim()}</p>`;
-                    }
-                    
-                    // Extraer secciones numeradas
-                    let content = '';
-                    const sectionRegex = /(\d+)\.\s+([^\\}\n.]+)(?:\.|:)?/g;
-                    let sectionMatch;
-                    
-                    // Buscar secciones numeradas en el texto extraído
-                    while ((sectionMatch = sectionRegex.exec(mainText)) !== null) {
-                        const sectionNum = sectionMatch[1];
-                        const sectionTitle = sectionMatch[2].trim();
-                        
-                        if (sectionTitle.length > 3) {  // Evitar coincidencias falsas
-                            content += `<h2>${sectionNum}. ${sectionTitle}</h2>`;
-                            
-                            // Buscar el contenido de esta sección (texto entre esta sección y la siguiente)
-                            const sectionStart = mainText.indexOf(sectionMatch[0]) + sectionMatch[0].length;
-                            const nextSectionMatch = new RegExp(`${parseInt(sectionNum) + 1}\\.\\s+`, 'i').exec(mainText.substring(sectionStart));
-                            const sectionEnd = nextSectionMatch ? sectionStart + nextSectionMatch.index : mainText.length;
-                            
-                            // Extraer y formatear el contenido de la sección
-                            let sectionContent = mainText.substring(sectionStart, sectionEnd).trim();
-                            if (sectionContent) {
-                                // Dividir en párrafos y formatear
-                                const paragraphs = sectionContent.split(/\n\s*\n/).filter(p => p.trim());
-                                paragraphs.forEach(paragraph => {
-                                    // Detectar si es una lista
-                                    if (paragraph.includes('•') || /^\s*[\-\*]\s+/.test(paragraph)) {
-                                        const items = paragraph.split(/•|\n\s*[\-\*]\s+/).filter(item => item.trim());
-                                        if (items.length > 0) {
-                                            content += '<ul>';
-                                            items.forEach(item => {
-                                                if (item.trim()) {
-                                                    content += `<li>${item.trim()}</li>`;
-                                                }
-                                            });
-                                            content += '</ul>';
-                                        }
-                                    } else {
-                                        content += `<p>${paragraph.trim()}</p>`;
-                                    }
-                                });
-                            }
-                        }
-                    }
-                    
-                    // Si no pudimos extraer secciones estructuradas, usar el texto plano
-                    if (!content) {
-                        // Dividir por líneas y convertir a párrafos
-                        const lines = mainText.split('\n').filter(line => line.trim());
-                        content = lines.map(line => {
-                            // Detectar si es un título
-                            if (/^\d+\.\s+/.test(line)) {
-                                return `<h2>${line.trim()}</h2>`;
-                            }
-                            // Detectar si es un elemento de lista
-                            else if (line.includes('•') || /^\s*[\-\*]\s+/.test(line)) {
-                                return `<li>${line.replace(/^[•\-\*]\s+/, '').trim()}</li>`;
-                            }
-                            // Párrafo normal
-                            else {
-                                return `<p>${line.trim()}</p>`;
-                            }
-                        }).join('');
-                        
-                        // Asegurarse de que las listas estén correctamente formateadas
-                        content = content.replace(/<li>.*?<\/li>/g, match => {
-                            if (!content.includes('<ul>')) {
-                                return '<ul>' + match + '</ul>';
-                            }
-                            return match;
+                        // Procesar contenido normal
+                        const paragraphs = section.content.split('\n\n').filter(p => p.trim());
+                        paragraphs.forEach(paragraph => {
+                            html += `<p>${paragraph.trim()}</p>`;
                         });
                     }
-                    
-                    // Combinar todo
-                    const htmlResult = title + appInfo + content;
-                    console.log('HTML generado:', htmlResult);
-                    return htmlResult;
-                }
-                
-                // Para RTF más simple, usar el enfoque original
-                // Extraer el contenido de texto del RTF
-                let content = rtf;
-                
-                // Eliminar el encabezado RTF
-                content = content.replace(/^{\\rtf1.*?\\par\s*/s, '');
-                
-                // Eliminar el cierre final
-                content = content.replace(/}$/, '');
-                
-                // Manejar códigos de nivel específicos
-                content = content.replace(/\\listlevel.*?\\tx\d+/g, '');
-                content = content.replace(/\\leveltext.*?}/g, '');
-                content = content.replace(/\\levelnumbers.*?}/g, '');
-                content = content.replace(/\\leveljc\d+\\leveljcn\d+/g, '');
-                content = content.replace(/\\levelfollow\d+\\levelstartat\d+/g, '');
-                content = content.replace(/\\levelspace\d+\\levelindent\d+/g, '');
-                content = content.replace(/\\fi-\d+\\li\d+\\lin\d+\\jclisttab/g, '');
-                
-                // Manejar códigos de formato específicos
-                content = content.replace(/\\f\d+\\fcharset\d+/g, '');
-                content = content.replace(/\\ansicpg\d+\\uc\d+\\htmautsp/g, '');
-                content = content.replace(/\\deff\d+/g, '');
-                content = content.replace(/\\red\d+\\green\d+\\blue\d+/g, '');
-                
-                // Extraer secciones de texto significativas
-                const textSections = content.match(/\\ltrch\s+([^\\}]+)/g) || [];
-                if (textSections.length > 0) {
-                    content = textSections.map(section => 
-                        section.replace(/\\ltrch\s+/, '')
-                    ).join('\n');
-                }
-                
-                // Extraer secciones numeradas (como "1. Aceptación de los Términos y Condiciones:")
-                const numberedSections = content.match(/\d+\.\s+[^\\}]+/g) || [];
-                if (numberedSections.length > 0) {
-                    let htmlContent = '';
-                    numberedSections.forEach(section => {
-                        htmlContent += `<h2>${section.trim()}</h2>`;
-                    });
-                    
-                    if (htmlContent) {
-                        // Agregar título principal si lo encontramos
-                        const titleMatch = content.match(/Términos y Condiciones de Uso/);
-                        if (titleMatch) {
-                            htmlContent = `<h1>Términos y Condiciones de Uso (Descargo de Responsabilidad)</h1>` + htmlContent;
-                        }
-                        
-                        return htmlContent;
-                    }
-                }
-                
-                // Si no pudimos extraer secciones estructuradas, intentar con el enfoque general
-                
-                // Convertir códigos RTF básicos a HTML
-                content = content
-                    // Párrafos
-                    .replace(/\\par\s*/g, '</p><p>')
-                    // Negrita
-                    .replace(/{\\b\s+([^}]*)}/g, '<strong>$1</strong>')
-                    // Cursiva
-                    .replace(/{\\i\s+([^}]*)}/g, '<em>$1</em>')
-                    // Subrayado
-                    .replace(/{\\ul\s+([^}]*)}/g, '<u>$1</u>')
-                    // Tamaños de fuente para títulos
-                    .replace(/{\\fs36\\b\s+([^}]*)}/g, '<h1>$1</h1>')
-                    .replace(/{\\fs28\\b\s+([^}]*)}/g, '<h2>$1</h2>')
-                    .replace(/{\\fs24\\b\s+([^}]*)}/g, '<h3>$1</h3>')
-                    // Viñetas
-                    .replace(/\\bullet\s+([^\\]*)(\\par|$)/g, '<li>$1</li>')
-                    // Limpiar caracteres de escape
-                    .replace(/\\\\/g, '\\')
-                    .replace(/\\{/g, '{')
-                    .replace(/\\}/g, '}');
-                
-                // Envolver en párrafos si es necesario
-                if (!content.startsWith('<')) {
-                    content = '<p>' + content;
-                }
-                if (!content.endsWith('>')) {
-                    content += '</p>';
-                }
-                
-                // Asegurarse de que las listas estén correctamente formateadas
-                content = content.replace(/<li>.*?<\/li>/g, match => {
-                    if (!content.includes('<ul>')) {
-                        return '<ul>' + match + '</ul>';
-                    }
-                    return match;
                 });
                 
-                // Limpiar párrafos vacíos y etiquetas mal formadas
-                content = content
-                    .replace(/<p><\/p>/g, '')
-                    .replace(/<p><h([1-6])>/g, '<h$1>')
-                    .replace(/<\/h([1-6])><\/p>/g, '</h$1>')
-                    .replace(/<p><ul>/g, '<ul>')
-                    .replace(/<\/ul><\/p>/g, '</ul>');
-                
-                // Si después de todo el procesamiento no tenemos contenido HTML válido,
-                // crear un HTML básico con el texto extraído
-                if (!content.includes('<')) {
-                    content = content.split('\n')
-                        .filter(line => line.trim())
-                        .map(line => `<p>${line.trim()}</p>`)
-                        .join('');
+                // Pie de página (copyright)
+                const copyrightMatch = rtf.match(/\'a9 2025 Edudigital\. LATAM\. Todos los derechos reservados/);
+                if (copyrightMatch) {
+                    html += '<p class="copyright"><strong>© 2025 Edudigital. LATAM. Todos los derechos reservados.</strong></p>';
                 }
                 
-                console.log('HTML convertido:', content);
-                return content;
+                console.log('HTML generado con éxito');
+                return html;
+                
             } catch (error) {
                 console.error('Error al convertir RTF a HTML:', error);
-                // Crear un HTML básico con el texto del error y un mensaje para el usuario
-                return `
-                    <h1>Términos y Condiciones</h1>
-                    <p>El contenido está en formato RTF. Por favor, edite manualmente para dar formato.</p>
-                    <p><em>Error de conversión: ${error.message}</em></p>
-                `;
+                
+                // Enfoque de respaldo: extraer texto plano y formatearlo básicamente
+                try {
+                    // Extraer texto plano eliminando códigos RTF
+                    let plainText = rtf
+                        .replace(/{\\rtf1.*?\\par/s, '')
+                        .replace(/\\par/g, '\n\n')
+                        .replace(/\\tab/g, '    ')
+                        .replace(/\\bullet/g, '• ')
+                        .replace(/\\\'[0-9a-f]{2}/g, match => {
+                            const hex = match.substring(2);
+                            const charCode = parseInt(hex, 16);
+                            return String.fromCharCode(charCode);
+                        })
+                        .replace(/\\[a-z0-9]+/g, '')
+                        .replace(/\{|\}/g, '')
+                        .replace(/\\\\/g, '\\')
+                        .trim();
+                    
+                    // Convertir a HTML básico
+                    let basicHtml = '<h1>Términos y Condiciones</h1>';
+                    
+                    // Dividir por líneas y formatear
+                    const lines = plainText.split('\n').filter(line => line.trim());
+                    let inList = false;
+                    
+                    lines.forEach(line => {
+                        const trimmedLine = line.trim();
+                        
+                        // Detectar encabezados de sección
+                        if (/^\d+\.\s+[A-Z]/.test(trimmedLine)) {
+                            if (inList) {
+                                basicHtml += '</ul>';
+                                inList = false;
+                            }
+                            basicHtml += `<h2>${trimmedLine}</h2>`;
+                        }
+                        // Detectar elementos de lista
+                        else if (trimmedLine.startsWith('•')) {
+                            if (!inList) {
+                                basicHtml += '<ul>';
+                                inList = true;
+                            }
+                            const itemText = trimmedLine.substring(1).trim();
+                            basicHtml += `<li>${itemText}</li>`;
+                        }
+                        // Párrafos normales
+                        else if (trimmedLine) {
+                            if (inList) {
+                                basicHtml += '</ul>';
+                                inList = false;
+                            }
+                            basicHtml += `<p>${trimmedLine}</p>`;
+                        }
+                    });
+                    
+                    if (inList) {
+                        basicHtml += '</ul>';
+                    }
+                    
+                    console.log('HTML básico generado como respaldo');
+                    return basicHtml;
+                    
+                } catch (backupError) {
+                    console.error('Error en el método de respaldo:', backupError);
+                    return `
+                        <h1>Términos y Condiciones</h1>
+                        <p>No se pudo procesar el contenido RTF. Por favor, contacte al administrador.</p>
+                        <p><em>Error: ${error.message}</em></p>
+                    `;
+                }
             }
         }
         
