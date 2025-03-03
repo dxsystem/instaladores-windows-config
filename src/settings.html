@@ -66,6 +66,52 @@
             min-height: 300px;
             resize: vertical;
         }
+        
+        /* Estilos para la vista previa estilo WhatsApp */
+        .whatsapp-style {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+            color: #303030;
+        }
+        
+        .whatsapp-style strong {
+            font-weight: 600;
+        }
+        
+        .whatsapp-style em {
+            font-style: italic;
+        }
+        
+        .whatsapp-style del {
+            text-decoration: line-through;
+        }
+        
+        .whatsapp-style code {
+            font-family: monospace;
+            background-color: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        
+        .whatsapp-style a {
+            color: #0078d4;
+            text-decoration: none;
+        }
+        
+        .whatsapp-style a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Estilos para emojis y viñetas */
+        .whatsapp-style ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        
+        .whatsapp-style li {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -200,7 +246,8 @@
                             </div>
                             <div class="mb-3">
                                 <label for="courseDescription" class="form-label">Descripción del Curso</label>
-                                <textarea class="form-control" id="courseDescription" rows="3" required></textarea>
+                                <textarea class="form-control" id="courseDescription" rows="6" required></textarea>
+                                <div class="form-text">Puedes usar formatos como *negrita*, _cursiva_, ~tachado~, ```código```, y URLs que se convertirán en enlaces.</div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
@@ -224,7 +271,7 @@
                                         <div class="ratio ratio-16x9 mb-3">
                                             <iframe id="courseVideoPreview" src="" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                                         </div>
-                                        <div id="courseDescriptionPreview" class="mb-3">Descripción del curso...</div>
+                                        <div id="courseDescriptionPreview" class="mb-3 whatsapp-style" style="white-space: pre-wrap; border: 1px solid #e9ecef; border-radius: 0.25rem; padding: 10px; background-color: #f8f9fa; max-height: 300px; overflow-y: auto;">Descripción del curso...</div>
                                         <div class="d-flex gap-2">
                                             <a href="#" id="paymentUrlPreview" class="btn btn-primary" target="_blank">
                                                 <i class="bi bi-credit-card me-1"></i> Pagar con Tarjeta
@@ -958,7 +1005,27 @@
         // Actualizar vista previa del curso
         function updateCoursePreview() {
             courseTitlePreview.textContent = courseTitle.value || 'Título del Curso';
-            courseDescriptionPreview.innerHTML = courseDescription.value || 'Descripción del curso...';
+            
+            // Formatear el texto como en WhatsApp
+            let formattedText = courseDescription.value || 'Descripción del curso...';
+            
+            // Convertir formatos de WhatsApp a HTML
+            formattedText = formattedText
+                // Negrita: *texto* -> <strong>texto</strong>
+                .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+                // Cursiva: _texto_ -> <em>texto</em>
+                .replace(/\_([^_]+)\_/g, '<em>$1</em>')
+                // Tachado: ~texto~ -> <del>texto</del>
+                .replace(/\~([^~]+)\~/g, '<del>$1</del>')
+                // Código: ```texto``` -> <code>texto</code>
+                .replace(/\`\`\`([^`]+)\`\`\`/g, '<code style="background-color: #e9ecef; padding: 2px 4px; border-radius: 3px;">$1</code>')
+                // URLs: convertir en enlaces clicables
+                .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #0078d4;">$1</a>')
+                // Emojis: mantener como están
+                // Saltos de línea: preservar
+                .replace(/\n/g, '<br>');
+            
+            courseDescriptionPreview.innerHTML = formattedText;
             
             // Actualizar video
             const embedUrl = convertToEmbedUrl(courseVideoUrl.value);
