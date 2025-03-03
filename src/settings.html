@@ -287,12 +287,28 @@
                         <form id="termsForm">
                             <div class="mb-3">
                                 <label for="termsEditor" class="form-label">Contenido de los Términos y Condiciones</label>
-                                <div id="termsEditorContainer">
-                                    <textarea class="form-control" id="termsEditor" rows="15"></textarea>
+                                <div id="termsEditorContainer" class="border rounded p-2">
+                                    <div class="btn-toolbar mb-2" role="toolbar">
+                                        <div class="btn-group me-2" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="boldBtn" title="Negrita"><i class="bi bi-type-bold"></i></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="italicBtn" title="Cursiva"><i class="bi bi-type-italic"></i></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="underlineBtn" title="Subrayado"><i class="bi bi-type-underline"></i></button>
+                                        </div>
+                                        <div class="btn-group me-2" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="h1Btn" title="Título 1">H1</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="h2Btn" title="Título 2">H2</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="h3Btn" title="Título 3">H3</button>
+                                        </div>
+                                        <div class="btn-group me-2" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="ulBtn" title="Lista con viñetas"><i class="bi bi-list-ul"></i></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="olBtn" title="Lista numerada"><i class="bi bi-list-ol"></i></button>
+                                        </div>
+                                    </div>
+                                    <div contenteditable="true" id="termsEditor" class="form-control" style="min-height: 300px; max-height: 500px; overflow-y: auto;"></div>
                                 </div>
                                 <div class="form-text mt-2">
                                     <i class="bi bi-info-circle me-1"></i>
-                                    Usa el editor para dar formato al texto. También puedes usar formato RTF para compatibilidad con la aplicación de escritorio.
+                                    Usa los controles de formato para dar estilo al texto. El contenido se guardará en formato RTF para compatibilidad con la aplicación de escritorio.
                                 </div>
                                 <div class="form-text mt-2">
                                     <i class="bi bi-clock-history me-1"></i>
@@ -321,7 +337,6 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
-    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <script src="js/sharepoint-auth.js"></script>
     <script src="js/sharepoint-graph.js"></script>
     
@@ -329,7 +344,6 @@
         // Variables globales
         let auth, spGraph;
         let appSettings = null;
-        let tinyMCEEditor = null;
         
         // Referencias DOM
         const loadingState = document.getElementById('loadingState');
@@ -367,56 +381,131 @@
         const lastModifiedDate = document.getElementById('lastModifiedDate');
         const termsPreview = document.getElementById('termsPreview');
         
-        // Inicializar TinyMCE
-        function initTinyMCE() {
-            tinymce.init({
-                selector: '#termsEditor',
-                height: 400,
-                menubar: true,
-                plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                    'insertdatetime', 'media', 'table', 'help', 'wordcount'
-                ],
-                toolbar: 'undo redo | formatselect | ' +
-                    'bold italic backcolor | alignleft aligncenter ' +
-                    'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'removeformat | help',
-                content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px }',
-                setup: function(editor) {
-                    tinyMCEEditor = editor;
-                    editor.on('Change', function(e) {
-                        updateTermsPreview();
-                    });
-                }
-            });
+        // Referencias DOM - Botones de formato
+        const boldBtn = document.getElementById('boldBtn');
+        const italicBtn = document.getElementById('italicBtn');
+        const underlineBtn = document.getElementById('underlineBtn');
+        const h1Btn = document.getElementById('h1Btn');
+        const h2Btn = document.getElementById('h2Btn');
+        const h3Btn = document.getElementById('h3Btn');
+        const ulBtn = document.getElementById('ulBtn');
+        const olBtn = document.getElementById('olBtn');
+        
+        // Inicializar editor básico
+        function initBasicEditor() {
+            // Configurar botones de formato
+            boldBtn.addEventListener('click', () => execFormatCommand('bold'));
+            italicBtn.addEventListener('click', () => execFormatCommand('italic'));
+            underlineBtn.addEventListener('click', () => execFormatCommand('underline'));
+            h1Btn.addEventListener('click', () => execFormatCommand('formatBlock', '<h1>'));
+            h2Btn.addEventListener('click', () => execFormatCommand('formatBlock', '<h2>'));
+            h3Btn.addEventListener('click', () => execFormatCommand('formatBlock', '<h3>'));
+            ulBtn.addEventListener('click', () => execFormatCommand('insertUnorderedList'));
+            olBtn.addEventListener('click', () => execFormatCommand('insertOrderedList'));
+            
+            // Actualizar vista previa cuando cambie el contenido
+            termsEditor.addEventListener('input', updateTermsPreview);
         }
         
-        // Convertir HTML a RTF
+        // Ejecutar comando de formato
+        function execFormatCommand(command, value = null) {
+            document.execCommand(command, false, value);
+            termsEditor.focus();
+            updateTermsPreview();
+        }
+        
+        // Convertir HTML a RTF mejorado
         function htmlToRtf(html) {
-            // Esta es una conversión muy básica, para una implementación completa
-            // se necesitaría una biblioteca de conversión HTML a RTF
-            let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}{\\colortbl\\red0\\green0\\blue0;\\red255\\green255\\blue255;} {\\*\\listtable {\\list\\listtemplateid1\\listhybrid {\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'01\\\'b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\'02\\\'01.;}{\\levelnumbers\\\'01;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid7\\\'02\\\'02.;}{\\levelnumbers\\\'01;}\\fi-360\\li2160\\lin2160\\jclisttab\\tx2160} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid8\\\'02\\\'03.;}{\\levelnumbers\\\'01;}\\fi-360\\li2880\\lin2880\\jclisttab\\tx2880}\n\n';
+            // Encabezado RTF básico
+            let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}{\\colortbl\\red0\\green0\\blue0;\\red255\\green255\\blue255;} {\\*\\listtable {\\list\\listtemplateid1\\listhybrid {\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'01\\\'b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\'02\\\'01.;}{\\levelnumbers\\\'01;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid7\\\'02\\\'02.;}{\\levelnumbers\\\'01;}\\fi-360\\li2160\\lin2160\\jclisttab\\tx2160} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid8\\\'02\\\'03.;}{\\levelnumbers\\\'01;}\\fi-360\\li2880\\lin2880\\jclisttab\\tx2880}}}\n\n';
             
-            // Convertir etiquetas HTML básicas a RTF
-            let content = html.replace(/<p>(.*?)<\/p>/g, '$1\\par\n')
-                             .replace(/<strong>(.*?)<\/strong>/g, '{\\b $1}')
-                             .replace(/<b>(.*?)<\/b>/g, '{\\b $1}')
-                             .replace(/<em>(.*?)<\/em>/g, '{\\i $1}')
-                             .replace(/<i>(.*?)<\/i>/g, '{\\i $1}')
-                             .replace(/<u>(.*?)<\/u>/g, '{\\ul $1}')
-                             .replace(/<h1>(.*?)<\/h1>/g, '{\\fs36 $1}\\par\n')
-                             .replace(/<h2>(.*?)<\/h2>/g, '{\\fs28 $1}\\par\n')
-                             .replace(/<h3>(.*?)<\/h3>/g, '{\\fs24 $1}\\par\n')
-                             .replace(/<li>(.*?)<\/li>/g, '\\bullet $1\\par\n')
-                             .replace(/<br\s*\/?>/g, '\\par\n')
-                             .replace(/&nbsp;/g, ' ')
-                             .replace(/&lt;/g, '<')
-                             .replace(/&gt;/g, '>')
-                             .replace(/&amp;/g, '&');
+            // Crear un elemento temporal para procesar el HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
             
-            // Eliminar todas las demás etiquetas HTML
-            content = content.replace(/<[^>]*>/g, '');
+            // Función recursiva para procesar nodos
+            function processNode(node, rtfContent = '') {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    // Escapar caracteres especiales de RTF
+                    return node.textContent
+                        .replace(/\\/g, '\\\\')
+                        .replace(/\{/g, '\\{')
+                        .replace(/\}/g, '\\}')
+                        .replace(/\n/g, '\\par\n');
+                }
+                
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    let content = '';
+                    let prefix = '';
+                    let suffix = '';
+                    
+                    // Aplicar formato según el tipo de elemento
+                    switch (node.nodeName.toLowerCase()) {
+                        case 'b':
+                        case 'strong':
+                            prefix = '{\\b ';
+                            suffix = '}';
+                            break;
+                        case 'i':
+                        case 'em':
+                            prefix = '{\\i ';
+                            suffix = '}';
+                            break;
+                        case 'u':
+                            prefix = '{\\ul ';
+                            suffix = '}';
+                            break;
+                        case 'h1':
+                            prefix = '{\\fs36\\b ';
+                            suffix = '}\\par\n';
+                            break;
+                        case 'h2':
+                            prefix = '{\\fs28\\b ';
+                            suffix = '}\\par\n';
+                            break;
+                        case 'h3':
+                            prefix = '{\\fs24\\b ';
+                            suffix = '}\\par\n';
+                            break;
+                        case 'p':
+                            suffix = '\\par\n';
+                            break;
+                        case 'br':
+                            return '\\par\n';
+                        case 'ul':
+                        case 'ol':
+                            // No añadir prefijo/sufijo especial, se maneja en los elementos li
+                            break;
+                        case 'li':
+                            prefix = '\\bullet ';
+                            suffix = '\\par\n';
+                            break;
+                        default:
+                            // Para otros elementos, solo procesar su contenido
+                            break;
+                    }
+                    
+                    // Procesar nodos hijos
+                    for (const child of node.childNodes) {
+                        content += processNode(child);
+                    }
+                    
+                    return prefix + content + suffix;
+                }
+                
+                return '';
+            }
+            
+            // Procesar el contenido HTML
+            let content = '';
+            for (const child of tempDiv.childNodes) {
+                content += processNode(child);
+            }
+            
+            // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
+            if (!content.trim()) {
+                content = '\\par\n';
+            }
             
             rtf += content + '}';
             return rtf;
@@ -424,10 +513,7 @@
         
         // Actualizar vista previa de términos y condiciones
         function updateTermsPreview() {
-            if (tinyMCEEditor) {
-                const htmlContent = tinyMCEEditor.getContent();
-                termsPreview.innerHTML = htmlContent || 'No hay términos y condiciones definidos.';
-            }
+            termsPreview.innerHTML = termsEditor.innerHTML || 'No hay términos y condiciones definidos.';
         }
         
         // Guardar configuración
@@ -437,7 +523,7 @@
                 updateProgress(0, 'Preparando configuración...');
                 
                 // Obtener contenido del editor
-                const htmlContent = tinyMCEEditor ? tinyMCEEditor.getContent() : termsEditor.value;
+                const htmlContent = termsEditor.innerHTML;
                 
                 // Convertir a RTF para compatibilidad con la aplicación de escritorio
                 const rtfContent = htmlToRtf(htmlContent);
@@ -536,13 +622,13 @@
                 // Actualizar formulario de términos
                 if (appSettings.TermsAndConditions) {
                     // Preferir el contenido HTML si está disponible
-                    const content = appSettings.TermsAndConditions.HtmlContent || appSettings.TermsAndConditions.Content || '';
+                    const content = appSettings.TermsAndConditions.HtmlContent || '';
                     
-                    // Actualizar el editor
-                    if (tinyMCEEditor) {
-                        tinyMCEEditor.setContent(content);
+                    // Si no hay contenido HTML pero hay RTF, mostrar un mensaje informativo
+                    if (!content && appSettings.TermsAndConditions.Content) {
+                        termsEditor.innerHTML = '<p>El contenido está en formato RTF. Edítelo para convertirlo a HTML.</p>';
                     } else {
-                        termsEditor.value = content;
+                        termsEditor.innerHTML = content;
                     }
                     
                     if (appSettings.TermsAndConditions.LastModified) {
@@ -688,8 +774,8 @@
             try {
                 console.log("Inicializando la aplicación...");
                 
-                // Inicializar TinyMCE
-                initTinyMCE();
+                // Inicializar editor básico
+                initBasicEditor();
                 
                 // Inicializar autenticación
                 auth = new SharePointAuth();
