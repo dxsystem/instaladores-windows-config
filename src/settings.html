@@ -73,7 +73,7 @@
     <nav class="navbar navbar-expand-lg navbar-custom">
         <div class="container-fluid">
             <a class="navbar-brand" href="login.html">
-                <i class="bi bi-windows me-2"></i>
+                <img src="InstallWin#.svg" alt="InstallWin#" height="30" class="me-2">
                 InstallWin#
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -82,16 +82,28 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="login.html">Inicio</a>
+                        <a class="nav-link" href="login.html">
+                            <i class="bi bi-house-fill me-2 text-white"></i>
+                            Inicio
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="users.html">Usuarios</a>
+                        <a class="nav-link" href="users.html">
+                            <i class="bi bi-people-fill me-2 text-white"></i>
+                            Usuarios
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="apps.html">Aplicaciones</a>
+                        <a class="nav-link" href="apps.html">
+                            <i class="bi bi-microsoft me-2 text-white"></i>
+                            Aplicaciones
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="settings.html">Configuración</a>
+                        <a class="nav-link active" href="settings.html">
+                            <i class="bi bi-gear me-2 text-white"></i>
+                            Configuración
+                        </a>
                     </li>
                 </ul>
                 <div class="d-flex">
@@ -528,58 +540,137 @@
                 
                 // Detectar si es un formato RTF específico de la aplicación de escritorio
                 if (rtf.includes('\\listlevel\\levelnfc') || rtf.includes('\\leveltext\\leveltemplateid')) {
-                    // Este es un formato RTF más complejo, intentar extraer el texto plano primero
-                    let plainText = '';
+                    console.log('Detectado formato RTF específico de la aplicación de escritorio');
                     
-                    // Extraer secciones de texto significativas
-                    const sections = rtf.match(/\\ltrch\s+([^\\}]+)/g) || [];
-                    sections.forEach(section => {
-                        plainText += section.replace(/\\ltrch\s+/, '') + '\n';
+                    // Extraer el texto principal del RTF
+                    let mainText = '';
+                    
+                    // Buscar secciones de texto significativas
+                    const textMatches = rtf.match(/\\f\d+\\fcharset\d+\s+([^\\{}]+)/g) || [];
+                    const ltrchMatches = rtf.match(/\\ltrch\s+([^\\{}]+)/g) || [];
+                    const plainTextMatches = rtf.match(/[^\\{}]+/g) || [];
+                    
+                    // Combinar todas las coincidencias de texto
+                    const allTextMatches = [...textMatches, ...ltrchMatches, ...plainTextMatches];
+                    
+                    // Filtrar y limpiar el texto extraído
+                    allTextMatches.forEach(match => {
+                        let text = match
+                            .replace(/\\f\d+\\fcharset\d+\s+/, '')
+                            .replace(/\\ltrch\s+/, '')
+                            .trim();
+                        
+                        // Solo agregar texto significativo (más de 3 caracteres y no solo números o símbolos)
+                        if (text.length > 3 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(text)) {
+                            mainText += text + '\n';
+                        }
                     });
                     
-                    // Si encontramos secciones de texto, procesarlas
-                    if (plainText.trim()) {
-                        console.log('Texto extraído de RTF complejo:', plainText);
-                        
-                        // Extraer información de versión y fecha
-                        let appInfo = '';
-                        const versionMatch = rtf.match(/Versi[óo]n:\s*([^\\}]+)/);
-                        if (versionMatch) {
-                            appInfo += `<p><strong>Versión:</strong> ${versionMatch[1].trim()}</p>`;
-                        }
-                        
-                        const dateMatch = rtf.match(/\(Actualizado el ([^)]+)\)/);
-                        if (dateMatch) {
-                            appInfo += `<p><strong>Actualizado:</strong> ${dateMatch[1].trim()}</p>`;
-                        }
-                        
-                        // Extraer título principal
-                        let title = '';
-                        const titleMatch = rtf.match(/Términos y Condiciones de Uso \(Descargo de Responsabilidad\)[^\\}]+/);
-                        if (titleMatch) {
-                            title = `<h1>${titleMatch[0].trim()}</h1>`;
-                        }
-                        
-                        // Extraer secciones numeradas
-                        let content = '';
-                        const sections = rtf.match(/\d+\.\s+[^\\}]+/g) || [];
-                        sections.forEach(section => {
-                            const sectionTitle = section.trim();
-                            content += `<h2>${sectionTitle}</h2>`;
-                        });
-                        
-                        // Si no pudimos extraer secciones estructuradas, usar el texto plano
-                        if (!content) {
-                            // Dividir por líneas y convertir a párrafos
-                            const lines = plainText.split('\n').filter(line => line.trim());
-                            content = lines.map(line => `<p>${line.trim()}</p>`).join('');
-                        }
-                        
-                        // Combinar todo
-                        return title + appInfo + content;
+                    console.log('Texto extraído:', mainText);
+                    
+                    // Extraer título principal
+                    let title = '';
+                    const titleMatch = mainText.match(/Términos y Condiciones de Uso[^\\}]+/i) || 
+                                      rtf.match(/Términos y Condiciones de Uso[^\\}]+/i);
+                    if (titleMatch) {
+                        title = `<h1>${titleMatch[0].trim()}</h1>`;
+                    } else {
+                        title = '<h1>Términos y Condiciones de Uso</h1>';
                     }
+                    
+                    // Extraer información de versión y fecha
+                    let appInfo = '';
+                    const versionMatch = mainText.match(/Versi[óo]n:\s*([^\\}\n]+)/i) || 
+                                        rtf.match(/Versi[óo]n:\s*([^\\}\n]+)/i);
+                    if (versionMatch) {
+                        appInfo += `<p><strong>Versión:</strong> ${versionMatch[1].trim()}</p>`;
+                    }
+                    
+                    const dateMatch = mainText.match(/Actualizado el\s+([^\\}\n)]+)/i) || 
+                                     rtf.match(/Actualizado el\s+([^\\}\n)]+)/i);
+                    if (dateMatch) {
+                        appInfo += `<p><strong>Actualizado:</strong> ${dateMatch[1].trim()}</p>`;
+                    }
+                    
+                    // Extraer secciones numeradas
+                    let content = '';
+                    const sectionRegex = /(\d+)\.\s+([^\\}\n.]+)(?:\.|:)?/g;
+                    let sectionMatch;
+                    
+                    // Buscar secciones numeradas en el texto extraído
+                    while ((sectionMatch = sectionRegex.exec(mainText)) !== null) {
+                        const sectionNum = sectionMatch[1];
+                        const sectionTitle = sectionMatch[2].trim();
+                        
+                        if (sectionTitle.length > 3) {  // Evitar coincidencias falsas
+                            content += `<h2>${sectionNum}. ${sectionTitle}</h2>`;
+                            
+                            // Buscar el contenido de esta sección (texto entre esta sección y la siguiente)
+                            const sectionStart = mainText.indexOf(sectionMatch[0]) + sectionMatch[0].length;
+                            const nextSectionMatch = new RegExp(`${parseInt(sectionNum) + 1}\\.\\s+`, 'i').exec(mainText.substring(sectionStart));
+                            const sectionEnd = nextSectionMatch ? sectionStart + nextSectionMatch.index : mainText.length;
+                            
+                            // Extraer y formatear el contenido de la sección
+                            let sectionContent = mainText.substring(sectionStart, sectionEnd).trim();
+                            if (sectionContent) {
+                                // Dividir en párrafos y formatear
+                                const paragraphs = sectionContent.split(/\n\s*\n/).filter(p => p.trim());
+                                paragraphs.forEach(paragraph => {
+                                    // Detectar si es una lista
+                                    if (paragraph.includes('•') || /^\s*[\-\*]\s+/.test(paragraph)) {
+                                        const items = paragraph.split(/•|\n\s*[\-\*]\s+/).filter(item => item.trim());
+                                        if (items.length > 0) {
+                                            content += '<ul>';
+                                            items.forEach(item => {
+                                                if (item.trim()) {
+                                                    content += `<li>${item.trim()}</li>`;
+                                                }
+                                            });
+                                            content += '</ul>';
+                                        }
+                                    } else {
+                                        content += `<p>${paragraph.trim()}</p>`;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Si no pudimos extraer secciones estructuradas, usar el texto plano
+                    if (!content) {
+                        // Dividir por líneas y convertir a párrafos
+                        const lines = mainText.split('\n').filter(line => line.trim());
+                        content = lines.map(line => {
+                            // Detectar si es un título
+                            if (/^\d+\.\s+/.test(line)) {
+                                return `<h2>${line.trim()}</h2>`;
+                            }
+                            // Detectar si es un elemento de lista
+                            else if (line.includes('•') || /^\s*[\-\*]\s+/.test(line)) {
+                                return `<li>${line.replace(/^[•\-\*]\s+/, '').trim()}</li>`;
+                            }
+                            // Párrafo normal
+                            else {
+                                return `<p>${line.trim()}</p>`;
+                            }
+                        }).join('');
+                        
+                        // Asegurarse de que las listas estén correctamente formateadas
+                        content = content.replace(/<li>.*?<\/li>/g, match => {
+                            if (!content.includes('<ul>')) {
+                                return '<ul>' + match + '</ul>';
+                            }
+                            return match;
+                        });
+                    }
+                    
+                    // Combinar todo
+                    const htmlResult = title + appInfo + content;
+                    console.log('HTML generado:', htmlResult);
+                    return htmlResult;
                 }
                 
+                // Para RTF más simple, usar el enfoque original
                 // Extraer el contenido de texto del RTF
                 let content = rtf;
                 
