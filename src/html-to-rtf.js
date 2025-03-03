@@ -37,8 +37,8 @@ function htmlToRtf(html) {
     const elementsToRemove = tempDiv.querySelectorAll('style, script, head');
     elementsToRemove.forEach(el => el.remove());
     
-    // Añadir el título principal en negrita
-    let content = '\\b\\fs28 Términos y Condiciones - Instaladores de Windows Online C#\\b0\\par\\pard\\sa0\\sb0\\ql\\fs22\\par';
+    // Añadir el título principal en negrita (usando el subtítulo correcto)
+    let content = '\\b\\fs28 Términos y Condiciones - Instaladores de Windows Online C#\\b0\\par';
     
     // Función recursiva para procesar nodos
     function processNode(node, inList = false) {
@@ -65,12 +65,12 @@ function htmlToRtf(html) {
                     }
                     // Otros títulos h1
                     prefix = '\\pard\\qc\\b\\fs28 ';
-                    suffix = '\\b0\\par\\pard\\ql\\fs22';
+                    suffix = '\\b0\\par';
                     break;
                 case 'h2':
                     // Subtítulos alineados a la izquierda en color blanco
                     prefix = '\\pard\\ql\\b\\fs24 ';
-                    suffix = '\\b0\\par\\pard\\ql\\fs22';
+                    suffix = '\\b0\\par';
                     break;
                 case 'p':
                     if (node.className === 'bold') {
@@ -105,7 +105,7 @@ function htmlToRtf(html) {
                     suffix = '\\ulnone ';
                     break;
                 case 'br':
-                    return '\\line ';
+                    return '\\line';
                 case 'ul':
                     // No añadir prefijo/sufijo especial para ul, se maneja en los elementos li
                     break;
@@ -166,8 +166,13 @@ function fixRtfContent(content) {
     content = content.replace(/\\par\s*\\par+/g, '\\par');
     
     // Eliminar secuencias problemáticas que causan la "d" al inicio de líneas
-    content = content.replace(/\\par\\pard/g, '\\par \\pard');
-    content = content.replace(/\\line\s*\\line/g, '\\line ');
+    content = content.replace(/\\par\\pard/g, '\\par\\pard');
+    
+    // Eliminar espacios después de \line
+    content = content.replace(/\\line\s+/g, '\\line');
+    
+    // Eliminar secuencias de \line consecutivas
+    content = content.replace(/\\line\\line+/g, '\\line');
     
     // Corregir viñetas
     content = content.replace(/\\bullet/g, '\\\'95');
@@ -175,14 +180,14 @@ function fixRtfContent(content) {
     // Eliminar espacios extra antes de \par
     content = content.replace(/\s+\\par/g, '\\par');
     
-    // Eliminar secuencias de \line consecutivas
-    content = content.replace(/\\line\s*\\line+/g, '\\line ');
-    
     // Eliminar espacios al inicio de párrafos
-    content = content.replace(/\\par\s+/g, '\\par ');
+    content = content.replace(/\\par\s+/g, '\\par');
     
-    // Asegurar que no haya espacios extra entre comandos RTF
-    content = content.replace(/\\([a-z0-9]+)\s+\\([a-z0-9]+)/g, '\\$1\\$2');
+    // Eliminar espacios después de comandos RTF
+    content = content.replace(/\\([a-z0-9]+)\s+/g, '\\$1 ');
+    
+    // Eliminar espacios duplicados
+    content = content.replace(/\s{2,}/g, ' ');
     
     return content;
 }
@@ -196,9 +201,9 @@ function escapeRtf(text) {
         '\\': '\\\\',
         '{': '\\{',
         '}': '\\}',
-        '\n': '\\line ',
+        '\n': '\\line',
         '\r': '',
-        '\t': '\\tab ',
+        '\t': '\\tab',
         'á': '\\\'e1',
         'é': '\\\'e9',
         'í': '\\\'ed',
@@ -237,6 +242,9 @@ function escapeRtf(text) {
         const char = text[i];
         result += charMap[char] || char;
     }
+    
+    // Eliminar espacios duplicados
+    result = result.replace(/\s{2,}/g, ' ');
     
     return result;
 } 
