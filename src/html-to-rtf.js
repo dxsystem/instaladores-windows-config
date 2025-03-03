@@ -24,7 +24,7 @@ function htmlToRtf(html) {
     // Agregar tabla de listas para soportar listas con viñetas
     rtf += '\r\n{\\*\\listtable\r\n';
     rtf += '{\\list\\listtemplateid1\\listhybrid\r\n';
-    rtf += '{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\u0027b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720}\r\n';
+    rtf += '{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'95}{\\levelnumbers;}\\f1\\fs22\\cf4\\dbch\\af0\\loch\\f0\\hich\\f0\\fi-360\\li720\\lin720\\jclisttab\\tx720}\r\n';
     rtf += '{\\listname ;}\\listid1}}\r\n';
     rtf += '{\\*\\listoverridetable\r\n';
     rtf += '{\\listoverride\\listid1\\listoverridecount0\\ls1}\r\n';
@@ -42,14 +42,10 @@ function htmlToRtf(html) {
     const elementsToRemove = tempDiv.querySelectorAll('style, script, head');
     elementsToRemove.forEach(el => el.remove());
     
-    // Eliminar el título principal si existe
-    const titles = tempDiv.querySelectorAll('h1');
-    titles.forEach(title => {
-        if (title.textContent.includes('Términos y Condiciones') && 
-            title.textContent.includes('Instaladores de Windows')) {
-            title.remove();
-        }
-    });
+    // Ya no eliminamos el título principal
+    
+    // Añadir el título principal en negrita
+    let content = '{\\pard\\sa20\\sb20\\qc\\b\\f0\\fs28\\cf4 Términos y Condiciones - Instaladores de Windows Online C#\\par}\r\n';
     
     // Función recursiva para procesar nodos
     function processNode(node, inList = false) {
@@ -59,7 +55,7 @@ function htmlToRtf(html) {
         }
         
         if (node.nodeType === Node.ELEMENT_NODE) {
-            let content = '';
+            let nodeContent = '';
             let prefix = '';
             let suffix = '';
             
@@ -69,27 +65,27 @@ function htmlToRtf(html) {
                     // Procesar directamente el contenido del body
                     break;
                 case 'h1':
-                    // Verificar si es el título principal que queremos eliminar
+                    // Omitir el título principal ya que lo añadimos manualmente
                     if (node.textContent.includes('Términos y Condiciones') && 
                         node.textContent.includes('Instaladores de Windows')) {
-                        return ''; // Omitir este título
+                        return '';
                     }
-                    // Título centrado en color blanco con menos espacio
-                    prefix = '{\\pard\\sa10\\sl220\\slmult0\\qc\\b\\f0\\fs28\\cf4 ';
-                    suffix = '\\par}';
+                    // Otros títulos h1
+                    prefix = '{\\pard\\sa20\\sb10\\qc\\b\\f0\\fs28\\cf4 ';
+                    suffix = '\\par}\r\n';
                     break;
                 case 'h2':
-                    // Subtítulos alineados a la izquierda en color blanco con menos espacio
-                    prefix = '{\\pard\\sa10\\sl220\\slmult0\\ql\\b\\f0\\fs24\\cf4 ';
-                    suffix = '\\par}';
+                    // Subtítulos alineados a la izquierda en color blanco
+                    prefix = '{\\pard\\sa10\\sb10\\ql\\b\\f0\\fs24\\cf4 ';
+                    suffix = '\\par}\r\n';
                     break;
                 case 'p':
                     if (node.className === 'bold') {
-                        prefix = '{\\pard\\sa0\\sl220\\slmult0\\ql\\b\\f0\\fs22\\cf4 ';
-                        suffix = '\\par}';
+                        prefix = '{\\pard\\sa10\\sb0\\ql\\b\\f0\\fs22\\cf4 ';
+                        suffix = '\\par}\r\n';
                     } else {
-                        prefix = '{\\pard\\sa0\\sl220\\slmult0\\ql\\f0\\fs22\\cf4 ';
-                        suffix = '\\par}';
+                        prefix = '{\\pard\\sa10\\sb0\\ql\\f0\\fs22\\cf4 ';
+                        suffix = '\\par}\r\n';
                     }
                     break;
                 case 'span':
@@ -116,14 +112,14 @@ function htmlToRtf(html) {
                     suffix = '}';
                     break;
                 case 'br':
-                    return ' '; // Reemplazar <br> con espacio en lugar de salto de línea
+                    return '\\line ';
                 case 'ul':
-                    prefix = '{\\pard\\sa0\\sb0\\f0\\fs22\\cf4 ';
-                    suffix = '\\par}';
+                    // No añadir prefijo/sufijo especial para ul, se maneja en los elementos li
                     break;
                 case 'li':
-                    prefix = '{\\pard\\fi-360\\li720\\sa0\\sl220\\slmult0\\ql\\tx720{\\*\\pn\\pnlvlblt\\pnf1\\pnindent360{\\pntxtb\\bullet}}\\f0\\fs22\\cf4 ';
-                    suffix = '\\par}';
+                    // Mejorar el formato de las viñetas
+                    prefix = '{\\pard\\fi-360\\li720\\sa5\\sb0\\ql\\ls1\\ilvl0\\f0\\fs22\\cf4 ';
+                    suffix = '\\par}\r\n';
                     break;
                 case 'a':
                     // Para enlaces, usar color azul
@@ -137,44 +133,56 @@ function htmlToRtf(html) {
             
             // Procesar nodos hijos
             for (const child of node.childNodes) {
-                content += processNode(child, node.nodeName.toLowerCase() === 'ul');
+                nodeContent += processNode(child, node.nodeName.toLowerCase() === 'ul');
             }
             
-            return prefix + content + suffix;
+            return prefix + nodeContent + suffix;
         }
         
         return '';
     }
     
-    // Procesar el contenido HTML
-    let content = '';
+    // Procesar el contenido HTML (excepto el título principal que ya añadimos)
     for (const child of tempDiv.childNodes) {
+        // Omitir el título principal si ya está en el contenido
+        if (child.nodeType === Node.ELEMENT_NODE && 
+            child.nodeName.toLowerCase() === 'h1' && 
+            child.textContent.includes('Términos y Condiciones') && 
+            child.textContent.includes('Instaladores de Windows')) {
+            continue;
+        }
         content += processNode(child);
     }
     
     // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
     if (!content.trim()) {
-        content = '{\\pard\\sa0\\sl220\\slmult0\\ql\\f0\\fs22\\cf4 \\par}';
+        content = '{\\pard\\sa0\\ql\\f0\\fs22\\cf4 \\par}';
     }
     
-    // Procesar el contenido para asegurar que solo haya un salto de línea después de cada punto
-    content = processParagraphBreaks(content);
+    // Procesar el contenido para corregir problemas específicos
+    content = fixRtfContent(content);
     
     // Finalizar el RTF
     rtf += content + '}';
     return rtf;
 }
 
-// Función para procesar los saltos de párrafo y asegurar que solo haya uno después de cada punto
-function processParagraphBreaks(content) {
-    // Reemplazar múltiples \par seguidos por un solo \par
+// Función para corregir problemas específicos en el contenido RTF
+function fixRtfContent(content) {
+    // Corregir múltiples saltos de párrafo
     content = content.replace(/\\par\s*\\par+/g, '\\par');
     
     // Asegurar que haya un salto de línea después de cada punto que termina una oración
     content = content.replace(/\.\s*\\par\}/g, '.\\par}');
     
-    // Eliminar saltos de línea innecesarios
-    content = content.replace(/\\par\}\s*\{\\pard/g, '\\par}{\\pard');
+    // Eliminar caracteres extraños al inicio de líneas (como la 'd')
+    content = content.replace(/\\par\}\r?\n([a-z])/gi, '\\par}\r\n');
+    
+    // Corregir viñetas
+    content = content.replace(/\\bullet/g, '\\\'95');
+    
+    // Asegurar que no haya espacios extra entre elementos
+    content = content.replace(/\s+\\par/g, '\\par');
     
     return content;
 }
@@ -188,7 +196,7 @@ function escapeRtf(text) {
         '\\': '\\\\',
         '{': '\\{',
         '}': '\\}',
-        '\n': ' ', // Reemplazar saltos de línea con espacios
+        '\n': '\\line ',
         '\r': '',
         '\t': '\\tab ',
         'á': '\\\'e1',
@@ -215,10 +223,10 @@ function escapeRtf(text) {
         '¥': '\\\'a5',
         '¿': '\\\'bf',
         '¡': '\\\'a1',
-        '"': '\\\'93',
-        '"': '\\\'94',
-        '\'': '\\\'91',
-        '\'': '\\\'92',
+        '"': '\\\'94', // Comillas dobles de apertura
+        '"': '\\\'94', // Comillas dobles de cierre
+        '\'': '\\\'91', // Comilla simple de apertura
+        '\'': '\\\'92', // Comilla simple de cierre
         '–': '\\\'96',
         '—': '\\\'97',
         '•': '\\\'95',
