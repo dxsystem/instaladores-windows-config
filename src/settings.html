@@ -482,424 +482,196 @@
         
         // Convertir HTML a RTF mejorado
         function htmlToRtf(html) {
-            // Encabezado RTF básico
-            let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}{\\colortbl\\red0\\green0\\blue0;} {\\*\\listtable {\\list\\listtemplateid1\\listhybrid {\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'01\\\'b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\'02\\\'01.;}{\\levelnumbers\\\'01;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid7\\\'02\\\'02.;}{\\levelnumbers\\\'01;}\\fi-360\\li2160\\lin2160\\jclisttab\\tx2160} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid8\\\'02\\\'03.;}{\\levelnumbers\\\'01;}\\fi-360\\li2880\\lin2880\\jclisttab\\tx2880}}}\n\n';
+            // Encabezado RTF básico que coincide con el formato esperado
+            let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}{\\colortbl\\red0\\green0\\blue0;\\red255\\green255\\blue255;}\r\n';
+            
+            // Agregar tabla de listas completa como en el original
+            rtf += '{\\*\\listtable\r\n{\\list\\listtemplateid1\\listhybrid\r\n{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'01\\\'b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\'02\\\'01.;}{\\levelnumbers\\\'01;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid7\\\'02\\\'02.;}{\\levelnumbers\\\'01;}\\fi-360\\li2160\\lin2160\\jclisttab\\tx2160}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid8\\\'02\\\'03.;}{\\levelnumbers\\\'01;}\\fi-360\\li2880\\lin2880\\jclisttab\\tx2880}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid9\\\'02\\\'04.;}{\\levelnumbers\\\'01;}\\fi-360\\li3600\\lin3600\\jclisttab\\tx3600}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid10\\\'02\\\'05.;}{\\levelnumbers\\\'01;}\\fi-360\\li4320\\lin4320\\jclisttab\\tx4320}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid11\\\'02\\\'06.;}{\\levelnumbers\\\'01;}\\fi-360\\li5040\\lin5040\\jclisttab\\tx5040}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid12\\\'02\\\'07.;}{\\levelnumbers\\\'01;}\\fi-360\\li5760\\lin5760\\jclisttab\\tx5760}\r\n';
+            rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid13\\\'02\\\'08.;}{\\levelnumbers\\\'01;}\\fi-360\\li6480\\lin6480\\jclisttab\\tx6480}\r\n';
+            rtf += '{\\listname ;}\\listid1}}\r\n{\\*\\listoverridetable\r\n{\\listoverride\\listid1\\listoverridecount0\\ls1}\r\n}\r\n';
+            
+            // Iniciar el contenido principal
+            rtf += '\\loch\\hich\\dbch\\pard\\plain\\ltrpar\\itap0{\\lang1033\\fs21\\f2\\cf1 \\cf1\\ql';
             
             // Crear un elemento temporal para procesar el HTML
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
             
-            // Función recursiva para procesar nodos
-            function processNode(node, rtfContent = '') {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    // Escapar caracteres especiales de RTF
-                    return node.textContent
-                        .replace(/\\/g, '\\\\')
-                        .replace(/\{/g, '\\{')
-                        .replace(/\}/g, '\\}')
-                        .replace(/\n/g, '\\par\n');
-                }
-                
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    let content = '';
-                    let prefix = '';
-                    let suffix = '';
-                    
-                    // Aplicar formato según el tipo de elemento
-                    switch (node.nodeName.toLowerCase()) {
-                        case 'b':
-                        case 'strong':
-                            prefix = '{\\b ';
-                            suffix = '}';
-                            break;
-                        case 'i':
-                        case 'em':
-                            prefix = '{\\i ';
-                            suffix = '}';
-                            break;
-                        case 'u':
-                            prefix = '{\\ul ';
-                            suffix = '}';
-                            break;
-                        case 'h1':
-                            prefix = '{\\fs36\\b ';
-                            suffix = '}\\par\n';
-                            break;
-                        case 'h2':
-                            prefix = '{\\fs28\\b ';
-                            suffix = '}\\par\n';
-                            break;
-                        case 'h3':
-                            prefix = '{\\fs24\\b ';
-                            suffix = '}\\par\n';
-                            break;
-                        case 'p':
-                            suffix = '\\par\n';
-                            break;
-                        case 'br':
-                            return '\\par\n';
-                        case 'ul':
-                        case 'ol':
-                            // No añadir prefijo/sufijo especial, se maneja en los elementos li
-                            break;
-                        case 'li':
-                            prefix = '\\bullet ';
-                            suffix = '\\par\n';
-                            break;
-                        default:
-                            // Para otros elementos, solo procesar su contenido
-                            break;
-                    }
-                    
-                    // Procesar nodos hijos
-                    for (const child of node.childNodes) {
-                        content += processNode(child);
-                    }
-                    
-                    return prefix + content + suffix;
-                }
-                
-                return '';
-            }
+            // Limpiar estructura HTML
+            cleanupHtml(tempDiv);
             
-            // Procesar el contenido HTML
-            let content = '';
-            for (const child of tempDiv.childNodes) {
-                content += processNode(child);
-            }
+            // Procesar el contenido
+            let content = processHtmlToRtf(tempDiv);
             
-            // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
-            if (!content.trim()) {
-                content = '\\par\n';
-            }
+            // Finalizar el RTF
+            rtf += content + '}\r\n}';
             
-            rtf += content + '}';
             return rtf;
         }
         
-        // Convertir RTF a HTML
-        function rtfToHtml(rtf) {
-            // Si no hay contenido RTF, devolver cadena vacía
-            if (!rtf || rtf.trim() === '') {
-                console.warn('rtfToHtml: No hay contenido RTF para convertir');
-                return '';
+        // Función para limpiar la estructura HTML antes de convertirla
+        function cleanupHtml(element) {
+            // Si es un elemento head, style o script, eliminarlo
+            if (element.tagName === 'HEAD' || element.tagName === 'STYLE' || element.tagName === 'SCRIPT') {
+                element.parentNode.removeChild(element);
+                return;
             }
             
-            try {
-                console.log('rtfToHtml: Iniciando conversión, longitud RTF:', rtf.length);
+            // Si es un elemento que queremos conservar pero limpiar su contenido
+            if (element.children) {
+                // Crear una copia de los hijos para evitar problemas con la colección dinámica
+                const children = Array.from(element.children);
                 
-                // Buscar el inicio del contenido real
-                const contentStart = rtf.indexOf('\\ltrpar\\itap0');
-                if (contentStart === -1) {
-                    throw new Error('No se pudo encontrar el contenido RTF válido');
-                }
-
-                // Extraer el contenido
-                let content = rtf.substring(contentStart);
-                
-                // Crear el HTML base
-                let html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Términos y Condiciones - Instaladores de Windows Online C#</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #000;
-            background-color: #fff;
-        }
-        h1, h2 {
-            color: #000;
-        }
-        ul {
-            padding-left: 40px;
-        }
-        .bold {
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>`;
-
-                // Extraer y procesar párrafos
-                const paragraphs = content.split('\\par');
-                
-                // Variables para seguimiento
-                let isInList = false;
-                let foundWarning = false;
-                let foundTermsTitle = false;
-                let foundMetadata = false;
-                
-                // Para el título principal
-                for (let i = 0; i < paragraphs.length; i++) {
-                    let paragraph = paragraphs[i].trim();
-                    
-                    // Título "Términos y Condiciones"
-                    if (paragraph.includes('rminos y Condiciones de Uso') && !foundTermsTitle) {
-                        const title = extractCleanText(paragraph);
-                        html += `\n    <h1>${title}</h1>\n`;
-                        foundTermsTitle = true;
-                        continue;
-                    }
-                    
-                    // Metadatos (Aplicación, Versión, etc.)
-                    if (paragraph.includes('Aplicaci') && paragraph.includes('Versi') && !foundMetadata) {
-                        html += `\n    <p>\n`;
-                        
-                        // Procesar cada parte de los metadatos
-                        const metaLabels = ['Aplicación:', 'Versión:', 'Empresa:', 'Derechos Reservados:'];
-                        let metaText = extractCleanText(paragraph);
-                        
-                        for (let label of metaLabels) {
-                            if (metaText.includes(label)) {
-                                const startIdx = metaText.indexOf(label);
-                                let endIdx;
-                                
-                                // Encontrar dónde termina esta etiqueta
-                                if (label === 'Derechos Reservados:') {
-                                    endIdx = metaText.length;
-                                } else {
-                                    const nextLabel = metaLabels[metaLabels.indexOf(label) + 1];
-                                    endIdx = metaText.indexOf(nextLabel);
-                                }
-                                
-                                if (endIdx > startIdx) {
-                                    const value = metaText.substring(startIdx + label.length, endIdx).trim();
-                                    html += `        <span class="bold">${label}</span> ${value} `;
-                                }
-                            }
-                        }
-                        
-                        html += `\n    </p>\n`;
-                        foundMetadata = true;
-                        continue;
-                    }
-                    
-                    // Advertencia en negrita
-                    if (paragraph.includes('POR FAVOR, LEA ESTOS') && !foundWarning) {
-                        let warning = extractCleanText(paragraph);
-                        html += `\n    <p class="bold">\n        ${warning}\n    </p>\n`;
-                        foundWarning = true;
-                        continue;
-                    }
-                    
-                    // Procesar secciones numeradas
-                    const sectionMatch = paragraph.match(/(\d+)\.\s+([^:]+):/);
-                    if (sectionMatch) {
-                        // Si estábamos en una lista, cerrarla
-                        if (isInList) {
-                            html += `    </ul>\n`;
-                            isInList = false;
-                        }
-                        
-                        const sectionTitle = extractCleanText(paragraph);
-                        html += `\n    <h2>${sectionTitle}</h2>\n`;
-                        
-                        // Caso especial para "Restricciones de Uso"
-                        if (sectionTitle.includes("3. Restricciones de Uso")) {
-                            continue;
-                        }
-                        
-                        continue;
-                    }
-                    
-                    // Mensaje "Usted se compromete a NO:"
-                    if (paragraph.includes('Usted se compromete a NO:')) {
-                        html += `    <p>Usted se compromete a NO:</p>\n`;
-                        html += `    <ul>\n`;
-                        isInList = true;
-                        continue;
-                    }
-                    
-                    // Elementos de lista (viñetas)
-                    if (paragraph.includes('\\pntext') || paragraph.includes('\\\'B7')) {
-                        if (!isInList) {
-                            html += `    <ul>\n`;
-                            isInList = true;
-                        }
-                        
-                        let listContent = extractCleanText(paragraph);
-                        const isBold = paragraph.includes('\\b\\ltrch');
-                        
-                        html += `        <li${isBold ? ' class="bold"' : ''}>${listContent}</li>\n`;
-                        continue;
-                    }
-                    
-                    // Cierra la lista si estamos saliendo de ella y entrando a otra sección
-                    if (isInList && paragraph.includes('4. Descargo')) {
-                        html += `    </ul>\n`;
-                        isInList = false;
-                    }
-                    
-                    // Párrafos normales y especiales
-                    if (paragraph.length > 10 && 
-                        !paragraph.includes('\\ltrpar\\itap0') && 
-                        !paragraph.includes('\\pntext') && 
-                        !paragraph.includes('\\fonttbl') &&
-                        !paragraph.includes('\\colortbl') &&
-                        !paragraph.includes('\\listlevel')) {
-                            
-                        let text = extractCleanText(paragraph);
-                        
-                        // Omitir párrafos que ya hemos procesado
-                        if (text.includes('Términos y Condiciones de Uso') || 
-                            text.includes('Aplicación:') || 
-                            text.includes('POR FAVOR, LEA ESTOS') ||
-                            text.includes('Usted se compromete a NO:') ||
-                            text.length < 5) {
-                            continue;
-                        }
-                        
-                        // Manejo especial de los párrafos de la sección "Descargo de Responsabilidad"
-                        if (paragraph.includes('Edudigital. LATAM no se hace responsable por ning')) {
-                            html += `    <p class="bold">\n        ${text}\n    </p>\n`;
-                            continue;
-                        }
-                        
-                        if (paragraph.includes('Edudigital. LATAM no se hace responsable por el uso indebido')) {
-                            html += `    <p class="bold">\n        ${text}\n    </p>\n`;
-                            continue;
-                        }
-                        
-                        // Sección de contacto con enlace
-                        if (paragraph.includes('Si tiene alguna pregunta')) {
-                            text = text.replace(/(https?:\/\/[^\s\.]+\.[^\s]+)/g, '<a href="$1">$1</a>');
-                            html += `    <p>\n        ${text}\n    </p>\n`;
-                            continue;
-                        }
-                        
-                        // Pie de página (copyright)
-                        if (paragraph.includes('2025 Edudigital. LATAM. Todos los derechos reservados') && 
-                            !paragraph.includes('Aplicación:')) {
-                            html += `    <p class="bold">${text}</p>\n`;
-                            continue;
-                        }
-                        
-                        // Párrafos normales
-                        if (text.trim()) {
-                            html += `    <p>\n        ${text}\n    </p>\n`;
-                        }
-                    }
-                }
-                
-                // Cerrar el documento
-                html += `</body>\n</html>`;
-                
-                return html;
-            } catch (error) {
-                console.error('rtfToHtml: Error al convertir RTF a HTML:', error);
-                
-                // Método de respaldo en caso de error
-                try {
-                    console.log('rtfToHtml: Intentando método de respaldo');
-                    
-                    // Extraer texto plano eliminando códigos RTF
-                    let plainText = rtf
-                        .replace(/{\\rtf1.*?}/gs, '')
-                        .replace(/\\~/g, ' ')
-                        .replace(/\.\s*\\~\s*/g, '. ')
-                        .replace(/\\[a-z0-9]+/g, ' ')
-                        .replace(/\{|\}/g, '')
-                        .replace(/\s+/g, ' ')
-                        .trim();
-                    
-                    // Crear HTML básico
-                    let fallbackHtml = `
-                        <h1>Términos y Condiciones</h1>
-                        <p>El contenido original está en formato RTF. A continuación se muestra una versión simplificada:</p>
-                        <div style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; background-color: #f9f9f9;">
-                            ${plainText.split(/\.\s+/).map(sentence => `<p>${sentence.trim()}.</p>`).join('')}
-                        </div>
-                        <p><em>Nota: Esta es una versión simplificada. Para ver el formato completo, edite manualmente el contenido.</em></p>
-                    `;
-                    
-                    console.log('rtfToHtml: HTML de respaldo generado');
-                    return fallbackHtml;
-                    
-                } catch (backupError) {
-                    console.error('rtfToHtml: Error en el método de respaldo:', backupError);
-                    return `
-                        <h1>Términos y Condiciones</h1>
-                        <p>No se pudo procesar el contenido RTF. Por favor, contacte al administrador.</p>
-                        <p><em>Error: ${error.message}</em></p>
-                    `;
+                // Procesar cada hijo
+                for (const child of children) {
+                    cleanupHtml(child);
                 }
             }
         }
         
-        // Funciones auxiliares para el conversor RTF a HTML
-        function extractCleanText(rtfText) {
-            // Eliminar todas las etiquetas RTF y extraer solo el contenido de texto
-            let text = rtfText
-                .replace(/\\ltrpar\\itap0.*?\\ql/g, '')
-                .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+\\fi\d+\\ql.*/g, '')
-                .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+\\jclisttab\\tx\d+\\fi-\d+\\ql.*/g, '')
-                .replace(/\{\\lang\d+\\ltrch\s+/g, '')
-                .replace(/\{\\lang\d+\\b\\ltrch\s+/g, '')
-                .replace(/\{\\fs\d+\\f\d+(\\\w+)?\s+/g, '')
-                .replace(/\{\\fs\d+\\f\d+\s+\{/g, '')
-                .replace(/\{\\pntext\s+[^}]*\}\{[^}]*\}/g, '')
-                .replace(/\\\*\\pn[^}]*\}/g, '')
-                .replace(/\}\\\w+\d*\\ri\d+\\sa\d+\\sb\d+.*/g, '')
-                .replace(/\{|\}/g, '')
-                .replace(/\\ltrch\s+/g, '')
-                .replace(/\\b\\ltrch\s+/g, '')
-                .replace(/\\cf\d+\\ql/g, '')
-                .replace(/\\~/g, '') // Eliminar \~
-                .replace(/\\\w+\s?/g, '');
+        // Función para procesar HTML a RTF
+        function processHtmlToRtf(node) {
+            let rtfContent = '';
             
-            // Limpieza final y eliminar espacios duplicados
-            text = text.replace(/\s{2,}/g, ' ').trim();
-            
-            // Aplicar decodificación de caracteres RTF
-            text = decodeRtfCharacters(text);
-            
-            return text;
-        }
-
-        function decodeRtfCharacters(text) {
-            // Primero, buscar patrones de caracteres especiales RTF y reemplazarlos
-            const rtfCharMap = {
-                "\\'e9": "é",
-                "\\'e1": "á",
-                "\\'ed": "í",
-                "\\'f3": "ó",
-                "\\'fa": "ú",
-                "\\'f1": "ñ",
-                "\\'c1": "Á",
-                "\\'c9": "É",
-                "\\'cd": "Í",
-                "\\'d3": "Ó",
-                "\\'da": "Ú",
-                "\\'d1": "Ñ",
-                "\\'e0": "à",
-                "\\'e8": "è",
-                "\\'ec": "ì",
-                "\\'f2": "ò",
-                "\\'f9": "ù",
-                "\\'c0": "À",
-                "\\'c8": "È",
-                "\\'cc": "Ì",
-                "\\'d2": "Ò",
-                "\\'d9": "Ù",
-                "\\'a9": "©",
-                "\\u0027": "'",
-                "\u0022": '"'
-            };
-
-            // Reemplazar todos los caracteres especiales
-            for (let rtf in rtfCharMap) {
-                text = text.replace(new RegExp(rtf.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), rtfCharMap[rtf]);
+            // Si es un nodo de texto, codificar el texto
+            if (node.nodeType === Node.TEXT_NODE) {
+                return processTextToRtf(node.textContent);
             }
-
-            // Proceso adicional para encontrar patrones como \á, \é, etc. y eliminar la barra invertida
-            text = text.replace(/\\([áéíóúñÁÉÍÓÚÑàèìòùÀÈÌÒÙ©])/g, '$1');
+            
+            // Si es un elemento, procesar según el tipo
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                // Manejar diferentes tipos de elementos
+                switch (node.nodeName.toLowerCase()) {
+                    case 'h1':
+                        rtfContent += '{\\fs22\\f3\\b {\\lang10250\\ltrch ';
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        rtfContent += '}\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                        break;
+                        
+                    case 'h2':
+                        rtfContent += '{\\fs22\\f3 {\\lang10250\\b\\ltrch ';
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        rtfContent += '}\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                        break;
+                        
+                    case 'p':
+                        // Verificar si el párrafo debe estar en negrita
+                        const isBold = node.classList.contains('bold');
+                        
+                        rtfContent += '{\\fs22\\f3 {\\lang10250' + (isBold ? '\\b' : '') + '\\ltrch ';
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        rtfContent += '}\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                        break;
+                        
+                    case 'ul':
+                        for (const child of node.childNodes) {
+                            if (child.nodeName.toLowerCase() === 'li') {
+                                rtfContent += '{\\fs22\\f3 {\\pntext \\\'B7\\tab}{\\*\\pn\\pnlvlblt\\pnstart1{\\pntxtb\\\'B7}}{\\lang10250\\ltrch ';
+                                for (const liChild of child.childNodes) {
+                                    rtfContent += processHtmlToRtf(liChild);
+                                }
+                                rtfContent += '}\\li720\\ri0\\sa160\\sb0\\jclisttab\\tx720\\fi-360\\ql\\par}\r\n';
+                            }
+                        }
+                        break;
+                        
+                    case 'strong':
+                    case 'b':
+                        rtfContent += '\\b ';
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        rtfContent += ' ';
+                        break;
+                        
+                    case 'em':
+                    case 'i':
+                        rtfContent += '\\i ';
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        rtfContent += ' ';
+                        break;
+                        
+                    case 'a':
+                        // Procesar los enlaces como texto normal
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        
+                        // Añadir la URL si es diferente del texto
+                        const href = node.getAttribute('href');
+                        if (href && href !== node.textContent) {
+                            rtfContent += ' (' + href + ')';
+                        }
+                        break;
+                        
+                    case 'body':
+                    case 'div':
+                    case 'span':
+                    case 'html':
+                        // Para elementos contenedores, solo procesar el contenido
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        break;
+                        
+                    default:
+                        // Para otros elementos, solo procesar el contenido
+                        for (const child of node.childNodes) {
+                            rtfContent += processHtmlToRtf(child);
+                        }
+                        break;
+                }
+            }
+            
+            return rtfContent;
+        }
+        
+        // Función para procesar texto a RTF
+        function processTextToRtf(text) {
+            if (!text) return '';
+            
+            // Eliminar saltos de línea y espacios múltiples
+            text = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+            
+            // Si el texto está vacío después de la limpieza
+            if (text === '') return '';
+            
+            // Escapar caracteres especiales de RTF
+            text = text
+                .replace(/\\/g, '\\\\')
+                .replace(/\{/g, '\\{')
+                .replace(/\}/g, '\\}')
+                .replace(/\n/g, '\\par ')
+                .replace(/'/g, '\\\'27')
+                .replace(/©/g, '\\\'a9')
+                // Convertir acentos y caracteres especiales
+                .replace(/á/g, '\\\'e1')
+                .replace(/é/g, '\\\'e9')
+                .replace(/í/g, '\\\'ed')
+                .replace(/ó/g, '\\\'f3')
+                .replace(/ú/g, '\\\'fa')
+                .replace(/ñ/g, '\\\'f1')
+                .replace(/Á/g, '\\\'c1')
+                .replace(/É/g, '\\\'c9')
+                .replace(/Í/g, '\\\'cd')
+                .replace(/Ó/g, '\\\'d3')
+                .replace(/Ú/g, '\\\'da')
+                .replace(/Ñ/g, '\\\'d1');
             
             return text;
         }
