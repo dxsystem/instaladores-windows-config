@@ -222,30 +222,92 @@ class IconService {
         }
         
         if (matchingIcons.length > 0) {
-            // Ordenar por relevancia:
-            // 1. Los que comienzan exactamente con el nombre base tienen prioridad
-            // 2. Luego por longitud (los más cortos primero, probablemente los más genéricos)
+            // Mejorar el algoritmo de ordenación para priorizar coincidencias más específicas
             matchingIcons.sort((a, b) => {
                 const aLower = a.toLowerCase();
                 const bLower = b.toLowerCase();
                 
-                // Si uno comienza con el nombre base y el otro no
+                // 1. Prioridad máxima: coincidencia exacta con el nombre base (sin extensión)
+                const aExactMatch = aLower.replace(/\.[^/.]+$/, "") === baseNameLower;
+                const bExactMatch = bLower.replace(/\.[^/.]+$/, "") === baseNameLower;
+                
+                if (aExactMatch && !bExactMatch) return -1;
+                if (!aExactMatch && bExactMatch) return 1;
+                
+                // 2. Segunda prioridad: comienza con el nombre base
                 const aStartsWithBase = aLower.startsWith(baseNameLower);
                 const bStartsWithBase = bLower.startsWith(baseNameLower);
                 
                 if (aStartsWithBase && !bStartsWithBase) return -1;
                 if (!aStartsWithBase && bStartsWithBase) return 1;
                 
-                // Si ambos comienzan o ninguno comienza, ordenar por longitud
+                // 3. Tercera prioridad: longitud de la coincidencia (más larga = más específica)
+                // Calcular cuántos caracteres del nombre del icono coinciden con el nombre base
+                const aMatchLength = this.calculateMatchLength(aLower, baseNameLower);
+                const bMatchLength = this.calculateMatchLength(bLower, baseNameLower);
+                
+                if (aMatchLength !== bMatchLength) {
+                    // Mayor longitud de coincidencia tiene prioridad (orden descendente)
+                    return bMatchLength - aMatchLength;
+                }
+                
+                // 4. Cuarta prioridad: longitud total del nombre (más corto = más genérico)
                 return aLower.length - bLower.length;
             });
             
-            console.log(`Iconos coincidentes para ${baseName}:`, matchingIcons);
+            console.log(`Iconos coincidentes para ${baseName} (ordenados por relevancia):`, matchingIcons);
             return matchingIcons[0];
         }
         
         console.log(`No se encontraron iconos para el patrón: ${baseName}*`);
         return null;
+    }
+    
+    /**
+     * Calcula la longitud de la coincidencia entre el nombre del icono y el nombre base
+     * @param {string} iconName - Nombre del icono en minúsculas
+     * @param {string} baseName - Nombre base en minúsculas
+     * @returns {number} - Longitud de la coincidencia
+     */
+    calculateMatchLength(iconName, baseName) {
+        // Eliminar la extensión del archivo para la comparación
+        const iconNameWithoutExt = iconName.replace(/\.[^/.]+$/, "");
+        
+        // Caso especial para productos Adobe: dar prioridad a coincidencias exactas de producto
+        if (baseName.startsWith("adobe") && iconNameWithoutExt.startsWith("adobe")) {
+            // Extraer el nombre del producto Adobe (ej: "adobephotoshop" -> "photoshop")
+            const baseProduct = baseName.substring(5); // quitar "adobe"
+            const iconProduct = iconNameWithoutExt.substring(5); // quitar "adobe"
+            
+            // Si el icono contiene exactamente el nombre del producto, dar alta puntuación
+            if (iconProduct === baseProduct) {
+                return 1000; // Valor alto para garantizar prioridad
+            }
+            
+            // Si el icono comienza con el nombre del producto, dar puntuación media-alta
+            if (iconProduct.startsWith(baseProduct)) {
+                return 500 + baseProduct.length;
+            }
+            
+            // Si el producto comienza con el nombre del icono, dar puntuación media
+            if (baseProduct.startsWith(iconProduct)) {
+                return 200 + iconProduct.length;
+            }
+        }
+        
+        // Para casos generales, contar cuántos caracteres consecutivos coinciden desde el inicio
+        let matchLength = 0;
+        const minLength = Math.min(iconNameWithoutExt.length, baseName.length);
+        
+        for (let i = 0; i < minLength; i++) {
+            if (iconNameWithoutExt[i] === baseName[i]) {
+                matchLength++;
+            } else {
+                break;
+            }
+        }
+        
+        return matchLength;
     }
 
     /**
