@@ -6,29 +6,32 @@
 
 // Convertir HTML a RTF mejorado
 function htmlToRtf(html) {
-    // Encabezado RTF básico compatible con WPF RichTextBox
-    let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}}';
-    rtf += '{\\colortbl\\red0\\green0\\blue0;\\red255\\green255\\blue255;}';
+    // Encabezado RTF mejorado compatible con WPF RichTextBox
+    let rtf = '{\\rtf1\\ansi\\deff0\\ansicpg1252';
+    
+    // Tabla de fuentes - Usar fuentes estándar de Windows
+    rtf += '{\\fonttbl{\\f0\\fswiss\\fcharset0 Segoe UI;}{\\f1\\froman\\fcharset0 Times New Roman;}{\\f2\\fswiss\\fcharset0 Arial;}}';
+    
+    // Tabla de colores
+    rtf += '{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;\\red255\\green0\\blue0;}';
+    
+    // Información del documento
+    rtf += '{\\info{\\title Términos y Condiciones}{\\author Edudigital.LATAM}}';
+    
+    // Configuración de página
+    rtf += '\\viewkind4\\uc1\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440';
     
     // Agregar tabla de listas para soportar listas con viñetas
     rtf += '\r\n{\\*\\listtable\r\n';
     rtf += '{\\list\\listtemplateid1\\listhybrid\r\n';
-    rtf += '{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\u002701\\\u0027b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\u002702\\\u002701.;}{\\levelnumbers\\\u002701;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid7\\\u002702\\\u002702.;}{\\levelnumbers\\\u002701;}\\fi-360\\li2160\\lin2160\\jclisttab\\tx2160}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid8\\\u002702\\\u002703.;}{\\levelnumbers\\\u002701;}\\fi-360\\li2880\\lin2880\\jclisttab\\tx2880}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid9\\\u002702\\\u002704.;}{\\levelnumbers\\\u002701;}\\fi-360\\li3600\\lin3600\\jclisttab\\tx3600}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid10\\\u002702\\\u002705.;}{\\levelnumbers\\\u002701;}\\fi-360\\li4320\\lin4320\\jclisttab\\tx4320}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid11\\\u002702\\\u002706.;}{\\levelnumbers\\\u002701;}\\fi-360\\li5040\\lin5040\\jclisttab\\tx5040}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid12\\\u002702\\\u002707.;}{\\levelnumbers\\\u002701;}\\fi-360\\li5760\\lin5760\\jclisttab\\tx5760}\r\n';
-    rtf += '{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid13\\\u002702\\\u002708.;}{\\levelnumbers\\\u002701;}\\fi-360\\li6480\\lin6480\\jclisttab\\tx6480}\r\n';
+    rtf += '{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\u0027b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720}\r\n';
     rtf += '{\\listname ;}\\listid1}}\r\n';
     rtf += '{\\*\\listoverridetable\r\n';
     rtf += '{\\listoverride\\listid1\\listoverridecount0\\ls1}\r\n';
     rtf += '}\r\n';
     
     // Iniciar el cuerpo del documento
-    rtf += '\\loch\\hich\\dbch\\pard\\plain\\ltrpar\\itap0{\\lang1033\\fs21\\f2\\cf1 \\cf1\\ql';
+    rtf += '\\pard\\plain\\ltrpar\\sa160\\sl252\\slmult1\\qj\\f0\\fs22\\lang3082 ';
     
     // Crear un elemento temporal para procesar el HTML
     const tempDiv = document.createElement('div');
@@ -56,58 +59,59 @@ function htmlToRtf(html) {
                     // Procesar directamente el contenido del body
                     break;
                 case 'h1':
-                    prefix = '{\\fs22\\f3\\b {\\lang10250\\ltrch ';
-                    suffix = '}\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                    prefix = '{\\pard\\sa200\\sl276\\slmult1\\qc\\b\\f0\\fs28 ';  // Centrado y negrita
+                    suffix = '\\par}\r\n';
                     break;
                 case 'h2':
-                    prefix = '{\\fs22\\f3 {\\lang10250\\b\\ltrch ';
-                    suffix = '}\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                    prefix = '{\\pard\\sa200\\sl276\\slmult1\\qj\\b\\f0\\fs24 ';  // Justificado y negrita
+                    suffix = '\\par}\r\n';
                     break;
                 case 'p':
                     if (node.className === 'bold') {
-                        prefix = '{\\fs22\\f3 {\\lang10250\\b\\ltrch ';
-                        suffix = '}{\\lang10250\\ltrch  \\~ }\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                        prefix = '{\\pard\\sa160\\sl252\\slmult1\\qj\\b\\f0\\fs22 ';
+                        suffix = '\\par}\r\n';
                     } else {
-                        prefix = '{\\fs22\\f3 {\\lang10250\\ltrch ';
-                        suffix = '}\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                        prefix = '{\\pard\\sa160\\sl252\\slmult1\\qj\\f0\\fs22 ';  // Justificado
+                        suffix = '\\par}\r\n';
                     }
                     break;
                 case 'span':
                     if (node.className === 'bold') {
-                        prefix = '{\\lang10250\\b\\ltrch ';
+                        prefix = '{\\b ';
                         suffix = '}';
                     } else {
-                        prefix = '{\\lang10250\\ltrch ';
+                        prefix = '{';
                         suffix = '}';
                     }
                     break;
                 case 'b':
                 case 'strong':
-                    prefix = '{\\lang10250\\b\\ltrch ';
+                    prefix = '{\\b ';
                     suffix = '}';
                     break;
                 case 'i':
                 case 'em':
-                    prefix = '{\\lang10250\\i\\ltrch ';
+                    prefix = '{\\i ';
                     suffix = '}';
                     break;
                 case 'u':
-                    prefix = '{\\lang10250\\ul\\ltrch ';
+                    prefix = '{\\ul ';
                     suffix = '}';
                     break;
                 case 'br':
                     return '\\line ';
                 case 'ul':
-                    // No añadir prefijo/sufijo especial, se maneja en los elementos li
+                    prefix = '{\\pard\\sa0\\sb0\\f0\\fs22 ';
+                    suffix = '\\par}\r\n';
                     break;
                 case 'li':
-                    prefix = '{\\fs22\\f3 {\\pntext \\\u0027B7\\tab}{\\*\\pn\\pnlvlblt\\pnstart1{\\pntxtb\\\u0027B7}}{\\lang10250\\ltrch ';
-                    suffix = '}\\li720\\ri0\\sa160\\sb0\\jclisttab\\tx720\\fi-360\\ql\\par}\r\n';
+                    prefix = '{\\pard\\fi-360\\li720\\sa80\\sl240\\slmult1\\qj\\tx720{\\*\\pn\\pnlvlblt\\pnf1\\pnindent360{\\pntxtb\\bullet}}\\f0\\fs22 ';
+                    suffix = '\\par}\r\n';
                     break;
                 case 'a':
-                    // Para enlaces, simplemente mostrar el texto sin formato especial
-                    prefix = '';
-                    suffix = '';
+                    // Para enlaces, usar color azul
+                    prefix = '{\\field{\\*\\fldinst{HYPERLINK "' + (node.getAttribute('href') || '') + '"}}{\\fldrslt{\\cf2\\ul ';
+                    suffix = '}}}';
                     break;
                 default:
                     // Para otros elementos, solo procesar su contenido
@@ -133,7 +137,7 @@ function htmlToRtf(html) {
     
     // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
     if (!content.trim()) {
-        content = '{\\fs22\\f3 {\\lang10250\\ltrch  }\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+        content = '{\\pard\\sa160\\sl252\\slmult1\\qj\\f0\\fs22 \\par}\r\n';
     }
     
     // Finalizar el RTF
@@ -141,36 +145,58 @@ function htmlToRtf(html) {
     return rtf;
 }
 
-// Función para escapar caracteres especiales en RTF
+// Función mejorada para escapar caracteres especiales en RTF
 function escapeRtf(text) {
     if (!text) return '';
     
-    // Reemplazar caracteres especiales con sus equivalentes RTF
-    return text
-        .replace(/\\/g, '\\\\')
-        .replace(/\{/g, '\\{')
-        .replace(/\}/g, '\\}')
-        .replace(/\n/g, ' ')  // Reemplazar saltos de línea con espacios
-        .replace(/\r/g, '')   // Eliminar retornos de carro
-        .replace(/\t/g, '\\tab ')  // Convertir tabulaciones
-        .replace(/á/g, '\\\u0027e1')
-        .replace(/é/g, '\\\u0027e9')
-        .replace(/í/g, '\\\u0027ed')
-        .replace(/ó/g, '\\\u0027f3')
-        .replace(/ú/g, '\\\u0027fa')
-        .replace(/ñ/g, '\\\u0027f1')
-        .replace(/Á/g, '\\\u0027c1')
-        .replace(/É/g, '\\\u0027c9')
-        .replace(/Í/g, '\\\u0027cd')
-        .replace(/Ó/g, '\\\u0027d3')
-        .replace(/Ú/g, '\\\u0027da')
-        .replace(/Ñ/g, '\\\u0027d1')
-        .replace(/ü/g, '\\\u0027fc')
-        .replace(/Ü/g, '\\\u0027dc')
-        .replace(/©/g, '\\\u0027a9')
-        .replace(/"/g, '\u0022')  // Comillas dobles
-        .replace(/'/g, '\\\u0027')  // Comilla simple
-        .replace(/–/g, '\\\u0027-')  // Guión largo
-        .replace(/—/g, '\\\u0027-')  // Guión más largo
-        .replace(/…/g, '...');  // Puntos suspensivos
+    // Crear un mapa de caracteres especiales
+    const charMap = {
+        '\\': '\\\\',
+        '{': '\\{',
+        '}': '\\}',
+        '\n': '\\line ',
+        '\r': '',
+        '\t': '\\tab ',
+        'á': '\\\'e1',
+        'é': '\\\'e9',
+        'í': '\\\'ed',
+        'ó': '\\\'f3',
+        'ú': '\\\'fa',
+        'ñ': '\\\'f1',
+        'Á': '\\\'c1',
+        'É': '\\\'c9',
+        'Í': '\\\'cd',
+        'Ó': '\\\'d3',
+        'Ú': '\\\'da',
+        'Ñ': '\\\'d1',
+        'ü': '\\\'fc',
+        'Ü': '\\\'dc',
+        'ª': '\\\'aa',
+        'º': '\\\'ba',
+        '©': '\\\'a9',
+        '®': '\\\'ae',
+        '™': '\\\'99',
+        '€': '\\\'80',
+        '£': '\\\'a3',
+        '¥': '\\\'a5',
+        '¿': '\\\'bf',
+        '¡': '\\\'a1',
+        '"': '\\\'93',
+        '"': '\\\'94',
+        '\'': '\\\'91',
+        '\'': '\\\'92',
+        '–': '\\\'96',
+        '—': '\\\'97',
+        '•': '\\\'95',
+        '…': '\\\'85'
+    };
+    
+    // Reemplazar cada carácter especial
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        result += charMap[char] || char;
+    }
+    
+    return result;
 } 
