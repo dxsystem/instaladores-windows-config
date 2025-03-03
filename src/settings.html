@@ -636,9 +636,20 @@
                     // Eliminar códigos RTF comunes
                     plainText = plainText
                         .replace(/{\\rtf1.*?\\viewkind/s, '')
+                        // Limpiar caracteres iniciales no deseados
+                        .replace(/^[^A-Za-zÁ-Úá-ú\d]*/, '')
                         .replace(/\\par\s*/g, '\n')
                         .replace(/\\tab/g, '    ')
+                        // Mejorar manejo de viñetas
+                        .replace(/\\\'b7/g, '•')
+                        .replace(/\\b7/g, '•')
                         .replace(/\\bullet/g, '•')
+                        .replace(/\\\'B7/g, '•')
+                        .replace(/\\B7/g, '•')
+                        .replace(/\\\*\\\'b7/g, '•')
+                        .replace(/\\\*\'b7/g, '•')
+                        .replace(/\\\*b7/g, '•')
+                        // Limpiar códigos de formato
                         .replace(/\\b\s+/g, '')  // Negrita
                         .replace(/\\i\s+/g, '')  // Cursiva
                         .replace(/\\ul\s+/g, '') // Subrayado
@@ -675,7 +686,11 @@
                         .replace(/\n/g, '\n')
                         .replace(/\s+\n/g, '\n')
                         .replace(/\n\s+/g, '\n')
-                        .replace(/\n{3,}/g, '\n\n');  // Limitar a máximo 2 saltos de línea consecutivos
+                        .replace(/\n{3,}/g, '\n\n')
+                        // Limpiar códigos numéricos residuales
+                        .replace(/-\d+(\s|$)/g, '')
+                        .replace(/\\[a-z]+\d*/g, ' ')
+                        .replace(/\s+/g, ' ');
                     
                     console.log('rtfToHtml: Texto plano extraído');
                     
@@ -773,8 +788,8 @@
                     // Construir el HTML final
                     let html = '';
                     
-                    // Título
-                    html += `<h1>${title}</h1>`;
+                    // Título con formato correcto
+                    html += `<h1 style="font-size: 24px; font-weight: bold;">${title}</h1>`;
                     
                     // Información de la aplicación
                     if (appInfo) {
@@ -798,9 +813,10 @@
                         html += `<p class="warning"><strong>${warning}</strong></p>`;
                     }
                     
-                    // Secciones numeradas
+                    // Secciones numeradas con formato correcto
                     sections.forEach(section => {
-                        html += `<h2>${section.number}. ${section.title}</h2>`;
+                        // Usar strong en lugar de estilo de fuente grande para los títulos de sección
+                        html += `<h2 style="font-size: inherit;"><strong>${section.number}. ${section.title}</strong></h2>`;
                         
                         if (section.hasBullets) {
                             // Procesar contenido con viñetas
@@ -810,22 +826,28 @@
                             lines.forEach(line => {
                                 const trimmedLine = line.trim();
                                 
+                                // Mejorar la detección de viñetas
                                 if (trimmedLine.startsWith('•') || 
                                     trimmedLine.includes('\\B7') || 
-                                    trimmedLine.includes('\\\'b7')) {
+                                    trimmedLine.includes('\\\'b7') ||
+                                    trimmedLine.includes('\\bullet')) {
                                     
                                     if (!inList) {
-                                        html += '<ul>';
+                                        html += '<ul style="margin-left: 20px;">';
                                         inList = true;
                                     }
                                     
                                     // Limpiar el texto del elemento de lista
                                     let itemText = trimmedLine
-                                        .replace(/^•\s*/, '')
-                                        .replace(/\\B7\s*/, '')
-                                        .replace(/\\\'b7\s*/, '')
+                                        .replace(/^[•\\B7\\\'b7\\bullet\s]+/, '')
+                                        .replace(/\\B7/g, '')
+                                        .replace(/\\\'b7/g, '')
+                                        .replace(/\\\*\\\'b7/g, '')
+                                        .replace(/\\bullet/g, '')
                                         .replace(/\\~/g, ' ')
                                         .replace(/\\[a-z]+\d*/g, ' ')
+                                        .replace(/-\d+(\s|$)/g, '')
+                                        .replace(/\s+/g, ' ')
                                         .trim();
                                     
                                     html += `<li>${itemText}</li>`;
@@ -840,6 +862,7 @@
                                         let cleanPara = trimmedLine
                                             .replace(/\\~/g, ' ')
                                             .replace(/\\[a-z]+\d*/g, ' ')
+                                            .replace(/-\d+(\s|$)/g, '')
                                             .replace(/\s+/g, ' ')
                                             .trim();
                                         
@@ -859,6 +882,7 @@
                                 let cleanPara = paragraph
                                     .replace(/\\~/g, ' ')
                                     .replace(/\\[a-z]+\d*/g, ' ')
+                                    .replace(/-\d+(\s|$)/g, '')
                                     .replace(/\s+/g, ' ')
                                     .trim();
                                 
@@ -893,20 +917,12 @@
                 
                 // Extraer texto plano eliminando códigos RTF
                 let plainText = rtf
-                    .replace(/{\\rtf1.*?\\par/s, '')
-                    .replace(/\\par/g, '\n\n')
-                    .replace(/\\tab/g, '    ')
-                    .replace(/\\bullet/g, '• ')
-                    .replace(/\\\'[0-9a-f]{2}/g, match => {
-                        const hex = match.substring(2);
-                        const charCode = parseInt(hex, 16);
-                        return String.fromCharCode(charCode);
-                    })
+                    .replace(/{\\rtf1.*?}/gs, '')
                     .replace(/\\~/g, ' ')
                     .replace(/\.\s*\\~\s*/g, '. ')
-                    .replace(/\\[a-z0-9]+/g, '')
+                    .replace(/\\[a-z0-9]+/g, ' ')
                     .replace(/\{|\}/g, '')
-                    .replace(/\\\\/g, '\\')
+                    .replace(/\s+/g, ' ')
                     .trim();
                 
                 // Convertir a HTML básico
