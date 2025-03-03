@@ -936,7 +936,7 @@
                     },
                     TermsAndConditions: {
                         Content: rtfContent, // Guardar en formato RTF
-                        HtmlContent: htmlContent, // También guardar el HTML para la web
+                        // No guardar el HTML para evitar duplicidad y mantener solo el RTF
                         LastModified: new Date().toISOString()
                     }
                 };
@@ -1044,20 +1044,10 @@
                         htmlContent = rtfToHtml(appSettings.TermsAndConditions.Content);
                         console.log('Conversión RTF a HTML completada');
                         
-                        // Guardar la versión HTML convertida para futuras cargas
+                        // No guardar la versión HTML - solo para visualización local
                         if (htmlContent && htmlContent !== '') {
-                            console.log('HTML generado correctamente, guardando para uso futuro');
-                            appSettings.TermsAndConditions.HtmlContent = htmlContent;
-                            
-                            // Guardar silenciosamente la versión actualizada con el HTML convertido
-                            setTimeout(async () => {
-                                try {
-                                    await spGraph.saveAppSettings(appSettings);
-                                    console.log('Versión HTML guardada correctamente');
-                                } catch (error) {
-                                    console.error('Error al guardar la versión HTML convertida:', error);
-                                }
-                            }, 1000);
+                            console.log('HTML generado correctamente para visualización local');
+                            // No almacenar en appSettings para evitar guardado automático
                         } else {
                             console.error('La conversión RTF a HTML no generó contenido válido');
                         }
@@ -1269,23 +1259,10 @@
                             termsEditor.innerHTML = htmlContent;
                             updateTermsPreview();
                             
-                            // Guardar el HTML generado
-                            appSettings.TermsAndConditions.HtmlContent = htmlContent;
+                            // No guardar el HTML generado para evitar actualizaciones automáticas
                             
                             showLoading(false);
                             showAlert('success', 'Conversión RTF a HTML completada correctamente');
-                            
-                            // Guardar silenciosamente la versión actualizada
-                            setTimeout(async () => {
-                                try {
-                                    await spGraph.saveAppSettings(appSettings);
-                                    console.log('Versión HTML guardada correctamente');
-                                    showAlert('info', 'Versión HTML guardada en la configuración');
-                                } catch (error) {
-                                    console.error('Error al guardar la versión HTML convertida:', error);
-                                    showAlert('warning', 'Error al guardar la versión HTML: ' + error.message);
-                                }
-                            }, 1000);
                         } else {
                             console.error('La conversión RTF a HTML no generó contenido válido');
                             showLoading(false);
