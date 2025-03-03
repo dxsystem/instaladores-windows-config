@@ -22,17 +22,12 @@ function htmlToRtf(html) {
     rtf += '\\viewkind4\\uc1\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440';
     
     // Agregar tabla de listas para soportar listas con viñetas
-    rtf += '\r\n{\\*\\listtable\r\n';
-    rtf += '{\\list\\listtemplateid1\\listhybrid\r\n';
-    rtf += '{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'95}{\\levelnumbers;}\\f1\\fs22\\cf4\\dbch\\af0\\loch\\f0\\hich\\f0\\fi-360\\li720\\lin720\\jclisttab\\tx720}\r\n';
-    rtf += '{\\listname ;}\\listid1}}\r\n';
-    rtf += '{\\*\\listoverridetable\r\n';
-    rtf += '{\\listoverride\\listid1\\listoverridecount0\\ls1}\r\n';
-    rtf += '}\r\n';
+    rtf += '{\\*\\listtable{\\list\\listtemplateid1\\listhybrid{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace360\\levelindent0{\\*\\levelmarker \\{bullet\\}}{\\leveltext\\leveltemplateid1\\\'01\\bullet;}{\\levelnumbers;}\\fi-360\\li720\\jclisttab\\tx720}\\listid1}}';
+    rtf += '{\\*\\listoverridetable{\\listoverride\\listid1\\listoverridecount0\\ls1}}';
     
     // Iniciar el cuerpo del documento - Usar \ltrpar\itap0 para compatibilidad con rtf-to-html.js
     // Usar color blanco (cf4)
-    rtf += '\\ltrpar\\itap0{\\lang1033\\fs22\\f0\\cf4 \\cf4\\ql';
+    rtf += '\\pard\\ltrpar\\itap0\\f0\\fs22\\cf4\\qc';
     
     // Crear un elemento temporal para procesar el HTML
     const tempDiv = document.createElement('div');
@@ -42,10 +37,8 @@ function htmlToRtf(html) {
     const elementsToRemove = tempDiv.querySelectorAll('style, script, head');
     elementsToRemove.forEach(el => el.remove());
     
-    // Ya no eliminamos el título principal
-    
     // Añadir el título principal en negrita
-    let content = '{\\pard\\sa20\\sb20\\qc\\b\\f0\\fs28\\cf4 Términos y Condiciones - Instaladores de Windows Online C#\\par}\r\n';
+    let content = '\\b\\fs28 Términos y Condiciones - Instaladores de Windows Online C#\\b0\\par\\pard\\sa0\\sb0\\ql\\fs22\\par';
     
     // Función recursiva para procesar nodos
     function processNode(node, inList = false) {
@@ -71,45 +64,45 @@ function htmlToRtf(html) {
                         return '';
                     }
                     // Otros títulos h1
-                    prefix = '{\\pard\\sa20\\sb10\\qc\\b\\f0\\fs28\\cf4 ';
-                    suffix = '\\par}\r\n';
+                    prefix = '\\pard\\qc\\b\\fs28 ';
+                    suffix = '\\b0\\par\\pard\\ql\\fs22';
                     break;
                 case 'h2':
                     // Subtítulos alineados a la izquierda en color blanco
-                    prefix = '{\\pard\\sa10\\sb10\\ql\\b\\f0\\fs24\\cf4 ';
-                    suffix = '\\par}\r\n';
+                    prefix = '\\pard\\ql\\b\\fs24 ';
+                    suffix = '\\b0\\par\\pard\\ql\\fs22';
                     break;
                 case 'p':
                     if (node.className === 'bold') {
-                        prefix = '{\\pard\\sa10\\sb0\\ql\\b\\f0\\fs22\\cf4 ';
-                        suffix = '\\par}\r\n';
+                        prefix = '\\pard\\ql\\b\\fs22 ';
+                        suffix = '\\b0\\par';
                     } else {
-                        prefix = '{\\pard\\sa10\\sb0\\ql\\f0\\fs22\\cf4 ';
-                        suffix = '\\par}\r\n';
+                        prefix = '\\pard\\ql\\fs22 ';
+                        suffix = '\\par';
                     }
                     break;
                 case 'span':
                     if (node.className === 'bold') {
-                        prefix = '{\\b\\cf4 ';
-                        suffix = '}';
+                        prefix = '\\b ';
+                        suffix = '\\b0 ';
                     } else {
-                        prefix = '{\\cf4 ';
-                        suffix = '}';
+                        prefix = '';
+                        suffix = '';
                     }
                     break;
                 case 'b':
                 case 'strong':
-                    prefix = '{\\b\\cf4 ';
-                    suffix = '}';
+                    prefix = '\\b ';
+                    suffix = '\\b0 ';
                     break;
                 case 'i':
                 case 'em':
-                    prefix = '{\\i\\cf4 ';
-                    suffix = '}';
+                    prefix = '\\i ';
+                    suffix = '\\i0 ';
                     break;
                 case 'u':
-                    prefix = '{\\ul\\cf4 ';
-                    suffix = '}';
+                    prefix = '\\ul ';
+                    suffix = '\\ulnone ';
                     break;
                 case 'br':
                     return '\\line ';
@@ -118,8 +111,8 @@ function htmlToRtf(html) {
                     break;
                 case 'li':
                     // Mejorar el formato de las viñetas
-                    prefix = '{\\pard\\fi-360\\li720\\sa5\\sb0\\ql\\ls1\\ilvl0\\f0\\fs22\\cf4 ';
-                    suffix = '\\par}\r\n';
+                    prefix = '\\pard{\\*\\pn\\pnlvlblt\\pnf1\\pnindent0{\\pntxtb\\\'95}}\\fi-360\\li720\\ql\\fs22 ';
+                    suffix = '\\par';
                     break;
                 case 'a':
                     // Para enlaces, usar color azul
@@ -156,7 +149,7 @@ function htmlToRtf(html) {
     
     // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
     if (!content.trim()) {
-        content = '{\\pard\\sa0\\ql\\f0\\fs22\\cf4 \\par}';
+        content = '\\pard\\ql\\fs22 \\par';
     }
     
     // Procesar el contenido para corregir problemas específicos
@@ -169,20 +162,27 @@ function htmlToRtf(html) {
 
 // Función para corregir problemas específicos en el contenido RTF
 function fixRtfContent(content) {
-    // Corregir múltiples saltos de párrafo
+    // Eliminar múltiples \par consecutivos
     content = content.replace(/\\par\s*\\par+/g, '\\par');
     
-    // Asegurar que haya un salto de línea después de cada punto que termina una oración
-    content = content.replace(/\.\s*\\par\}/g, '.\\par}');
-    
-    // Eliminar caracteres extraños al inicio de líneas (como la 'd')
-    content = content.replace(/\\par\}\r?\n([a-z])/gi, '\\par}\r\n');
+    // Eliminar secuencias problemáticas que causan la "d" al inicio de líneas
+    content = content.replace(/\\par\\pard/g, '\\par \\pard');
+    content = content.replace(/\\line\s*\\line/g, '\\line ');
     
     // Corregir viñetas
     content = content.replace(/\\bullet/g, '\\\'95');
     
-    // Asegurar que no haya espacios extra entre elementos
+    // Eliminar espacios extra antes de \par
     content = content.replace(/\s+\\par/g, '\\par');
+    
+    // Eliminar secuencias de \line consecutivas
+    content = content.replace(/\\line\s*\\line+/g, '\\line ');
+    
+    // Eliminar espacios al inicio de párrafos
+    content = content.replace(/\\par\s+/g, '\\par ');
+    
+    // Asegurar que no haya espacios extra entre comandos RTF
+    content = content.replace(/\\([a-z0-9]+)\s+\\([a-z0-9]+)/g, '\\$1\\$2');
     
     return content;
 }
@@ -223,10 +223,8 @@ function escapeRtf(text) {
         '¥': '\\\'a5',
         '¿': '\\\'bf',
         '¡': '\\\'a1',
-        '"': '\\\'94', // Comillas dobles de apertura
-        '"': '\\\'94', // Comillas dobles de cierre
-        '\'': '\\\'91', // Comilla simple de apertura
-        '\'': '\\\'92', // Comilla simple de cierre
+        '"': '"', // Usar comillas normales en lugar de códigos RTF
+        '\'': '\'', // Usar comilla simple normal
         '–': '\\\'96',
         '—': '\\\'97',
         '•': '\\\'95',
