@@ -482,22 +482,24 @@
         
         // Convertir HTML a RTF mejorado
         function htmlToRtf(html) {
-            // Encabezado RTF básico
-            let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}{\\colortbl\\red0\\green0\\blue0;} {\\*\\listtable {\\list\\listtemplateid1\\listhybrid {\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\'01\\\'b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\'02\\\'01.;}{\\levelnumbers\\\'01;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid7\\\'02\\\'02.;}{\\levelnumbers\\\'01;}\\fi-360\\li2160\\lin2160\\jclisttab\\tx2160} {\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid8\\\'02\\\'03.;}{\\levelnumbers\\\'01;}\\fi-360\\li2880\\lin2880\\jclisttab\\tx2880}}}\n\n';
+            // Encabezado RTF básico compatible con WPF RichTextBox
+            let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang3082{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}{\\f1\\fnil\\fcharset0 Calibri;}}';
+            rtf += '{\\colortbl ;\\red0\\green0\\blue0;}';
+            rtf += '\\viewkind4\\uc1\\pard\\sa200\\sl276\\slmult1\\f0\\fs22\\lang10';
             
             // Crear un elemento temporal para procesar el HTML
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
             
+            // Eliminar elementos no deseados (style, script, etc.)
+            const elementsToRemove = tempDiv.querySelectorAll('style, script, head');
+            elementsToRemove.forEach(el => el.remove());
+            
             // Función recursiva para procesar nodos
             function processNode(node, rtfContent = '') {
                 if (node.nodeType === Node.TEXT_NODE) {
                     // Escapar caracteres especiales de RTF
-                    return node.textContent
-                        .replace(/\\/g, '\\\\')
-                        .replace(/\{/g, '\\{')
-                        .replace(/\}/g, '\\}')
-                        .replace(/\n/g, '\\par\n');
+                    return escapeRtf(node.textContent);
                 }
                 
                 if (node.nodeType === Node.ELEMENT_NODE) {
@@ -509,42 +511,51 @@
                     switch (node.nodeName.toLowerCase()) {
                         case 'b':
                         case 'strong':
-                            prefix = '{\\b ';
-                            suffix = '}';
+                            prefix = '\\b ';
+                            suffix = '\\b0 ';
                             break;
                         case 'i':
                         case 'em':
-                            prefix = '{\\i ';
-                            suffix = '}';
+                            prefix = '\\i ';
+                            suffix = '\\i0 ';
                             break;
                         case 'u':
-                            prefix = '{\\ul ';
-                            suffix = '}';
+                            prefix = '\\ul ';
+                            suffix = '\\ul0 ';
                             break;
                         case 'h1':
-                            prefix = '{\\fs36\\b ';
-                            suffix = '}\\par\n';
+                            prefix = '\\pard\\sa200\\sl276\\slmult1\\qc\\b\\fs32 ';
+                            suffix = '\\b0\\par\n';
                             break;
                         case 'h2':
-                            prefix = '{\\fs28\\b ';
-                            suffix = '}\\par\n';
+                            prefix = '\\pard\\sa200\\sl276\\slmult1\\b\\fs28 ';
+                            suffix = '\\b0\\par\n';
                             break;
                         case 'h3':
-                            prefix = '{\\fs24\\b ';
-                            suffix = '}\\par\n';
+                            prefix = '\\pard\\sa200\\sl276\\slmult1\\b\\fs24 ';
+                            suffix = '\\b0\\par\n';
                             break;
                         case 'p':
-                            suffix = '\\par\n';
+                            if (node.className === 'bold') {
+                                prefix = '\\pard\\sa200\\sl276\\slmult1\\b ';
+                                suffix = '\\b0\\par\n';
+                            } else {
+                                prefix = '\\pard\\sa200\\sl276\\slmult1 ';
+                                suffix = '\\par\n';
+                            }
                             break;
                         case 'br':
-                            return '\\par\n';
+                            return '\\line ';
                         case 'ul':
-                        case 'ol':
                             // No añadir prefijo/sufijo especial, se maneja en los elementos li
                             break;
                         case 'li':
-                            prefix = '\\bullet ';
+                            prefix = '\\pard\\sa200\\sl276\\slmult1\\fi-360\\li720\\bullet ';
                             suffix = '\\par\n';
+                            break;
+                        case 'a':
+                            prefix = '\\ul\\cf1 ';
+                            suffix = '\\ul0\\cf0 ';
                             break;
                         default:
                             // Para otros elementos, solo procesar su contenido
@@ -573,8 +584,35 @@
                 content = '\\par\n';
             }
             
+            // Finalizar el RTF
             rtf += content + '}';
             return rtf;
+        }
+        
+        // Función para escapar caracteres especiales en RTF
+        function escapeRtf(text) {
+            if (!text) return '';
+            
+            return text
+                .replace(/\\/g, '\\\\')
+                .replace(/\{/g, '\\{')
+                .replace(/\}/g, '\\}')
+                .replace(/\n/g, '\\par ')
+                .replace(/á/g, '\\\'e1')
+                .replace(/é/g, '\\\'e9')
+                .replace(/í/g, '\\\'ed')
+                .replace(/ó/g, '\\\'f3')
+                .replace(/ú/g, '\\\'fa')
+                .replace(/ñ/g, '\\\'f1')
+                .replace(/Á/g, '\\\'c1')
+                .replace(/É/g, '\\\'c9')
+                .replace(/Í/g, '\\\'cd')
+                .replace(/Ó/g, '\\\'d3')
+                .replace(/Ú/g, '\\\'da')
+                .replace(/Ñ/g, '\\\'d1')
+                .replace(/ü/g, '\\\'fc')
+                .replace(/Ü/g, '\\\'dc')
+                .replace(/©/g, '\\\'a9');
         }
         
         // Convertir RTF a HTML
