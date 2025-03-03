@@ -167,12 +167,16 @@ class IconService {
                     console.log(`Sin nombre base, asignando icono por defecto: ${iconUrl} para ${app.fileName}`);
                 }
 
-                // Asignar el icono a la aplicación
+                // Asignar el icono a la aplicación - asegurarse de que se asigne a ambas propiedades
                 app.iconUrl = iconUrl;
+                app.icon = iconUrl; // Asignar también a la propiedad 'icon' que es la que se usa en la interfaz
+                
+                console.log(`Icono asignado a ${app.fileName}: ${iconUrl}`);
                 assignedCount++;
             } catch (error) {
                 console.error(`Error al asignar icono para ${app?.fileName || 'aplicación desconocida'}:`, error);
                 app.iconUrl = this.DEFAULT_ICON_URL; // Asignar icono por defecto en caso de error
+                app.icon = this.DEFAULT_ICON_URL; // Asignar también a la propiedad 'icon'
                 errorCount++;
             }
         });

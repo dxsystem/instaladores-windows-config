@@ -298,7 +298,8 @@ async function loadApps() {
             downloadUrl: app.downloadUrl,
             webUrl: app.webUrl,
             installationOrder: app.installationOrder,
-            icon: DEFAULT_ICON_URL // Icono por defecto
+            icon: app.icon || DEFAULT_ICON_URL, // Usar el icono existente si está disponible
+            iconUrl: app.iconUrl || DEFAULT_ICON_URL // Mantener también iconUrl para compatibilidad
         }));
         
         // Extraer categorías únicas
