@@ -1,17 +1,16 @@
 /**
  * Conversor de HTML a RTF
- * Versión: 1.4.0
+ * Versión: 1.2.1
  * 
  * Este archivo contiene funciones para convertir contenido HTML a RTF.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
  * 
  * Correcciones:
- * - Mejora en el manejo de viñetas para evitar caracteres no deseados
+ * - Mejora en el manejo de viñetas para evitar caracteres 'd' no deseados
  * - Corrección de la tabulación después de las listas
  * - Soporte para caracteres acentuados
- * - Cambio de tipo de letra a Segoe UI
- * - Mejora en el espaciado después de puntos y entre palabras
- * - Eliminación de caracteres Â no deseados
+ * - Cambio de fuente a Segoe UI
+ * - Mejora en el espaciado después de puntos
  */
 
 // Convertir HTML a RTF mejorado
@@ -25,7 +24,7 @@ function htmlToRtf(html) {
         // Crear un documento RTF básico
         let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082';
         
-        // Agregar tabla de fuentes con Segoe UI
+        // Agregar tabla de fuentes con Segoe UI como fuente predeterminada
         rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}{\\f1\\fnil\\fcharset0 Segoe UI;}}';
         
         // Agregar tabla de colores
@@ -59,26 +58,14 @@ function fixRtfContent(content) {
     if (!content) return content;
     
     try {
-        // Eliminar cualquier 'd' o 'b' al inicio del documento
-        content = content.replace(/\\pard\\f0\\fs22\s+[db]\s+/g, '\\pard\\f0\\fs22 ');
+        // Eliminar cualquier 'd' al inicio del documento
+        content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
         
-        // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
-        content = content.replace(/Trebuchet MS;\s*;{2,3}/g, '');
-        content = content.replace(/Arial;\s*Arial;{2,3}/g, '');
-        content = content.replace(/Segoe UI;\s*;{2,3}/g, '');
+        // Eliminar símbolos extraños como "Arial; Arial;;;"
+        content = content.replace(/Arial;\s*Arial;+/g, '');
         
-        // Eliminar caracteres Â no deseados
-        content = content.replace(/Â/g, ' ');
-        
-        // Asegurar espacios entre palabras
-        content = content.replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])([A-Z])/g, '$1 $2');
-        
-        // Mejorar espaciado después de puntos
-        content = content.replace(/\.\\par/g, '.\\par\\sa200 ');
-        content = content.replace(/\.\s+/g, '. ');
-        
-        // Mejorar espaciado después de comas
-        content = content.replace(/,([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])/g, ', $1');
+        // Agregar espacio después de cada punto aparte
+        content = content.replace(/\.\\par/g, '.\\sa200\\par');
         
         // Verificar balance de llaves
         let openBraces = 0;
