@@ -1,6 +1,6 @@
 /**
  * Conversor de RTF a HTML
- * Versión: 1.5.0
+ * Versión: 1.4.0
  * 
  * Este archivo contiene funciones para convertir contenido RTF a HTML.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
@@ -9,17 +9,12 @@
  * - Eliminación de caracteres 'd' y 'b' no deseados al inicio del documento, antes de viñetas y después de listas
  * - Mejora en el manejo de viñetas y listas
  * - Soporte para caracteres acentuados
- * - Eliminación de símbolos extraños como "Trebuchet MS; ; ;"
- * - Corrección de palabras juntas sin espacio
+ * - Eliminación de símbolos extraños como "Trebuchet MS; ; ;" o "Segoe UI; ; ;"
+ * - Corrección de espaciado en viñetas y entre palabras
  * - Eliminación de caracteres Â no deseados
- * - Mejora en el formato de viñetas para evitar espacios innecesarios
  */
 
-/**
- * Convierte contenido RTF a formato HTML
- * @param {string} rtf - El contenido RTF a convertir
- * @return {string} - El contenido en formato HTML
- */
+// Convertir RTF a HTML
 function rtfToHtml(rtf) {
     try {
         if (!rtf || typeof rtf !== 'string') {
@@ -28,8 +23,7 @@ function rtfToHtml(rtf) {
         }
         
         // Eliminar cualquier 'd' o 'b' al inicio del documento completo
-        rtf = rtf.replace(/^d\s+/m, '');
-        rtf = rtf.replace(/^b\s+/m, '');
+        rtf = rtf.replace(/^[db]\s+/m, '');
         
         // Eliminar 'd' o 'b' que aparece antes de las viñetas
         rtf = rtf.replace(/[db]\\bullet/g, '\\bullet');
@@ -39,18 +33,16 @@ function rtfToHtml(rtf) {
         // Eliminar 'd' o 'b' que aparece después de las listas
         rtf = rtf.replace(/\\par\s+[db]\s+/g, '\\par ');
         
-        // Eliminar "Segoe UI; ; ;" que puede aparecer en el texto
-        rtf = rtf.replace(/Segoe UI;\s*;?\s*;?/g, '');
-        rtf = rtf.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
+        // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
+        rtf = rtf.replace(/Trebuchet MS;\s*;{2,3}/g, '');
         rtf = rtf.replace(/Arial;\s*Arial;{2,3}/g, '');
+        rtf = rtf.replace(/Segoe UI;\s*;{2,3}/g, '');
         
         // Eliminar caracteres Â no deseados
         rtf = rtf.replace(/Â/g, ' ');
         
-        // Asegurar espacios entre palabras
-        rtf = rtf.replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])([A-Z])/g, '$1 $2'); // Espacio entre palabra y mayúscula
-        rtf = rtf.replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])(\d)/g, '$1 $2'); // Espacio entre palabra y número
-        rtf = rtf.replace(/(\d)([a-zA-Z])/g, '$1 $2'); // Espacio entre número y palabra
+        // Corregir espaciado entre palabras
+        rtf = rtf.replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])([A-Z])/g, '$1 $2');
         
         let html = '';
         let isInList = false;
@@ -99,7 +91,7 @@ function rtfToHtml(rtf) {
                 text = text.replace(/\\b7\s*/, '');
                 text = text.replace(/\\u183\?/, '');
                 text = text.replace(/\\u00B7\?/, '');
-                text = text.replace(/^-360\s*/, ''); // Eliminar "-360" que aparece al inicio de las viñetas
+                text = text.replace(/^-360\s*/, ''); // Eliminar "-360" que puede aparecer al inicio
                 
                 // Eliminar caracteres Â no deseados
                 text = text.replace(/Â/g, ' ');
@@ -129,10 +121,10 @@ function rtfToHtml(rtf) {
             // Eliminar '\b' que aparece al inicio de los párrafos en negrita
             text = text.replace(/^\\b\s+/, '');
             
-            // Eliminar "Segoe UI; ; ;" que puede aparecer en el texto
-            text = text.replace(/Segoe UI;\s*;?\s*;?/g, '');
-            text = text.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
+            // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
+            text = text.replace(/Trebuchet MS;\s*;{2,3}/g, '');
             text = text.replace(/Arial;\s*Arial;{2,3}/g, '');
+            text = text.replace(/Segoe UI;\s*;{2,3}/g, '');
             
             // Eliminar caracteres Â no deseados
             text = text.replace(/Â/g, ' ');
@@ -169,11 +161,12 @@ function rtfToHtml(rtf) {
                 .replace(/^\s*[db]\s+/, '') // Eliminar 'd' o 'b' al inicio
                 .replace(/[db]\s+•/g, '•') // Eliminar 'd' o 'b' antes de viñetas
                 .replace(/[db]\s+(\d+)\./g, '$1.') // Eliminar 'd' o 'b' antes de números
-                .replace(/Segoe UI;\s*;?\s*;?/g, '') // Eliminar "Segoe UI; ; ;"
-                .replace(/Trebuchet MS;\s*;?\s*;?/g, '') // Eliminar "Trebuchet MS; ; ;"
+                .replace(/Trebuchet MS;\s*;{2,3}/g, '') // Eliminar "Trebuchet MS; ; ;"
                 .replace(/Arial;\s*Arial;{2,3}/g, '') // Eliminar "Arial; Arial;;;"
+                .replace(/Segoe UI;\s*;{2,3}/g, '') // Eliminar "Segoe UI; ; ;"
                 .replace(/Â/g, ' ') // Eliminar caracteres Â no deseados
-                .replace(/-360\s*/g, '') // Eliminar "-360" que aparece en las viñetas
+                .replace(/^-360\s*/, '') // Eliminar "-360" que puede aparecer al inicio
+                .replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])([A-Z])/g, '$1 $2') // Asegurar espacios entre palabras
                 .trim();
             
             return `<p>${plainText}</p>`;
@@ -184,59 +177,7 @@ function rtfToHtml(rtf) {
     }
 }
 
-/**
- * Limpia y mejora el HTML generado
- * @param {string} html - El HTML a limpiar
- * @return {string} - El HTML limpio
- */
-function cleanHtml(html) {
-    try {
-        // Eliminar cualquier texto de fuente residual
-        html = html.replace(/Segoe UI;\s*;?\s*;?/g, '');
-        html = html.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
-        html = html.replace(/Arial;\s*Arial;{2,3}/g, '');
-        
-        // Eliminar caracteres Â no deseados
-        html = html.replace(/Â+\s*/g, '');
-        html = html.replace(/\s+Â+/g, ' ');
-        
-        // Corregir espacios entre palabras que tienen una letra minúscula seguida de mayúscula
-        html = html.replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, '$1 $2');
-        
-        // Asegurar que haya un espacio después de cada punto (excepto en números decimales)
-        html = html.replace(/\.([A-Za-zÁÉÍÓÚáéíóúÑñÜü])/g, '. $1');
-        
-        // Asegurar que haya un espacio después de los dos puntos
-        html = html.replace(/:([^\s])/g, ': $1');
-        
-        // Corregir espacios dobles
-        html = html.replace(/\s{2,}/g, ' ');
-        
-        // Eliminar texto duplicado en párrafos (especialmente en secciones numeradas)
-        const paragraphs = html.split('\n');
-        const uniqueParagraphs = [];
-        const seen = new Set();
-        
-        for (const paragraph of paragraphs) {
-            const trimmed = paragraph.trim();
-            if (!seen.has(trimmed) || trimmed.match(/^<(h[1-6]|p|ul|ol|li)>/)) {
-                uniqueParagraphs.push(paragraph);
-                seen.add(trimmed);
-            }
-        }
-        
-        return uniqueParagraphs.join('\n');
-    } catch (error) {
-        console.error('cleanHtml: Error al limpiar HTML:', error);
-        return html;
-    }
-}
-
-/**
- * Extrae y limpia el texto de un documento RTF
- * @param {string} rtfText - El texto RTF a procesar
- * @return {string} - El HTML resultante
- */
+// Función para extraer texto limpio de un fragmento RTF
 function extractCleanText(rtfText) {
     // Eliminar códigos RTF comunes
     let text = rtfText
@@ -259,16 +200,19 @@ function extractCleanText(rtfText) {
     text = text.replace(/\\u183\?/, '');
     text = text.replace(/\\u00B7\?/, '');
     
-    // Eliminar "Segoe UI; ; ;" que puede aparecer en el texto
-    text = text.replace(/Segoe UI;\s*;?\s*;?/g, '');
-    text = text.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
+    // Eliminar "-360" que puede aparecer al inicio
+    text = text.replace(/^-360\s*/, '');
+    
+    // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
+    text = text.replace(/Trebuchet MS;\s*;{2,3}/g, '');
     text = text.replace(/Arial;\s*Arial;{2,3}/g, '');
+    text = text.replace(/Segoe UI;\s*;{2,3}/g, '');
     
     // Eliminar caracteres Â no deseados
     text = text.replace(/Â/g, ' ');
     
-    // Eliminar "-360" que aparece en las viñetas
-    text = text.replace(/-360\s*/g, '');
+    // Asegurar espacios entre palabras
+    text = text.replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])([A-Z])/g, '$1 $2');
     
     // Limpiar espacios múltiples
     text = text.replace(/\s+/g, ' ').trim();
@@ -276,40 +220,62 @@ function extractCleanText(rtfText) {
     return decodeRtfCharacters(text);
 }
 
-/**
- * Decodifica caracteres especiales de RTF
- * @param {string} text - El texto a decodificar
- * @return {string} - El texto decodificado
- */
+// Función para decodificar caracteres especiales en RTF
 function decodeRtfCharacters(text) {
-    try {
-        // Reemplazar secuencias de escape RTF con sus caracteres correspondientes
-        return text
-            .replace(/\\'e1/g, 'á')
-            .replace(/\\'e9/g, 'é')
-            .replace(/\\'ed/g, 'í')
-            .replace(/\\'f3/g, 'ó')
-            .replace(/\\'fa/g, 'ú')
-            .replace(/\\'c1/g, 'Á')
-            .replace(/\\'c9/g, 'É')
-            .replace(/\\'cd/g, 'Í')
-            .replace(/\\'d3/g, 'Ó')
-            .replace(/\\'da/g, 'Ú')
-            .replace(/\\'f1/g, 'ñ')
-            .replace(/\\'d1/g, 'Ñ')
-            .replace(/\\'fc/g, 'ü')
-            .replace(/\\'dc/g, 'Ü')
-            .replace(/\\'a9/g, '©')
-            .replace(/\\'ae/g, '®')
-            .replace(/\\'99/g, '™')
-            .replace(/\\'80/g, '€')
-            .replace(/\\'a3/g, '£')
-            .replace(/\\'b0/g, '°')
-            .replace(/\\'ab/g, '«')
-            .replace(/\\'bb/g, '»')
-            .replace(/\\'[0-9a-fA-F]{2}/g, ''); // Eliminar otras secuencias de escape no reconocidas
-    } catch (error) {
-        console.error('decodeRtfCharacters: Error al decodificar caracteres:', error);
-        return text;
+    if (!text) return '';
+    
+    // Decodificar códigos RTF específicos para tildes y caracteres especiales
+    const rtfCharMap = {
+        "'e1": "á", "'e9": "é", "'ed": "í", "'f3": "ó", "'fa": "ú",
+        "'c1": "Á", "'c9": "É", "'cd": "Í", "'d3": "Ó", "'da": "Ú",
+        "'f1": "ñ", "'d1": "Ñ", "'fc": "ü", "'dc": "Ü",
+        "'bf": "¿", "'a1": "¡", "'a9": "©",
+        "'ae": "®", "'b0": "°", "'b7": "·"
+    };
+    
+    // Reemplazar códigos RTF específicos
+    for (const [code, char] of Object.entries(rtfCharMap)) {
+        text = text.replace(new RegExp(code, 'g'), char);
     }
+    
+    // Decodificar caracteres especiales en formato hexadecimal
+    text = text.replace(/\\'([0-9a-f]{2})/g, function(match, hex) {
+        try {
+            // Convertir el código hexadecimal a decimal
+            const decimal = parseInt(hex, 16);
+            // Convertir el decimal a carácter
+            return String.fromCharCode(decimal);
+        } catch (e) {
+            console.error('Error al decodificar carácter RTF:', match, e);
+            return match;
+        }
+    });
+    
+    // Decodificar caracteres Unicode
+    text = text.replace(/\\u(\d+)\s*\?/g, function(match, unicode) {
+        try {
+            // Convertir el código Unicode a carácter
+            return String.fromCharCode(parseInt(unicode, 10));
+        } catch (e) {
+            console.error('Error al decodificar carácter Unicode:', match, e);
+            return match;
+        }
+    });
+    
+    // Reemplazar códigos específicos de RTF de forma individual
+    text = text.replace(/\\bullet/g, "•");
+    text = text.replace(/\\endash/g, "-");
+    text = text.replace(/\\emdash/g, "--");
+    text = text.replace(/\\lquote/g, "'");
+    text = text.replace(/\\rquote/g, "'");
+    text = text.replace(/\\ldblquote/g, "\"");
+    text = text.replace(/\\rdblquote/g, "\"");
+    text = text.replace(/\\~/g, " ");
+    text = text.replace(/\\_/g, "-");
+    text = text.replace(/\\:/g, " ");
+    text = text.replace(/\\;/g, " ");
+    text = text.replace(/\\ltrmark/g, "");
+    text = text.replace(/\\rtlmark/g, "");
+    
+    return text;
 } 
