@@ -26,6 +26,7 @@ function rtfToHtml(rtf) {
         
         // Variables para seguimiento
         let isInList = false;
+        let listItems = [];
         
         // Procesar cada párrafo
         for (let i = 0; i < paragraphs.length; i++) {
@@ -37,13 +38,25 @@ function rtfToHtml(rtf) {
             // Saltar párrafos que solo contienen códigos de control
             if (paragraph.startsWith('\\') && !paragraph.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/)) continue;
             
+            // Detectar si es una viñeta
+            const isBulletPoint = paragraph.includes('\\pntext') || 
+                                 paragraph.includes('\\'+'b7') || 
+                                 paragraph.includes('\\bullet') || 
+                                 paragraph.includes('\\pnlvlblt') ||
+                                 (paragraph.includes('\\fi-360') && paragraph.includes('\\li720')) ||
+                                 paragraph.trim() === 'd';
+            
+            // Si encontramos solo una 'd', podría ser un marcador de viñeta
+            if (paragraph.trim() === 'd' && i < paragraphs.length - 1) {
+                // Verificar si el siguiente párrafo debe ser una viñeta
+                continue; // Saltamos este párrafo y procesaremos el siguiente como viñeta
+            }
+            
+            // Detectar si el párrafo anterior era solo una 'd'
+            const prevParagraphWasD = i > 0 && paragraphs[i-1].trim() === 'd';
+            
             // Detectar listas
-            if (paragraph.includes('\\pntext') || 
-                paragraph.includes('\\'+'b7') || 
-                paragraph.includes('\\bullet') || 
-                paragraph.includes('\\pnlvlblt') ||
-                (paragraph.includes('\\fi-360') && paragraph.includes('\\li720'))) {
-                
+            if (isBulletPoint || prevParagraphWasD) {
                 // Iniciar lista si no estamos en una
                 if (!isInList) {
                     html += '<ul>\n';
@@ -62,18 +75,20 @@ function rtfToHtml(rtf) {
                 // Detectar si está en negrita
                 const isBold = paragraph.includes('\\b');
                 
-                // Agregar elemento de lista
-                if (isBold) {
-                    html += `<li><strong>${listContent}</strong></li>\n`;
-                } else {
-                    html += `<li>${listContent}</li>\n`;
+                // Solo agregar elemento de lista si tiene contenido
+                if (listContent.trim()) {
+                    if (isBold) {
+                        html += `<li><strong>${listContent}</strong></li>\n`;
+                    } else {
+                        html += `<li>${listContent}</li>\n`;
+                    }
                 }
                 
                 continue;
             }
             
             // Cerrar lista si estamos saliendo de ella
-            if (isInList && !paragraph.includes('\\pntext') && !paragraph.includes('\\fi-360')) {
+            if (isInList && !isBulletPoint && !prevParagraphWasD) {
                 html += '</ul>\n';
                 isInList = false;
             }
@@ -223,6 +238,10 @@ function extractCleanText(rtfText) {
     
     // Eliminar cualquier código RTF restante
     text = text.replace(/\\[a-z]+\d*/g, '');
+    
+    // Eliminar barras invertidas antes de caracteres especiales
+    text = text.replace(/\\([áéíóúÁÉÍÓÚñÑüÜ©®°])/g, '$1');
+    text = text.replace(/\\([a-zA-Z])/g, '$1');
     
     // Eliminar espacios múltiples
     text = text.replace(/\s+/g, ' ').trim();

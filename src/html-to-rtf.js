@@ -40,6 +40,9 @@ function fixRtfContent(content) {
     // Corregir espacios en blanco excesivos
     content = content.replace(/\s+/g, ' ').replace(/\s+\\par/g, '\\par');
     
+    // Asegurar que hay espacio después de cada párrafo para mejor legibilidad
+    content = content.replace(/\\par/g, '\\par\\sa200 ');
+    
     // Eliminar caracteres 'd' que aparecen al inicio de párrafos
     content = content.replace(/\\par d /g, '\\par ');
     content = content.replace(/\\bullet d /g, '\\bullet ');
