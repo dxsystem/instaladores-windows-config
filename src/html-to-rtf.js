@@ -41,15 +41,20 @@ function fixRtfContent(content) {
     content = content.replace(/\s+/g, ' ').replace(/\s+\\par/g, '\\par');
     
     // Asegurar que hay espacio después de cada párrafo para mejor legibilidad
-    content = content.replace(/\\par/g, '\\par\\sa200 ');
+    // pero no demasiado espacio entre viñetas
+    content = content.replace(/\\par(?!\\sa)/g, '\\par\\sa120 ');
     
     // Eliminar caracteres 'd' que aparecen al inicio de párrafos
     content = content.replace(/\\par d /g, '\\par ');
     content = content.replace(/\\bullet d /g, '\\bullet ');
+    content = content.replace(/\\par\s+d$/gm, '\\par');
     
     // Eliminar la letra 'd' al inicio del documento
     content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
     content = content.replace(/\\pard\\f0\\fs22\s+d([^a-zA-Z])/g, '\\pard\\f0\\fs22$1');
+    
+    // Corregir espaciado entre viñetas (reducir el espacio)
+    content = content.replace(/(\\bullet[^\\]+)\\par\\sa120/g, '$1\\par');
     
     // Verificar balance de llaves
     let openBraces = 0;
@@ -87,6 +92,9 @@ function escapeRtf(text) {
     if (text.trim().startsWith('d ')) {
         text = text.replace(/^d\s+/, '');
     }
+    
+    // Eliminar la letra 'd' en cualquier parte del texto
+    text = text.replace(/\s+d\s+/g, ' ');
     
     // Reemplazar caracteres especiales con sus equivalentes RTF
     let escaped = text;

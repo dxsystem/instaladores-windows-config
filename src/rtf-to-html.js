@@ -18,8 +18,10 @@ function rtfToHtml(rtf) {
         // Limpiar encabezado RTF y metadatos
         rtf = rtf.replace(/\\rtf1.*?\\viewkind\d+\\uc1/s, '');
         
-        // Eliminar la letra 'd' al inicio del documento
+        // Eliminar la letra 'd' al inicio del documento y en cualquier parte
         rtf = rtf.replace(/^\s*d\s+/m, '');
+        rtf = rtf.replace(/\\par\s+d\s+/g, '\\par ');
+        rtf = rtf.replace(/\\par\s+d$/gm, '\\par');
         
         // Crear el HTML base
         let html = '';
@@ -36,7 +38,7 @@ function rtfToHtml(rtf) {
             let paragraph = paragraphs[i].trim();
             
             // Saltar párrafos vacíos o muy cortos
-            if (paragraph.length < 5) continue;
+            if (paragraph.length < 3) continue;
             
             // Saltar párrafos que solo contienen códigos de control
             if (paragraph.startsWith('\\') && !paragraph.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/)) continue;
@@ -46,13 +48,19 @@ function rtfToHtml(rtf) {
                 paragraph = paragraph.replace(/^\s*d\s+/m, '');
             }
             
+            // Eliminar párrafos que solo contienen 'd'
+            if (paragraph.trim() === 'd') {
+                continue;
+            }
+            
             // Detectar si es una viñeta
             const isBulletPoint = paragraph.includes('\\pntext') || 
                                  paragraph.includes('\\'+'b7') || 
                                  paragraph.includes('\\bullet') || 
                                  paragraph.includes('\\pnlvlblt') ||
                                  (paragraph.includes('\\fi-360') && paragraph.includes('\\li720')) ||
-                                 paragraph.trim() === 'd';
+                                 paragraph.trim() === 'd' ||
+                                 paragraph.match(/^d\s+/);
             
             // Si encontramos solo una 'd', podría ser un marcador de viñeta
             if (paragraph.trim() === 'd' && i < paragraphs.length - 1) {
@@ -80,8 +88,8 @@ function rtfToHtml(rtf) {
                 // Eliminar la 'd' que aparece al inicio de las viñetas
                 listContent = listContent.replace(/^d\s*[•\*\-\u2022\u25E6\u25AA\u00B7]?\s*/, '');
                 
-                // Detectar si está en negrita
-                const isBold = paragraph.includes('\\b');
+                // Detectar si está en negrita - solo aplicar si realmente tiene formato de negrita
+                const isBold = paragraph.includes('\\b') && !paragraph.includes('\\bullet');
                 
                 // Solo agregar elemento de lista si tiene contenido
                 if (listContent.trim()) {
@@ -160,6 +168,7 @@ function rtfToHtml(rtf) {
             
             // Eliminar la 'd' al inicio del texto
             plainText = plainText.replace(/^\s*d\s+/m, '');
+            plainText = plainText.replace(/\s+d\s+/g, ' ');
             
             return `<p>${plainText}</p>`;
         } catch (e) {
@@ -173,8 +182,9 @@ function rtfToHtml(rtf) {
 function extractCleanText(rtfText) {
     if (!rtfText) return '';
     
-    // Eliminar la 'd' al inicio del texto
+    // Eliminar la 'd' al inicio del texto y en cualquier parte
     rtfText = rtfText.replace(/^\s*d\s+/m, '');
+    rtfText = rtfText.replace(/\s+d\s+/g, ' ');
     
     // Eliminar códigos de control RTF
     let text = rtfText
