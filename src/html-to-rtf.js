@@ -31,6 +31,13 @@ function htmlToRtf(html) {
 
 // Función para corregir problemas específicos en el contenido RTF
 function fixRtfContent(content) {
+    // Eliminar la letra 'd' al inicio del documento (incluyendo el título)
+    content = content.replace(/\\pard\\f0\\fs22\s+d/g, '\\pard\\f0\\fs22');
+    content = content.replace(/\\fs40\\b\s+d/g, '\\fs40\\b');
+    content = content.replace(/\\fs36\\b\s+d/g, '\\fs36\\b');
+    content = content.replace(/\\fs32\\b\s+d/g, '\\fs32\\b');
+    content = content.replace(/\\fs28\\b\s+d/g, '\\fs28\\b');
+    
     // Corregir múltiples saltos de línea consecutivos
     content = content.replace(/\\par\\par\\par+/g, '\\par\\par');
     
@@ -49,6 +56,10 @@ function fixRtfContent(content) {
     content = content.replace(/\\par\s+d$/gm, '\\par');
     content = content.replace(/d\s*\\bullet/g, '\\bullet');
     content = content.replace(/\\bullet\s+d\s+/g, '\\bullet ');
+    
+    // Eliminar la letra 'd' al finalizar las viñetas
+    content = content.replace(/\\par\s*}\s*d\s*/g, '\\par}');
+    content = content.replace(/\\par\s*}\s*\\pard/g, '\\par}\\pard');
     
     // Eliminar la letra 'd' al inicio del documento
     content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
@@ -199,27 +210,27 @@ function convertNodeToRtf(node) {
                     break;
                     
                 case 'h1':
-                    rtf += '{\\fs40\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    rtf += '{\\fs48\\b ' + convertNodeToRtf(child) + '}\\par ';
                     break;
                     
                 case 'h2':
-                    rtf += '{\\fs36\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    rtf += '{\\fs40\\b ' + convertNodeToRtf(child) + '}\\par ';
                     break;
                     
                 case 'h3':
-                    rtf += '{\\fs32\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    rtf += '{\\fs36\\b ' + convertNodeToRtf(child) + '}\\par ';
                     break;
                     
                 case 'h4':
-                    rtf += '{\\fs28\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    rtf += '{\\fs32\\b ' + convertNodeToRtf(child) + '}\\par ';
                     break;
                     
                 case 'h5':
-                    rtf += '{\\fs24\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    rtf += '{\\fs28\\b ' + convertNodeToRtf(child) + '}\\par ';
                     break;
                     
                 case 'h6':
-                    rtf += '{\\fs22\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    rtf += '{\\fs24\\b ' + convertNodeToRtf(child) + '}\\par ';
                     break;
                     
                 case 'ul':
@@ -275,18 +286,21 @@ function convertListToRtf(listNode, isOrdered) {
         const child = listNode.childNodes[i];
         
         if (child.nodeType === 1 && child.tagName.toLowerCase() === 'li') {
+            // Obtener el contenido del elemento de lista primero
+            let itemContent = convertNodeToRtf(child);
+            
+            // Eliminar cualquier 'd' al inicio del contenido
+            itemContent = itemContent.replace(/^d\s+/, '');
+            
             // Agregar viñeta o número según el tipo de lista
             if (isOrdered) {
                 // Lista numerada - formato simplificado
-                rtf += '\\pard\\fi-360\\li720 ' + counter + '. ';
+                rtf += '\\pard\\fi-360\\li720 ' + counter + '. ' + itemContent + '\\par';
                 counter++;
             } else {
                 // Lista con viñetas - formato muy simple y robusto
-                rtf += '\\pard\\fi-360\\li720 \\bullet ';
+                rtf += '\\pard\\fi-360\\li720 \\bullet ' + itemContent + '\\par';
             }
-            
-            // Agregar el contenido del elemento de lista
-            rtf += convertNodeToRtf(child) + '\\par';
         }
     }
     

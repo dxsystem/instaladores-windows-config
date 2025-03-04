@@ -24,6 +24,9 @@ function rtfToHtml(rtf) {
         rtf = rtf.replace(/\\par\s+d$/gm, '\\par');
         rtf = rtf.replace(/d\s*\\bullet/g, '\\bullet');
         
+        // Eliminar la letra 'd' en encabezados
+        rtf = rtf.replace(/\\fs\d+\\b\s+d/g, '\\fs$1\\b ');
+        
         // Crear el HTML base
         let html = '';
         
@@ -33,6 +36,7 @@ function rtfToHtml(rtf) {
         // Variables para seguimiento
         let isInList = false;
         let listItems = [];
+        let firstParagraph = true;
         
         // Procesar cada párrafo
         for (let i = 0; i < paragraphs.length; i++) {
@@ -44,15 +48,19 @@ function rtfToHtml(rtf) {
             // Saltar párrafos que solo contienen códigos de control
             if (paragraph.startsWith('\\') && !paragraph.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/)) continue;
             
-            // Si es el primer párrafo, eliminar cualquier 'd' al inicio
-            if (i === 0) {
+            // Si es el primer párrafo no vacío, eliminar cualquier 'd' al inicio
+            if (firstParagraph) {
                 paragraph = paragraph.replace(/^\s*d\s+/m, '');
+                firstParagraph = false;
             }
             
             // Eliminar párrafos que solo contienen 'd'
             if (paragraph.trim() === 'd') {
                 continue;
             }
+            
+            // Eliminar la letra 'd' antes de cualquier texto
+            paragraph = paragraph.replace(/^d\s+/m, '');
             
             // Detectar si es una viñeta - mejorado para detectar más patrones
             const isBulletPoint = paragraph.includes('\\pntext') || 
@@ -118,10 +126,12 @@ function rtfToHtml(rtf) {
                     const size = parseInt(fontSize[1]);
                     let headingLevel = 3; // Por defecto h3
                     
-                    if (size >= 40) headingLevel = 1;
-                    else if (size >= 32) headingLevel = 2;
-                    else if (size >= 28) headingLevel = 3;
-                    else if (size >= 24) headingLevel = 4;
+                    if (size >= 48) headingLevel = 1;
+                    else if (size >= 40) headingLevel = 2;
+                    else if (size >= 36) headingLevel = 3;
+                    else if (size >= 32) headingLevel = 4;
+                    else if (size >= 28) headingLevel = 5;
+                    else if (size >= 24) headingLevel = 6;
                     
                     const headingText = extractCleanText(paragraph);
                     html += `<h${headingLevel}>${headingText}</h${headingLevel}>\n`;
@@ -184,11 +194,14 @@ function rtfToHtml(rtf) {
 function extractCleanText(rtfText) {
     if (!rtfText) return '';
     
-    // Eliminar la 'd' al inicio del texto y en cualquier parte
+    // Eliminar la letra 'd' al inicio del texto y en cualquier parte
     rtfText = rtfText.replace(/^\s*d\s+/m, '');
     rtfText = rtfText.replace(/\s+d\s+/g, ' ');
     rtfText = rtfText.replace(/\s+d$/g, '');
     rtfText = rtfText.replace(/d\s*\\bullet/g, '\\bullet');
+    
+    // Eliminar la letra 'd' en encabezados
+    rtfText = rtfText.replace(/\\fs\d+\\b\s+d/g, '\\fs$1\\b ');
     
     // Eliminar códigos de control RTF
     let text = rtfText
