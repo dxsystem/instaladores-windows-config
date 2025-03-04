@@ -1,9 +1,17 @@
 /**
  * Conversor de RTF a HTML
- * Este archivo contiene funciones para convertir contenido RTF a formato HTML
- * para su visualización en la web.
+ * Versión: 1.2.2
  * 
- * Versión 1.5 - Correcciones adicionales para manejo de caracteres especiales y viñetas
+ * Este archivo contiene funciones para convertir contenido RTF a HTML.
+ * Incluye correcciones para manejar caracteres especiales y viñetas.
+ * 
+ * Correcciones:
+ * - Eliminación de caracteres 'd' no deseados al inicio del documento, antes de viñetas y después de listas
+ * - Eliminación de 'd' antes de números de sección
+ * - Mejora en el manejo de viñetas y listas
+ * - Soporte para caracteres acentuados
+ * - Mejora en la detección de encabezados
+ * - Eliminación de "Segoe UI; Segoe UI;;;" en el texto
  */
 
 // Convertir RTF a HTML
@@ -30,6 +38,9 @@ function rtfToHtml(rtf) {
         rtf = rtf.replace(/\\par\s+d\s*(\d+)\./g, '\\par $1.');
         rtf = rtf.replace(/d\s*\n*\s*(\d+)\./g, '$1.');
         
+        // Eliminar "Segoe UI; Segoe UI;;;" del texto
+        rtf = rtf.replace(/Segoe UI;\s*Segoe UI;+/g, '');
+        
         let html = '';
         let isInList = false;
         
@@ -45,19 +56,25 @@ function rtfToHtml(rtf) {
             }
             
             // Detectar encabezados
-            if (paragraph.includes('\\f1\\fs') || paragraph.includes('\\b\\fs')) {
+            if (paragraph.includes('\\fs40\\b') || paragraph.includes('\\fs36\\b') || 
+                paragraph.includes('\\fs32\\b') || paragraph.includes('\\fs28\\b') || 
+                paragraph.includes('\\fs24\\b') || paragraph.includes('\\b\\fs')) {
+                
                 let text = extractCleanText(paragraph);
                 
                 // Eliminar la 'd' que aparece al inicio de los encabezados
                 text = text.replace(/^d\s+/, '');
                 text = text.replace(/^d/, '');
                 
+                // Eliminar "Segoe UI; Segoe UI;;;" del texto
+                text = text.replace(/Segoe UI;\s*Segoe UI;+/g, '');
+                
                 if (text.trim()) {
                     if (paragraph.includes('\\fs40')) {
                         html += `<h1>${text}</h1>\n`;
                     } else if (paragraph.includes('\\fs36')) {
                         html += `<h2>${text}</h2>\n`;
-                    } else if (paragraph.includes('\\fs28')) {
+                    } else if (paragraph.includes('\\fs32') || paragraph.includes('\\fs28')) {
                         html += `<h3>${text}</h3>\n`;
                     } else {
                         html += `<h4>${text}</h4>\n`;
@@ -150,6 +167,7 @@ function rtfToHtml(rtf) {
                 .replace(/^\s*d\s+/, '') // Eliminar 'd' al inicio
                 .replace(/d\s+•/g, '•') // Eliminar 'd' antes de viñetas
                 .replace(/d\s+(\d+)\./g, '$1.') // Eliminar 'd' antes de números
+                .replace(/Segoe UI;\s*Segoe UI;+/g, '') // Eliminar "Segoe UI; Segoe UI;;;"
                 .trim();
             
             return `<p>${plainText}</p>`;
@@ -220,6 +238,18 @@ function extractCleanText(rtfText) {
     // Eliminar 'd' suelta
     text = text.replace(/\s+d\s+/g, ' ');
     text = text.replace(/\s+d$/g, '');
+    
+    // Eliminar "Segoe UI; Segoe UI;;;" del texto
+    text = text.replace(/Segoe UI;\s*Segoe UI;+/g, '');
+    
+    // Corregir problemas con espacios entre palabras
+    text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+    
+    // Corregir problemas con dos puntos sin espacio
+    text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ]):([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1: $2');
+    
+    // Corregir problemas con puntos sin espacio
+    text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\.([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1. $2');
     
     // Eliminar códigos de viñeta
     text = text

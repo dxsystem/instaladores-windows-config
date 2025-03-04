@@ -1,6 +1,6 @@
 /**
  * Conversor de HTML a RTF
- * Versión: 1.2.1
+ * Versión: 1.2.2
  * 
  * Este archivo contiene funciones para convertir contenido HTML a RTF.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
@@ -11,6 +11,7 @@
  * - Soporte para caracteres acentuados
  * - Cambio de fuente a Segoe UI
  * - Mejora en el espaciado después de puntos
+ * - Corrección de problemas con espacios entre palabras
  */
 
 // Convertir HTML a RTF mejorado
@@ -25,7 +26,7 @@ function htmlToRtf(html) {
         let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082';
         
         // Agregar tabla de fuentes con Segoe UI como fuente predeterminada
-        rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}{\\f1\\fnil\\fcharset0 Segoe UI;}}';
+        rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}}';
         
         // Agregar tabla de colores
         rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
@@ -61,11 +62,20 @@ function fixRtfContent(content) {
         // Eliminar cualquier 'd' al inicio del documento
         content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
         
-        // Eliminar símbolos extraños como "Arial; Arial;;;"
-        content = content.replace(/Arial;\s*Arial;+/g, '');
+        // Eliminar símbolos extraños como "Segoe UI; Segoe UI;;;"
+        content = content.replace(/Segoe UI;\s*Segoe UI;+/g, '');
         
         // Agregar espacio después de cada punto aparte
         content = content.replace(/\.\\par/g, '.\\sa200\\par');
+        
+        // Corregir problemas con espacios entre palabras
+        content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+        
+        // Corregir problemas con dos puntos sin espacio
+        content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ]):([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1: $2');
+        
+        // Corregir problemas con puntos sin espacio
+        content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\.([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1. $2');
         
         // Verificar balance de llaves
         let openBraces = 0;
@@ -156,112 +166,93 @@ function convertNodeToRtf(node) {
     
     let rtf = '';
     
-    // Procesar nodos hijos
-    for (let i = 0; i < node.childNodes.length; i++) {
-        const child = node.childNodes[i];
+    // Manejar diferentes tipos de nodos
+    if (node.nodeType === 3) { // Nodo de texto
+        return escapeRtf(node.textContent);
+    } else if (node.nodeType === 1) { // Nodo de elemento
+        const tagName = node.tagName.toLowerCase();
         
-        // Nodo de texto
-        if (child.nodeType === 3) { // Nodo de texto
-            // Eliminar la letra 'd' al inicio del texto si es el primer nodo
-            let text = child.textContent;
-            if (i === 0 && text.trim().startsWith('d ')) {
-                text = text.replace(/^d\s+/, '');
-            }
-            rtf += escapeRtf(text);
-        }
-        // Elemento HTML
-        else if (child.nodeType === 1) { // Elemento
-            const tagName = child.tagName.toLowerCase();
-            
-            // Aplicar formato según el tipo de elemento
-            switch (tagName) {
-                case 'p':
-                    rtf += convertNodeToRtf(child) + '\\par ';
-                    break;
-                    
-                case 'br':
-                    rtf += '\\line ';
-                    break;
-                    
-                case 'b':
-                case 'strong':
-                    rtf += '{\\b ' + convertNodeToRtf(child) + '}';
-                    break;
-                    
-                case 'i':
-                case 'em':
-                    rtf += '{\\i ' + convertNodeToRtf(child) + '}';
-                    break;
-                    
-                case 'u':
-                    rtf += '{\\ul ' + convertNodeToRtf(child) + '}';
-                    break;
-                    
-                case 'strike':
-                case 's':
-                case 'del':
-                    rtf += '{\\strike ' + convertNodeToRtf(child) + '}';
-                    break;
-                    
-                case 'h1':
-                    rtf += '{\\fs40\\b ' + convertNodeToRtf(child) + '}\\par ';
-                    break;
-                    
-                case 'h2':
-                    rtf += '{\\fs36\\b ' + convertNodeToRtf(child) + '}\\par ';
-                    break;
-                    
-                case 'h3':
-                    rtf += '{\\fs32\\b ' + convertNodeToRtf(child) + '}\\par ';
-                    break;
-                    
-                case 'h4':
-                    rtf += '{\\fs28\\b ' + convertNodeToRtf(child) + '}\\par ';
-                    break;
-                    
-                case 'h5':
-                    rtf += '{\\fs24\\b ' + convertNodeToRtf(child) + '}\\par ';
-                    break;
-                    
-                case 'h6':
-                    rtf += '{\\fs22\\b ' + convertNodeToRtf(child) + '}\\par ';
-                    break;
-                    
-                case 'ul':
-                    rtf += convertListToRtf(child, false);
-                    break;
-                    
-                case 'ol':
-                    rtf += convertListToRtf(child, true);
-                    break;
-                    
-                case 'li':
-                    // Los elementos li se manejan en convertListToRtf
-                    rtf += convertNodeToRtf(child);
-                    break;
-                    
-                case 'a':
-                    // Enlaces - en RTF básico solo mostramos el texto
-                    rtf += '{\\cf1\\ul ' + convertNodeToRtf(child) + '}';
-                    break;
-                    
-                case 'img':
-                    // Las imágenes no se soportan en esta implementación básica
-                    rtf += '[Imagen]';
-                    break;
-                    
-                case 'table':
-                    // Las tablas son complejas en RTF, implementación básica
-                    rtf += '[Tabla]\\par ';
-                    break;
-                    
-                case 'div':
-                case 'span':
-                default:
-                    // Para otros elementos, simplemente procesamos su contenido
-                    rtf += convertNodeToRtf(child);
-                    break;
-            }
+        // Manejar diferentes tipos de elementos
+        switch (tagName) {
+            case 'h1':
+                rtf += '\\pard\\f0\\fs40\\b ';
+                rtf += convertNodeToRtf(node.childNodes[0]);
+                rtf += '\\b0\\fs22\\par\n';
+                break;
+            case 'h2':
+                rtf += '\\pard\\f0\\fs36\\b ';
+                rtf += convertNodeToRtf(node.childNodes[0]);
+                rtf += '\\b0\\fs22\\par\n';
+                break;
+            case 'h3':
+                rtf += '\\pard\\f0\\fs28\\b ';
+                rtf += convertNodeToRtf(node.childNodes[0]);
+                rtf += '\\b0\\fs22\\par\n';
+                break;
+            case 'h4':
+            case 'h5':
+            case 'h6':
+                rtf += '\\pard\\f0\\fs24\\b ';
+                rtf += convertNodeToRtf(node.childNodes[0]);
+                rtf += '\\b0\\fs22\\par\n';
+                break;
+            case 'p':
+                rtf += '\\pard\\f0\\fs22 ';
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
+                rtf += '\\par\n';
+                break;
+            case 'strong':
+            case 'b':
+                rtf += '\\b ';
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
+                rtf += '\\b0 ';
+                break;
+            case 'em':
+            case 'i':
+                rtf += '\\i ';
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
+                rtf += '\\i0 ';
+                break;
+            case 'u':
+                rtf += '\\ul ';
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
+                rtf += '\\ulnone ';
+                break;
+            case 'br':
+                rtf += '\\line ';
+                break;
+            case 'ul':
+                rtf += convertListToRtf(node, false);
+                break;
+            case 'ol':
+                rtf += convertListToRtf(node, true);
+                break;
+            case 'li':
+                // El contenido de los elementos li se maneja en convertListToRtf
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
+                break;
+            case 'a':
+                // Simplemente incluir el texto del enlace
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
+                break;
+            default:
+                // Para otros elementos, procesar sus hijos
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
+                break;
         }
     }
     
