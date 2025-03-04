@@ -33,13 +33,20 @@ function htmlToRtf(html) {
 function fixRtfContent(content) {
     // Eliminar la letra 'd' al inicio del documento (incluyendo el título)
     content = content.replace(/\\pard\\f0\\fs22\s+d/g, '\\pard\\f0\\fs22');
+    content = content.replace(/\\fs48\\b\s+d/g, '\\fs48\\b');
     content = content.replace(/\\fs40\\b\s+d/g, '\\fs40\\b');
     content = content.replace(/\\fs36\\b\s+d/g, '\\fs36\\b');
     content = content.replace(/\\fs32\\b\s+d/g, '\\fs32\\b');
     content = content.replace(/\\fs28\\b\s+d/g, '\\fs28\\b');
     
+    // Eliminar patrones específicos que causan la letra 'd'
+    content = content.replace(/\\par\\sa\d+\s+d\\f0/g, '\\par\\f0');
+    content = content.replace(/\\par\\sa\d+\s+d\\fi/g, '\\par\\fi');
+    content = content.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
+    
     // Corregir múltiples saltos de línea consecutivos
     content = content.replace(/\\par\\par\\par+/g, '\\par\\par');
+    content = content.replace(/\\par\\sa\d+\\par\\sa\d+/g, '\\par\\sa80');
     
     // Asegurar que los párrafos vacíos se muestren correctamente
     content = content.replace(/\\par\s+\\par/g, '\\par\\par');
@@ -49,7 +56,7 @@ function fixRtfContent(content) {
     
     // Asegurar que hay espacio después de cada párrafo para mejor legibilidad
     // pero no demasiado espacio entre viñetas
-    content = content.replace(/\\par(?!\\sa)/g, '\\par\\sa80 ');
+    content = content.replace(/\\par(?!\\sa)/g, '\\par\\sa60 ');
     
     // Eliminar caracteres 'd' que aparecen al inicio de párrafos o antes de viñetas
     content = content.replace(/\\par\s+d\s+/g, '\\par ');
@@ -61,12 +68,8 @@ function fixRtfContent(content) {
     content = content.replace(/\\par\s*}\s*d\s*/g, '\\par}');
     content = content.replace(/\\par\s*}\s*\\pard/g, '\\par}\\pard');
     
-    // Eliminar la letra 'd' al inicio del documento
-    content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
-    content = content.replace(/\\pard\\f0\\fs22\s+d([^a-zA-Z])/g, '\\pard\\f0\\fs22$1');
-    
     // Corregir espaciado entre viñetas (reducir el espacio)
-    content = content.replace(/(\\bullet[^\\]+)\\par\\sa80/g, '$1\\par');
+    content = content.replace(/(\\bullet[^\\]+)\\par\\sa\d+/g, '$1\\par');
     
     // Asegurar que después de las listas se restaura correctamente el formato
     content = content.replace(/\\pard\\f0\\fs22\s+\\pard/g, '\\pard');
@@ -95,6 +98,9 @@ function fixRtfContent(content) {
         console.warn(`El RTF tiene ${closeBraces - openBraces} llaves de cierre excesivas`);
         // No eliminamos automáticamente para evitar cortar contenido importante
     }
+    
+    // Eliminar cualquier 'd' restante al inicio de líneas
+    content = content.replace(/\\par\s+d/g, '\\par');
     
     return content;
 }

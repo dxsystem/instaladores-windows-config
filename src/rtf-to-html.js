@@ -18,6 +18,12 @@ function rtfToHtml(rtf) {
         // Limpiar encabezado RTF y metadatos
         rtf = rtf.replace(/\\rtf1.*?\\viewkind\d+\\uc1/s, '');
         
+        // Eliminar patrones específicos que causan la letra 'd'
+        rtf = rtf.replace(/\\par\\sa\d+\s+d\\f0/g, '\\par\\f0');
+        rtf = rtf.replace(/\\par\\sa\d+\s+d\\fi/g, '\\par\\fi');
+        rtf = rtf.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
+        rtf = rtf.replace(/\\par\s+d/g, '\\par');
+        
         // Eliminar la letra 'd' al inicio del documento y en cualquier parte
         rtf = rtf.replace(/^\s*d\s+/m, '');
         rtf = rtf.replace(/\\par\s+d\s+/g, '\\par ');
@@ -193,6 +199,12 @@ function rtfToHtml(rtf) {
 // Función para extraer texto limpio de un fragmento RTF
 function extractCleanText(rtfText) {
     if (!rtfText) return '';
+    
+    // Eliminar patrones específicos que causan la letra 'd'
+    rtfText = rtfText.replace(/\\par\\sa\d+\s+d\\f0/g, '\\par\\f0');
+    rtfText = rtfText.replace(/\\par\\sa\d+\s+d\\fi/g, '\\par\\fi');
+    rtfText = rtfText.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
+    rtfText = rtfText.replace(/\\par\s+d/g, '\\par');
     
     // Eliminar la letra 'd' al inicio del texto y en cualquier parte
     rtfText = rtfText.replace(/^\s*d\s+/m, '');
