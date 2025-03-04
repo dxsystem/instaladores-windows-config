@@ -224,10 +224,12 @@ function convertListToRtf(listNode, isOrdered) {
         if (child.nodeType === 1 && child.tagName.toLowerCase() === 'li') {
             // Agregar viñeta o número según el tipo de lista
             if (isOrdered) {
+                // Lista numerada
                 rtf += '\\pard\\fi-360\\li720 ' + counter + '. ';
                 counter++;
             } else {
-                rtf += '\\pard\\fi-360\\li720 \\'+'b7 ';  // Viñeta en formato hexadecimal
+                // Lista con viñetas - usar formato más compatible con WPF
+                rtf += '\\pard{\\pntext\\f1\\'+'b7\\tab}\\pn\\pnlvlblt\\pnf1\\pnindent0{\\pntxtb\\'+'b7}\\fi-360\\li720 ';
             }
             
             // Agregar el contenido del elemento de lista

@@ -145,14 +145,23 @@ function rtfToHtml(rtf) {
             }
             
             // Elementos de lista (viñetas)
-            if (paragraph.includes('\\pntext') || paragraph.includes('\\\'B7')) {
+            if (paragraph.includes('\\pntext') || 
+                paragraph.includes('\\\'B7') || 
+                paragraph.includes('\\'+'b7') || 
+                paragraph.includes('\\bullet') || 
+                paragraph.includes('\\pnlvlblt') ||
+                (paragraph.includes('\\fi-360') && paragraph.includes('\\li720'))) {
+                
                 if (!isInList) {
                     html += `    <ul>\n`;
                     isInList = true;
                 }
                 
                 let listContent = extractCleanText(paragraph);
-                const isBold = paragraph.includes('\\b\\ltrch');
+                const isBold = paragraph.includes('\\b\\ltrch') || paragraph.includes('\\b ');
+                
+                // Eliminar cualquier carácter de viñeta que pueda haber quedado en el texto
+                listContent = listContent.replace(/^[\s•\*\-\u2022\u25E6\u25AA]+/, '').trim();
                 
                 html += `        <li${isBold ? ' class="bold"' : ''}>${listContent}</li>\n`;
                 continue;
