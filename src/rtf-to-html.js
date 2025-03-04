@@ -1,6 +1,6 @@
 /**
  * Conversor de RTF a HTML
- * Versión: 1.3.0
+ * Versión: 1.4.0
  * 
  * Este archivo contiene funciones para convertir contenido RTF a HTML.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
@@ -9,7 +9,10 @@
  * - Eliminación de caracteres 'd' y 'b' no deseados al inicio del documento, antes de viñetas y después de listas
  * - Mejora en el manejo de viñetas y listas
  * - Soporte para caracteres acentuados
- * - Eliminación de símbolos extraños como "Arial; Arial;;;"
+ * - Eliminación de símbolos extraños como "Trebuchet MS; ; ;"
+ * - Corrección de palabras juntas sin espacio
+ * - Eliminación de caracteres Â no deseados
+ * - Mejora en el formato de viñetas para evitar espacios innecesarios
  */
 
 // Convertir RTF a HTML
@@ -32,8 +35,19 @@ function rtfToHtml(rtf) {
         // Eliminar 'd' o 'b' que aparece después de las listas
         rtf = rtf.replace(/\\par\s+[db]\s+/g, '\\par ');
         
-        // Eliminar "Arial; Arial;;;" que puede aparecer en el texto
+        // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
+        rtf = rtf.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
         rtf = rtf.replace(/Arial;\s*Arial;{2,3}/g, '');
+        rtf = rtf.replace(/Segoe UI;\s*;?\s*;?/g, '');
+        
+        // Eliminar caracteres Â no deseados
+        rtf = rtf.replace(/Â+\s*/g, ' ');
+        
+        // Corregir palabras juntas sin espacio
+        rtf = rtf.replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, '$1 $2');
+        
+        // Asegurar espacios después de comas
+        rtf = rtf.replace(/,([^\s])/g, ', $1');
         
         let html = '';
         let isInList = false;
@@ -72,7 +86,7 @@ function rtfToHtml(rtf) {
             }
             
             // Detectar viñetas
-            if (paragraph.includes('\\bullet') || paragraph.includes('\\b7') || paragraph.includes('\\pntext') || paragraph.includes('•')) {
+            if (paragraph.includes('\\bullet') || paragraph.includes('\\b7') || paragraph.includes('\\pntext') || paragraph.includes('•') || paragraph.includes('-360')) {
                 let text = extractCleanText(paragraph);
                 
                 // Eliminar caracteres de viñeta y 'd' o 'b' no deseados
@@ -82,6 +96,10 @@ function rtfToHtml(rtf) {
                 text = text.replace(/\\b7\s*/, '');
                 text = text.replace(/\\u183\?/, '');
                 text = text.replace(/\\u00B7\?/, '');
+                text = text.replace(/^-360\s*/, ''); // Eliminar "-360" al inicio
+                
+                // Eliminar caracteres Â no deseados
+                text = text.replace(/Â+\s*/g, ' ');
                 
                 if (text.trim()) {
                     if (!isInList) {
@@ -94,7 +112,7 @@ function rtfToHtml(rtf) {
             }
             
             // Si estamos en una lista y el párrafo actual no es una viñeta, cerrar la lista
-            if (isInList && !paragraph.includes('\\bullet') && !paragraph.includes('\\b7') && !paragraph.includes('\\pntext') && !paragraph.includes('•')) {
+            if (isInList && !paragraph.includes('\\bullet') && !paragraph.includes('\\b7') && !paragraph.includes('\\pntext') && !paragraph.includes('•') && !paragraph.includes('-360')) {
                 html += '</ul>\n';
                 isInList = false;
             }
@@ -108,8 +126,13 @@ function rtfToHtml(rtf) {
             // Eliminar '\b' que aparece al inicio de los párrafos en negrita
             text = text.replace(/^\\b\s+/, '');
             
-            // Eliminar "Arial; Arial;;;" que puede aparecer en el texto
+            // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
+            text = text.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
             text = text.replace(/Arial;\s*Arial;{2,3}/g, '');
+            text = text.replace(/Segoe UI;\s*;?\s*;?/g, '');
+            
+            // Eliminar caracteres Â no deseados
+            text = text.replace(/Â+\s*/g, ' ');
             
             if (text.trim()) {
                 // Detectar si está en negrita
@@ -143,7 +166,13 @@ function rtfToHtml(rtf) {
                 .replace(/^\s*[db]\s+/, '') // Eliminar 'd' o 'b' al inicio
                 .replace(/[db]\s+•/g, '•') // Eliminar 'd' o 'b' antes de viñetas
                 .replace(/[db]\s+(\d+)\./g, '$1.') // Eliminar 'd' o 'b' antes de números
+                .replace(/Trebuchet MS;\s*;?\s*;?/g, '') // Eliminar "Trebuchet MS; ; ;"
                 .replace(/Arial;\s*Arial;{2,3}/g, '') // Eliminar "Arial; Arial;;;"
+                .replace(/Segoe UI;\s*;?\s*;?/g, '') // Eliminar "Segoe UI; ; ;"
+                .replace(/Â+\s*/g, ' ') // Eliminar caracteres Â no deseados
+                .replace(/-360\s*/g, '') // Eliminar "-360"
+                .replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, '$1 $2') // Corregir palabras juntas
+                .replace(/,([^\s])/g, ', $1') // Asegurar espacios después de comas
                 .trim();
             
             return `<p>${plainText}</p>`;
@@ -177,8 +206,22 @@ function extractCleanText(rtfText) {
     text = text.replace(/\\u183\?/, '');
     text = text.replace(/\\u00B7\?/, '');
     
-    // Eliminar "Arial; Arial;;;" que puede aparecer en el texto
+    // Eliminar "-360" que puede aparecer en el texto
+    text = text.replace(/-360\s*/g, '');
+    
+    // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
+    text = text.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
     text = text.replace(/Arial;\s*Arial;{2,3}/g, '');
+    text = text.replace(/Segoe UI;\s*;?\s*;?/g, '');
+    
+    // Eliminar caracteres Â no deseados
+    text = text.replace(/Â+\s*/g, ' ');
+    
+    // Corregir palabras juntas sin espacio
+    text = text.replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, '$1 $2');
+    
+    // Asegurar espacios después de comas
+    text = text.replace(/,([^\s])/g, ', $1');
     
     // Limpiar espacios múltiples
     text = text.replace(/\s+/g, ' ').trim();

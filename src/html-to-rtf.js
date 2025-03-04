@@ -1,6 +1,6 @@
 /**
  * Conversor de HTML a RTF
- * Versión: 1.3.0
+ * Versión: 1.4.0
  * 
  * Este archivo contiene funciones para convertir contenido HTML a RTF.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
@@ -9,8 +9,10 @@
  * - Mejora en el manejo de viñetas para evitar caracteres 'd' no deseados
  * - Corrección de la tabulación después de las listas
  * - Soporte para caracteres acentuados
- * - Cambio de tipo de letra a Trebuchet MS
+ * - Cambio de tipo de letra a Segoe UI
  * - Mejora en el espaciado después de puntos
+ * - Corrección de palabras juntas sin espacio
+ * - Eliminación de caracteres Â no deseados
  */
 
 // Convertir HTML a RTF mejorado
@@ -24,8 +26,8 @@ function htmlToRtf(html) {
         // Crear un documento RTF básico
         let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082';
         
-        // Agregar tabla de fuentes con Trebuchet MS
-        rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Trebuchet MS;}{\\f1\\fnil\\fcharset0 Trebuchet MS;}}';
+        // Agregar tabla de fuentes con Segoe UI
+        rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}{\\f1\\fnil\\fcharset0 Segoe UI;}}';
         
         // Agregar tabla de colores
         rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
@@ -62,12 +64,22 @@ function fixRtfContent(content) {
         content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
         content = content.replace(/\\pard\\f0\\fs22\s+b\s+/g, '\\pard\\f0\\fs22 ');
         
-        // Eliminar "Arial; Arial;;;" que puede aparecer en el texto
+        // Eliminar "Trebuchet MS; ; ;" que puede aparecer en el texto
+        content = content.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
         content = content.replace(/Arial;\s*Arial;{2,3}/g, '');
+        
+        // Eliminar caracteres Â no deseados
+        content = content.replace(/Â+\s*/g, ' ');
+        
+        // Corregir palabras juntas sin espacio
+        content = content.replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, '$1 $2');
         
         // Mejorar espaciado después de puntos
         content = content.replace(/\.\\par/g, '.\\par\\sa200 ');
         content = content.replace(/\.\s+/g, '. ');
+        
+        // Asegurar espacios después de comas
+        content = content.replace(/,([^\s])/g, ', $1');
         
         // Verificar balance de llaves
         let openBraces = 0;
@@ -286,7 +298,7 @@ function convertListToRtf(listNode, isOrdered) {
                 counter++;
             } else {
                 // Lista con viñetas - formato muy simple y robusto
-                rtf += '\\pard\\fi-360\\li720 \\bullet ';
+                rtf += '\\pard\\fi-360\\li720\\bullet '; // Eliminado el espacio después de \\bullet
             }
             
             // Agregar el contenido del elemento de lista
