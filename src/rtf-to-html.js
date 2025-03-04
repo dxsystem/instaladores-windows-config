@@ -15,6 +15,9 @@ function rtfToHtml(rtf) {
     try {
         console.log('rtfToHtml: Iniciando conversión, longitud RTF:', rtf.length);
         
+        // Limpiar encabezado RTF y metadatos
+        rtf = rtf.replace(/\\rtf1.*?\\viewkind\d+\\uc1/s, '');
+        
         // Crear el HTML base
         let html = '';
         
@@ -52,6 +55,9 @@ function rtfToHtml(rtf) {
                 
                 // Eliminar cualquier carácter de viñeta que pueda haber quedado
                 listContent = listContent.replace(/^[\s•\*\-\u2022\u25E6\u25AA\u00B7]+/, '').trim();
+                
+                // Eliminar la 'd' que aparece al inicio de las viñetas
+                listContent = listContent.replace(/^d\s*[•\*\-\u2022\u25E6\u25AA\u00B7]?\s*/, '');
                 
                 // Detectar si está en negrita
                 const isBold = paragraph.includes('\\b');
@@ -91,7 +97,13 @@ function rtfToHtml(rtf) {
             }
             
             // Párrafos normales
-            const text = extractCleanText(paragraph);
+            let text = extractCleanText(paragraph);
+            
+            // Eliminar la 'd' que aparece al inicio de los párrafos
+            text = text.replace(/^d\s+/, '');
+            // Eliminar '\b' que aparece al inicio de los párrafos en negrita
+            text = text.replace(/^\\b\s+/, '');
+            
             if (text.trim()) {
                 // Detectar si está en negrita
                 if (paragraph.includes('\\b')) {
@@ -137,6 +149,7 @@ function extractCleanText(rtfText) {
     
     // Eliminar códigos de control RTF
     let text = rtfText
+        // Eliminar códigos de formato de párrafo
         .replace(/\\pard/g, '')
         .replace(/\\plain/g, '')
         .replace(/\\f\d+/g, '')
@@ -162,6 +175,8 @@ function extractCleanText(rtfText) {
         .replace(/\\ql/g, '')
         .replace(/\\qr/g, '')
         .replace(/\\qc/g, '')
+        
+        // Eliminar códigos de lista
         .replace(/\\pntext/g, '')
         .replace(/\\pnlvlblt/g, '')
         .replace(/\\pnlvlbody/g, '')
@@ -173,6 +188,20 @@ function extractCleanText(rtfText) {
         .replace(/\\pntxtb/g, '')
         .replace(/\\pntxta/g, '')
         .replace(/\\pncard/g, '')
+        
+        // Eliminar caracteres 'd' al inicio de líneas
+        .replace(/^d\s+/gm, '')
+        .replace(/\\par\s+d\s+/g, '\\par ')
+        .replace(/\\bullet\s+d\s+/g, '\\bullet ')
+        
+        // Eliminar códigos de viñeta
+        .replace(/\\bullet/g, '')
+        .replace(/\\b7/g, '')
+        .replace(/\\u8226/g, '')
+        .replace(/\\u183/g, '')
+        .replace(/\\u00B7/g, '')
+        
+        // Convertir saltos de línea y tabulaciones
         .replace(/\\line/g, '<br>')
         .replace(/\\tab/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
     
@@ -192,12 +221,32 @@ function extractCleanText(rtfText) {
     // Decodificar caracteres especiales
     text = decodeRtfCharacters(text);
     
-    return text.trim();
+    // Eliminar cualquier código RTF restante
+    text = text.replace(/\\[a-z]+\d*/g, '');
+    
+    // Eliminar espacios múltiples
+    text = text.replace(/\s+/g, ' ').trim();
+    
+    return text;
 }
 
 // Función para decodificar caracteres especiales en RTF
 function decodeRtfCharacters(text) {
     if (!text) return '';
+    
+    // Decodificar códigos RTF específicos para tildes y caracteres especiales
+    const rtfCharMap = {
+        "'e1": "á", "'e9": "é", "'ed": "í", "'f3": "ó", "'fa": "ú",
+        "'c1": "Á", "'c9": "É", "'cd": "Í", "'d3": "Ó", "'da": "Ú",
+        "'f1": "ñ", "'d1": "Ñ", "'fc": "ü", "'dc": "Ü",
+        "'bf": "¿", "'a1": "¡", "'a9": "©",
+        "'ae": "®", "'b0": "°", "'b7": "·"
+    };
+    
+    // Reemplazar códigos RTF específicos
+    for (const [code, char] of Object.entries(rtfCharMap)) {
+        text = text.replace(new RegExp(code, 'g'), char);
+    }
     
     // Decodificar caracteres especiales en formato hexadecimal
     text = text.replace(/\\'([0-9a-f]{2})/g, function(match, hex) {

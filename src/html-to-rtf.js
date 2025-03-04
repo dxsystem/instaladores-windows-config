@@ -8,10 +8,10 @@
 function htmlToRtf(html) {
     if (!html) return '';
     
-    // Crear encabezado RTF básico
+    // Crear encabezado RTF básico - simplificado para evitar problemas
     let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082{\\fonttbl{\\f0\\fnil\\fcharset0 Calibri;}}';
     rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
-    rtf += '\\viewkind4\\uc1\\pard\\sa200\\sl276\\slmult1\\f0\\fs22 ';
+    rtf += '\\viewkind4\\uc1\\pard\\f0\\fs22 ';
     
     // Crear un elemento temporal para analizar el HTML
     const tempDiv = document.createElement('div');
@@ -39,6 +39,10 @@ function fixRtfContent(content) {
     
     // Corregir espacios en blanco excesivos
     content = content.replace(/\s+/g, ' ').replace(/\s+\\par/g, '\\par');
+    
+    // Eliminar caracteres 'd' que aparecen al inicio de párrafos
+    content = content.replace(/\\par d /g, '\\par ');
+    content = content.replace(/\\bullet d /g, '\\bullet ');
     
     // Verificar balance de llaves
     let openBraces = 0;
@@ -263,7 +267,7 @@ function convertListToRtf(listNode, isOrdered) {
     }
     
     // Restaurar el formato de párrafo normal después de la lista
-    rtf += '\\pard\\sa200\\sl276\\slmult1 ';
+    rtf += '\\pard\\f0\\fs22 ';
     
     return rtf;
 } 
