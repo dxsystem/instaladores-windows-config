@@ -18,32 +18,8 @@ function rtfToHtml(rtf) {
         // Limpiar encabezado RTF y metadatos
         rtf = rtf.replace(/\\rtf1.*?\\viewkind\d+\\uc1/s, '');
         
-        // Eliminar patrones específicos que causan la letra 'd'
-        rtf = rtf.replace(/\\par\\sa\d+\s+d\\f0/g, '\\par\\f0');
-        rtf = rtf.replace(/\\par\\sa\d+\s+d\\fi/g, '\\par\\fi');
-        rtf = rtf.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
-        rtf = rtf.replace(/\\par\s+d/g, '\\par');
-        
-        // Eliminar específicamente el patrón \par\sa80 d\f0 mencionado por el usuario
-        rtf = rtf.replace(/\\par\\sa80\s+d\\f0/g, '\\par\\f0');
-        
-        // Eliminar la 'd' antes de la numeración en listas
-        rtf = rtf.replace(/(\\par\\sa\d+)\s+d(\s*\d+\.)/g, '$1$2');
-        
-        // Eliminar la letra 'd' al inicio del documento y en cualquier parte
-        rtf = rtf.replace(/^\s*d\s+/m, '');
-        rtf = rtf.replace(/\\par\s+d\s+/g, '\\par ');
-        rtf = rtf.replace(/\\par\s+d$/gm, '\\par');
-        rtf = rtf.replace(/d\s*\\bullet/g, '\\bullet');
-        
-        // Eliminar la letra 'd' en encabezados
-        rtf = rtf.replace(/\\fs\d+\\b\s+d/g, '\\fs$1\\b ');
-        
-        // Detectar si el RTF contiene elementos específicos de MS Office
-        const hasMsoElements = rtf.includes('\\f0\\fs22') || 
-                              rtf.includes('\\sa') || 
-                              rtf.includes('\\li') || 
-                              rtf.includes('\\fi');
+        // Eliminar la letra 'd' al inicio del documento
+        rtf = rtf.replace(/^\s*d\s+/, '');
         
         // Crear el HTML base
         let html = '';
@@ -54,41 +30,29 @@ function rtfToHtml(rtf) {
         // Variables para seguimiento
         let isInList = false;
         let listItems = [];
-        let firstParagraph = true;
         
         // Procesar cada párrafo
         for (let i = 0; i < paragraphs.length; i++) {
             let paragraph = paragraphs[i].trim();
             
             // Saltar párrafos vacíos o muy cortos
-            if (paragraph.length < 3) continue;
+            if (paragraph.length < 5) continue;
             
             // Saltar párrafos que solo contienen códigos de control
             if (paragraph.startsWith('\\') && !paragraph.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/)) continue;
             
-            // Si es el primer párrafo no vacío, eliminar cualquier 'd' al inicio
-            if (firstParagraph) {
-                paragraph = paragraph.replace(/^\s*d\s+/m, '');
-                firstParagraph = false;
+            // Eliminar la letra 'd' al inicio del párrafo (especialmente importante para el primer párrafo)
+            if (i === 0) {
+                paragraph = paragraph.replace(/^\s*d\s+/, '');
             }
             
-            // Eliminar párrafos que solo contienen 'd'
-            if (paragraph.trim() === 'd') {
-                continue;
-            }
-            
-            // Eliminar la letra 'd' antes de cualquier texto
-            paragraph = paragraph.replace(/^d\s+/m, '');
-            
-            // Detectar si es una viñeta - mejorado para detectar más patrones
+            // Detectar si es una viñeta
             const isBulletPoint = paragraph.includes('\\pntext') || 
                                  paragraph.includes('\\'+'b7') || 
                                  paragraph.includes('\\bullet') || 
                                  paragraph.includes('\\pnlvlblt') ||
                                  (paragraph.includes('\\fi-360') && paragraph.includes('\\li720')) ||
-                                 paragraph.trim() === 'd' ||
-                                 paragraph.match(/^d\s+/) ||
-                                 paragraph.match(/\\li\d+\s+\\bullet/);
+                                 paragraph.trim() === 'd';
             
             // Si encontramos solo una 'd', podría ser un marcador de viñeta
             if (paragraph.trim() === 'd' && i < paragraphs.length - 1) {
@@ -116,8 +80,8 @@ function rtfToHtml(rtf) {
                 // Eliminar la 'd' que aparece al inicio de las viñetas
                 listContent = listContent.replace(/^d\s*[•\*\-\u2022\u25E6\u25AA\u00B7]?\s*/, '');
                 
-                // Detectar si está en negrita - solo aplicar si realmente tiene formato de negrita
-                const isBold = paragraph.includes('\\b') && !paragraph.includes('\\bullet');
+                // Detectar si está en negrita
+                const isBold = paragraph.includes('\\b');
                 
                 // Solo agregar elemento de lista si tiene contenido
                 if (listContent.trim()) {
@@ -144,21 +108,13 @@ function rtfToHtml(rtf) {
                     const size = parseInt(fontSize[1]);
                     let headingLevel = 3; // Por defecto h3
                     
-                    if (size >= 48) headingLevel = 1;
-                    else if (size >= 40) headingLevel = 2;
-                    else if (size >= 36) headingLevel = 3;
-                    else if (size >= 32) headingLevel = 4;
-                    else if (size >= 28) headingLevel = 5;
-                    else if (size >= 24) headingLevel = 6;
+                    if (size >= 40) headingLevel = 1;
+                    else if (size >= 32) headingLevel = 2;
+                    else if (size >= 28) headingLevel = 3;
+                    else if (size >= 24) headingLevel = 4;
                     
                     const headingText = extractCleanText(paragraph);
-                    
-                    // Si estamos trabajando con elementos de MS Office, usar clases específicas
-                    if (hasMsoElements) {
-                        html += `<h${headingLevel}><b>${headingText}</b></h${headingLevel}>\n`;
-                    } else {
-                        html += `<h${headingLevel}>${headingText}</h${headingLevel}>\n`;
-                    }
+                    html += `<h${headingLevel}>${headingText}</h${headingLevel}>\n`;
                     continue;
                 }
             }
@@ -174,19 +130,9 @@ function rtfToHtml(rtf) {
             if (text.trim()) {
                 // Detectar si está en negrita
                 if (paragraph.includes('\\b')) {
-                    // Si estamos trabajando con elementos de MS Office, usar clases específicas
-                    if (hasMsoElements) {
-                        html += `<p class="MsoNormal"><b>${text}</b></p>\n`;
-                    } else {
-                        html += `<p><strong>${text}</strong></p>\n`;
-                    }
+                    html += `<p><strong>${text}</strong></p>\n`;
                 } else {
-                    // Si estamos trabajando con elementos de MS Office, usar clases específicas
-                    if (hasMsoElements) {
-                        html += `<p class="MsoNormal">${text}</p>\n`;
-                    } else {
-                        html += `<p>${text}</p>\n`;
-                    }
+                    html += `<p>${text}</p>\n`;
                 }
             }
         }
@@ -210,11 +156,8 @@ function rtfToHtml(rtf) {
                 .replace(/\\[a-z0-9]+/g, ' ')
                 .replace(/\{|\}/g, '')
                 .replace(/\s+/g, ' ')
+                .replace(/^\s*d\s+/, '') // Eliminar 'd' al inicio
                 .trim();
-            
-            // Eliminar la 'd' al inicio del texto
-            plainText = plainText.replace(/^\s*d\s+/m, '');
-            plainText = plainText.replace(/\s+d\s+/g, ' ');
             
             return `<p>${plainText}</p>`;
         } catch (e) {
@@ -227,31 +170,6 @@ function rtfToHtml(rtf) {
 // Función para extraer texto limpio de un fragmento RTF
 function extractCleanText(rtfText) {
     if (!rtfText) return '';
-    
-    // Eliminar patrones específicos que causan la letra 'd'
-    rtfText = rtfText.replace(/\\par\\sa\d+\s+d\\f0/g, '\\par\\f0');
-    rtfText = rtfText.replace(/\\par\\sa\d+\s+d\\fi/g, '\\par\\fi');
-    rtfText = rtfText.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
-    rtfText = rtfText.replace(/\\par\s+d/g, '\\par');
-    
-    // Eliminar específicamente el patrón \par\sa80 d\f0 mencionado por el usuario
-    rtfText = rtfText.replace(/\\par\\sa80\s+d\\f0/g, '\\par\\f0');
-    
-    // Eliminar la 'd' antes de la numeración en listas
-    rtfText = rtfText.replace(/(\\par\\sa\d+)\s+d(\s*\d+\.)/g, '$1$2');
-    
-    // Eliminar la letra 'd' al inicio del texto y en cualquier parte
-    rtfText = rtfText.replace(/^\s*d\s+/m, '');
-    rtfText = rtfText.replace(/\s+d\s+/g, ' ');
-    rtfText = rtfText.replace(/\s+d$/g, '');
-    rtfText = rtfText.replace(/d\s*\\bullet/g, '\\bullet');
-    
-    // Eliminar la letra 'd' en encabezados
-    rtfText = rtfText.replace(/\\fs\d+\\b\s+d/g, '\\fs$1\\b ');
-    
-    // Preservar etiquetas específicas de MS Office
-    const msoTags = rtfText.match(/<o:p>.*?<\/o:p>/g) || [];
-    const langTags = rtfText.match(/lang="[^"]*"/g) || [];
     
     // Eliminar códigos de control RTF
     let text = rtfText
@@ -336,23 +254,6 @@ function extractCleanText(rtfText) {
     
     // Eliminar espacios múltiples
     text = text.replace(/\s+/g, ' ').trim();
-    
-    // Restaurar etiquetas específicas de MS Office si las había
-    if (msoTags.length > 0 || langTags.length > 0) {
-        // Restaurar etiquetas <o:p>
-        for (const tag of msoTags) {
-            text += tag;
-        }
-        
-        // Restaurar atributos lang
-        if (langTags.length > 0 && text.includes('<')) {
-            const firstTag = text.match(/<[^>]+>/);
-            if (firstTag) {
-                const tagWithLang = firstTag[0].replace('>', ' ' + langTags[0] + '>');
-                text = text.replace(firstTag[0], tagWithLang);
-            }
-        }
-    }
     
     return text;
 }
