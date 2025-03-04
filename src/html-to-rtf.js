@@ -17,8 +17,22 @@ function htmlToRtf(html) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     
-    // Convertir el contenido HTML a RTF
-    rtf += convertNodeToRtf(tempDiv);
+    // Detectar si el HTML contiene elementos específicos de MS Office
+    const hasMsoElements = html.includes('MsoNormal') || 
+                          html.includes('MsoListParagraph') || 
+                          html.includes('o:p') || 
+                          html.includes('lang="EN-US"');
+    
+    // Si contiene elementos de MS Office, usar un enfoque más específico
+    if (hasMsoElements) {
+        console.log('Detectados elementos de MS Office en el HTML');
+        
+        // Preservar clases específicas de MS Office
+        rtf += convertMsoHtmlToRtf(tempDiv);
+    } else {
+        // Convertir el contenido HTML a RTF de forma estándar
+        rtf += convertNodeToRtf(tempDiv);
+    }
     
     // Cerrar el documento RTF
     rtf += '}';
@@ -44,9 +58,15 @@ function fixRtfContent(content) {
     content = content.replace(/\\par\\sa\d+\s+d\\fi/g, '\\par\\fi');
     content = content.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
     
+    // Eliminar específicamente el patrón \par\sa80 d\f0 mencionado por el usuario
+    content = content.replace(/\\par\\sa80\s+d\\f0/g, '\\par\\f0');
+    
+    // Eliminar la 'd' antes de la numeración en listas
+    content = content.replace(/(\\par\\sa\d+)\s+d(\s*\d+\.)/g, '$1$2');
+    
     // Corregir múltiples saltos de línea consecutivos
     content = content.replace(/\\par\\par\\par+/g, '\\par\\par');
-    content = content.replace(/\\par\\sa\d+\\par\\sa\d+/g, '\\par\\sa80');
+    content = content.replace(/\\par\\sa\d+\\par\\sa\d+/g, '\\par\\sa60');
     
     // Asegurar que los párrafos vacíos se muestren correctamente
     content = content.replace(/\\par\s+\\par/g, '\\par\\par');
@@ -74,6 +94,11 @@ function fixRtfContent(content) {
     // Asegurar que después de las listas se restaura correctamente el formato
     content = content.replace(/\\pard\\f0\\fs22\s+\\pard/g, '\\pard');
     
+    // Eliminar cualquier 'd' restante al inicio de líneas
+    content = content.replace(/\\par\s+d/g, '\\par');
+    content = content.replace(/^d\s+/gm, '');
+    content = content.replace(/\s+d\s+/g, ' ');
+    
     // Verificar balance de llaves
     let openBraces = 0;
     let closeBraces = 0;
@@ -98,9 +123,6 @@ function fixRtfContent(content) {
         console.warn(`El RTF tiene ${closeBraces - openBraces} llaves de cierre excesivas`);
         // No eliminamos automáticamente para evitar cortar contenido importante
     }
-    
-    // Eliminar cualquier 'd' restante al inicio de líneas
-    content = content.replace(/\\par\s+d/g, '\\par');
     
     return content;
 }
@@ -184,11 +206,17 @@ function convertNodeToRtf(node) {
         // Elemento HTML
         else if (child.nodeType === 1) { // Elemento
             const tagName = child.tagName.toLowerCase();
+            const className = child.className || '';
             
             // Aplicar formato según el tipo de elemento
             switch (tagName) {
                 case 'p':
-                    rtf += convertNodeToRtf(child) + '\\par ';
+                    // Verificar si tiene clase MsoNormal u otras clases específicas
+                    if (className.includes('MsoNormal')) {
+                        rtf += '{\\pard\\plain\\f0\\fs22 ' + convertNodeToRtf(child) + '}\\par ';
+                    } else {
+                        rtf += convertNodeToRtf(child) + '\\par ';
+                    }
                     break;
                     
                 case 'br':
@@ -298,14 +326,27 @@ function convertListToRtf(listNode, isOrdered) {
             // Eliminar cualquier 'd' al inicio del contenido
             itemContent = itemContent.replace(/^d\s+/, '');
             
+            // Verificar si el elemento tiene formato de negrita
+            const hasBoldContent = child.querySelector('b, strong') !== null || 
+                                  (child.innerHTML && child.innerHTML.includes('<b>')) ||
+                                  (child.innerHTML && child.innerHTML.includes('<strong>'));
+            
             // Agregar viñeta o número según el tipo de lista
             if (isOrdered) {
                 // Lista numerada - formato simplificado
-                rtf += '\\pard\\fi-360\\li720 ' + counter + '. ' + itemContent + '\\par';
+                if (hasBoldContent) {
+                    rtf += '\\pard\\fi-360\\li720 ' + counter + '. {\\b ' + itemContent + '}\\par';
+                } else {
+                    rtf += '\\pard\\fi-360\\li720 ' + counter + '. ' + itemContent + '\\par';
+                }
                 counter++;
             } else {
                 // Lista con viñetas - formato muy simple y robusto
-                rtf += '\\pard\\fi-360\\li720 \\bullet ' + itemContent + '\\par';
+                if (hasBoldContent) {
+                    rtf += '\\pard\\fi-360\\li720 \\bullet {\\b ' + itemContent + '}\\par';
+                } else {
+                    rtf += '\\pard\\fi-360\\li720 \\bullet ' + itemContent + '\\par';
+                }
             }
         }
     }
@@ -315,6 +356,63 @@ function convertListToRtf(listNode, isOrdered) {
     
     // Restaurar el formato de párrafo normal después de la lista
     rtf += '\\pard\\f0\\fs22 ';
+    
+    return rtf;
+}
+
+// Función específica para convertir HTML con elementos de MS Office a RTF
+function convertMsoHtmlToRtf(node) {
+    if (!node) return '';
+    
+    let rtf = '';
+    
+    // Procesar nodos hijos
+    for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        
+        // Nodo de texto
+        if (child.nodeType === 3) { // Nodo de texto
+            rtf += escapeRtf(child.textContent);
+        }
+        // Elemento HTML
+        else if (child.nodeType === 1) { // Elemento
+            const tagName = child.tagName.toLowerCase();
+            const className = child.className || '';
+            
+            // Manejar elementos específicos de MS Office
+            if (className.includes('MsoNormal')) {
+                rtf += '{\\pard\\plain\\f0\\fs22 ' + convertNodeToRtf(child) + '}\\par ';
+            }
+            else if (className.includes('MsoListParagraph')) {
+                // Verificar si es un elemento de lista
+                const isListItem = child.innerHTML.includes('•') || 
+                                  child.innerHTML.includes('<li>') ||
+                                  child.querySelector('li') !== null;
+                
+                if (isListItem) {
+                    // Extraer el contenido sin la viñeta
+                    let content = convertNodeToRtf(child);
+                    content = content.replace(/^•\s*/, ''); // Eliminar la viñeta si existe
+                    
+                    rtf += '\\pard\\fi-360\\li720 \\bullet ' + content + '\\par ';
+                } else {
+                    rtf += '{\\pard\\plain\\f0\\fs22 ' + convertNodeToRtf(child) + '}\\par ';
+                }
+            }
+            else if (tagName === 'h3' || tagName === 'h2' || tagName === 'h1') {
+                // Manejar encabezados
+                const fontSize = tagName === 'h1' ? 48 : (tagName === 'h2' ? 40 : 36);
+                rtf += '{\\fs' + fontSize + '\\b ' + convertNodeToRtf(child) + '}\\par ';
+            }
+            else if (tagName === 'ul' || tagName === 'ol') {
+                rtf += convertListToRtf(child, tagName === 'ol');
+            }
+            else {
+                // Para otros elementos, usar la conversión estándar
+                rtf += convertNodeToRtf(child);
+            }
+        }
+    }
     
     return rtf;
 } 

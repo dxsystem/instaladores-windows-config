@@ -24,6 +24,12 @@ function rtfToHtml(rtf) {
         rtf = rtf.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
         rtf = rtf.replace(/\\par\s+d/g, '\\par');
         
+        // Eliminar específicamente el patrón \par\sa80 d\f0 mencionado por el usuario
+        rtf = rtf.replace(/\\par\\sa80\s+d\\f0/g, '\\par\\f0');
+        
+        // Eliminar la 'd' antes de la numeración en listas
+        rtf = rtf.replace(/(\\par\\sa\d+)\s+d(\s*\d+\.)/g, '$1$2');
+        
         // Eliminar la letra 'd' al inicio del documento y en cualquier parte
         rtf = rtf.replace(/^\s*d\s+/m, '');
         rtf = rtf.replace(/\\par\s+d\s+/g, '\\par ');
@@ -32,6 +38,12 @@ function rtfToHtml(rtf) {
         
         // Eliminar la letra 'd' en encabezados
         rtf = rtf.replace(/\\fs\d+\\b\s+d/g, '\\fs$1\\b ');
+        
+        // Detectar si el RTF contiene elementos específicos de MS Office
+        const hasMsoElements = rtf.includes('\\f0\\fs22') || 
+                              rtf.includes('\\sa') || 
+                              rtf.includes('\\li') || 
+                              rtf.includes('\\fi');
         
         // Crear el HTML base
         let html = '';
@@ -140,7 +152,13 @@ function rtfToHtml(rtf) {
                     else if (size >= 24) headingLevel = 6;
                     
                     const headingText = extractCleanText(paragraph);
-                    html += `<h${headingLevel}>${headingText}</h${headingLevel}>\n`;
+                    
+                    // Si estamos trabajando con elementos de MS Office, usar clases específicas
+                    if (hasMsoElements) {
+                        html += `<h${headingLevel}><b>${headingText}</b></h${headingLevel}>\n`;
+                    } else {
+                        html += `<h${headingLevel}>${headingText}</h${headingLevel}>\n`;
+                    }
                     continue;
                 }
             }
@@ -156,9 +174,19 @@ function rtfToHtml(rtf) {
             if (text.trim()) {
                 // Detectar si está en negrita
                 if (paragraph.includes('\\b')) {
-                    html += `<p><strong>${text}</strong></p>\n`;
+                    // Si estamos trabajando con elementos de MS Office, usar clases específicas
+                    if (hasMsoElements) {
+                        html += `<p class="MsoNormal"><b>${text}</b></p>\n`;
+                    } else {
+                        html += `<p><strong>${text}</strong></p>\n`;
+                    }
                 } else {
-                    html += `<p>${text}</p>\n`;
+                    // Si estamos trabajando con elementos de MS Office, usar clases específicas
+                    if (hasMsoElements) {
+                        html += `<p class="MsoNormal">${text}</p>\n`;
+                    } else {
+                        html += `<p>${text}</p>\n`;
+                    }
                 }
             }
         }
@@ -206,6 +234,12 @@ function extractCleanText(rtfText) {
     rtfText = rtfText.replace(/\\par\\sa\d+\s+d\\fs/g, '\\par\\fs');
     rtfText = rtfText.replace(/\\par\s+d/g, '\\par');
     
+    // Eliminar específicamente el patrón \par\sa80 d\f0 mencionado por el usuario
+    rtfText = rtfText.replace(/\\par\\sa80\s+d\\f0/g, '\\par\\f0');
+    
+    // Eliminar la 'd' antes de la numeración en listas
+    rtfText = rtfText.replace(/(\\par\\sa\d+)\s+d(\s*\d+\.)/g, '$1$2');
+    
     // Eliminar la letra 'd' al inicio del texto y en cualquier parte
     rtfText = rtfText.replace(/^\s*d\s+/m, '');
     rtfText = rtfText.replace(/\s+d\s+/g, ' ');
@@ -214,6 +248,10 @@ function extractCleanText(rtfText) {
     
     // Eliminar la letra 'd' en encabezados
     rtfText = rtfText.replace(/\\fs\d+\\b\s+d/g, '\\fs$1\\b ');
+    
+    // Preservar etiquetas específicas de MS Office
+    const msoTags = rtfText.match(/<o:p>.*?<\/o:p>/g) || [];
+    const langTags = rtfText.match(/lang="[^"]*"/g) || [];
     
     // Eliminar códigos de control RTF
     let text = rtfText
@@ -298,6 +336,23 @@ function extractCleanText(rtfText) {
     
     // Eliminar espacios múltiples
     text = text.replace(/\s+/g, ' ').trim();
+    
+    // Restaurar etiquetas específicas de MS Office si las había
+    if (msoTags.length > 0 || langTags.length > 0) {
+        // Restaurar etiquetas <o:p>
+        for (const tag of msoTags) {
+            text += tag;
+        }
+        
+        // Restaurar atributos lang
+        if (langTags.length > 0 && text.includes('<')) {
+            const firstTag = text.match(/<[^>]+>/);
+            if (firstTag) {
+                const tagWithLang = firstTag[0].replace('>', ' ' + langTags[0] + '>');
+                text = text.replace(firstTag[0], tagWithLang);
+            }
+        }
+    }
     
     return text;
 }
