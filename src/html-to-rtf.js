@@ -1,18 +1,16 @@
 /**
  * Conversor de HTML a RTF
- * Versión: 1.5.0
+ * Versión: 1.4.0
  * 
  * Este archivo contiene funciones para convertir contenido HTML a RTF.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
  * 
  * Correcciones:
- * - Mejora en el manejo de viñetas para evitar espacios innecesarios
- * - Corregido el problema de palabras juntas sin espacio
- * - Agregado soporte para caracteres acentuados
- * - Eliminación de símbolos no deseados
- * - Cambiado tipo de letra a Segoe UI
- * - Mejora en el espaciado después de puntos
- * - Corrección de palabras juntas sin espacio
+ * - Mejora en el manejo de viñetas para evitar caracteres 'd' no deseados
+ * - Corrección de la tabulación después de las listas
+ * - Soporte para caracteres acentuados
+ * - Cambio de tipo de letra a Segoe UI
+ * - Mejora en el espaciado después de puntos y entre palabras
  * - Eliminación de caracteres Â no deseados
  */
 
@@ -22,35 +20,35 @@
  * @return {string} - El contenido en formato RTF
  */
 function htmlToRtf(html) {
+    if (!html || typeof html !== 'string') {
+        console.error('htmlToRtf: El contenido HTML es inválido');
+        return '';
+    }
+    
     try {
-        if (!html) {
-            console.error('htmlToRtf: No se proporcionó contenido HTML');
-            return '';
-        }
-
-        // Crear un documento temporal
-        const tempDoc = document.implementation.createHTMLDocument('');
-        tempDoc.body.innerHTML = html;
-
-        // Iniciar documento RTF
+        // Crear un documento RTF básico
         let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082';
         
-        // Tabla de fuentes - Cambiado a Segoe UI
-        rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}}';
+        // Agregar tabla de fuentes con Segoe UI
+        rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}{\\f1\\fnil\\fcharset0 Segoe UI;}}';
         
-        // Tabla de colores
+        // Agregar tabla de colores
         rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
         
-        // Información del documento
-        rtf += '\\viewkind4\\uc1\\pard\\sa200\\sl276\\slmult1\\f0\\fs22 ';
+        // Configuración de documento
+        rtf += '\\viewkind4\\uc1\\pard\\f0\\fs22 ';
         
-        // Convertir contenido del body
-        rtf += convertNodeToRtf(tempDoc.body);
+        // Crear un elemento temporal para parsear el HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
         
-        // Cerrar documento RTF
+        // Convertir el contenido HTML a RTF
+        rtf += convertNodeToRtf(tempDiv);
+        
+        // Cerrar el documento RTF
         rtf += '}';
         
-        // Aplicar correcciones finales al RTF generado
+        // Verificar y corregir problemas comunes
         rtf = fixRtfContent(rtf);
         
         return rtf;
@@ -66,32 +64,48 @@ function htmlToRtf(html) {
  * @return {string} - El contenido RTF corregido
  */
 function fixRtfContent(content) {
-    if (!content) return '';
+    if (!content) return content;
     
     try {
-        // Eliminar múltiples espacios seguidos
-        content = content.replace(/\s{2,}/g, ' ');
+        // Eliminar cualquier 'd' al inicio del documento
+        content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
+        content = content.replace(/\\pard\\f0\\fs22\s+b\s+/g, '\\pard\\f0\\fs22 ');
         
-        // Corregir espacios alrededor de símbolos
-        content = content.replace(/\s+([.,;:!?)])/g, '$1');
-        content = content.replace(/([({])\s+/g, '$1');
-        
-        // Asegurar que haya un espacio después de cada punto, coma o dos puntos (excepto en números decimales)
-        content = content.replace(/\.([A-Za-zÁÉÍÓÚáéíóúÑñÜü])/g, '. $1');
-        content = content.replace(/,([^\s])/g, ', $1');
-        content = content.replace(/:([^\s])/g, ': $1');
-        
-        // Corregir espacios entre palabras que tienen una letra minúscula seguida de mayúscula
-        content = content.replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, '$1 $2');
-        
-        // Eliminar "Segoe UI; ; ;"
+        // Eliminar "Trebuchet MS; ; ;" o "Arial; Arial;;;" que puede aparecer en el texto
+        content = content.replace(/Trebuchet MS;\s*;?\s*;?/g, '');
+        content = content.replace(/Arial;\s*Arial;{2,3}/g, '');
         content = content.replace(/Segoe UI;\s*;?\s*;?/g, '');
         
         // Eliminar caracteres Â no deseados
-        content = content.replace(/Â+\s*/g, ' ');
+        content = content.replace(/Â/g, ' ');
         
-        // Eliminar secuencias de escape para caracteres especiales
-        content = content.replace(/\\\'[0-9a-fA-F]{2}/g, '');
+        // Asegurar espacios entre palabras
+        content = content.replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])([A-Z])/g, '$1 $2'); // Espacio entre palabra y mayúscula
+        content = content.replace(/([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ])(\d)/g, '$1 $2'); // Espacio entre palabra y número
+        content = content.replace(/(\d)([a-zA-Z])/g, '$1 $2'); // Espacio entre número y palabra
+        
+        // Mejorar espaciado después de puntos
+        content = content.replace(/\.([a-zA-Z0-9])/g, '. $1'); // Espacio después de punto
+        content = content.replace(/\.\\par/g, '.\\par\\sa200 ');
+        
+        // Verificar balance de llaves
+        let openBraces = 0;
+        let closeBraces = 0;
+        
+        for (let i = 0; i < content.length; i++) {
+            if (content[i] === '{') openBraces++;
+            if (content[i] === '}') closeBraces++;
+        }
+        
+        // Agregar llaves faltantes si es necesario
+        if (openBraces > closeBraces) {
+            console.warn(`fixRtfContent: Faltan ${openBraces - closeBraces} llaves de cierre. Agregando...`);
+            for (let i = 0; i < openBraces - closeBraces; i++) {
+                content += '}';
+            }
+        } else if (closeBraces > openBraces) {
+            console.warn(`fixRtfContent: Hay ${closeBraces - openBraces} llaves de cierre excesivas.`);
+        }
         
         return content;
     } catch (error) {
@@ -302,15 +316,15 @@ function convertListToRtf(listNode, isOrdered) {
             // Agregar viñeta o número según el tipo de lista
             if (isOrdered) {
                 // Lista numerada - formato simplificado
-                rtf += '\\pard\\fi-360\\li720 ' + counter + '.';  // Eliminado el espacio después del número
+                rtf += '\\pard\\fi-360\\li720 ' + counter + '. ';
                 counter++;
             } else {
                 // Lista con viñetas - formato muy simple y robusto
-                rtf += '\\pard\\fi-360\\li720\\bullet'; // Eliminado el espacio después de \\bullet
+                rtf += '\\pard\\fi-360\\li720 \\bullet ';
             }
             
-            // Agregar el contenido del elemento de lista, asegurando un espacio después de la viñeta/número
-            rtf += ' ' + convertNodeToRtf(child) + '\\par ';
+            // Agregar el contenido del elemento de lista
+            rtf += convertNodeToRtf(child) + '\\par ';
         }
     }
     
