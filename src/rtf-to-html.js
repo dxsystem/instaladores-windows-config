@@ -22,6 +22,7 @@ function rtfToHtml(rtf) {
         rtf = rtf.replace(/^\s*d\s+/m, '');
         rtf = rtf.replace(/\\par\s+d\s+/g, '\\par ');
         rtf = rtf.replace(/\\par\s+d$/gm, '\\par');
+        rtf = rtf.replace(/d\s*\\bullet/g, '\\bullet');
         
         // Crear el HTML base
         let html = '';
@@ -53,14 +54,15 @@ function rtfToHtml(rtf) {
                 continue;
             }
             
-            // Detectar si es una viñeta
+            // Detectar si es una viñeta - mejorado para detectar más patrones
             const isBulletPoint = paragraph.includes('\\pntext') || 
                                  paragraph.includes('\\'+'b7') || 
                                  paragraph.includes('\\bullet') || 
                                  paragraph.includes('\\pnlvlblt') ||
                                  (paragraph.includes('\\fi-360') && paragraph.includes('\\li720')) ||
                                  paragraph.trim() === 'd' ||
-                                 paragraph.match(/^d\s+/);
+                                 paragraph.match(/^d\s+/) ||
+                                 paragraph.match(/\\li\d+\s+\\bullet/);
             
             // Si encontramos solo una 'd', podría ser un marcador de viñeta
             if (paragraph.trim() === 'd' && i < paragraphs.length - 1) {
@@ -185,6 +187,8 @@ function extractCleanText(rtfText) {
     // Eliminar la 'd' al inicio del texto y en cualquier parte
     rtfText = rtfText.replace(/^\s*d\s+/m, '');
     rtfText = rtfText.replace(/\s+d\s+/g, ' ');
+    rtfText = rtfText.replace(/\s+d$/g, '');
+    rtfText = rtfText.replace(/d\s*\\bullet/g, '\\bullet');
     
     // Eliminar códigos de control RTF
     let text = rtfText

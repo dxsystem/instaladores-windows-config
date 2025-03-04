@@ -42,19 +42,23 @@ function fixRtfContent(content) {
     
     // Asegurar que hay espacio después de cada párrafo para mejor legibilidad
     // pero no demasiado espacio entre viñetas
-    content = content.replace(/\\par(?!\\sa)/g, '\\par\\sa120 ');
+    content = content.replace(/\\par(?!\\sa)/g, '\\par\\sa80 ');
     
-    // Eliminar caracteres 'd' que aparecen al inicio de párrafos
-    content = content.replace(/\\par d /g, '\\par ');
-    content = content.replace(/\\bullet d /g, '\\bullet ');
+    // Eliminar caracteres 'd' que aparecen al inicio de párrafos o antes de viñetas
+    content = content.replace(/\\par\s+d\s+/g, '\\par ');
     content = content.replace(/\\par\s+d$/gm, '\\par');
+    content = content.replace(/d\s*\\bullet/g, '\\bullet');
+    content = content.replace(/\\bullet\s+d\s+/g, '\\bullet ');
     
     // Eliminar la letra 'd' al inicio del documento
     content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
     content = content.replace(/\\pard\\f0\\fs22\s+d([^a-zA-Z])/g, '\\pard\\f0\\fs22$1');
     
     // Corregir espaciado entre viñetas (reducir el espacio)
-    content = content.replace(/(\\bullet[^\\]+)\\par\\sa120/g, '$1\\par');
+    content = content.replace(/(\\bullet[^\\]+)\\par\\sa80/g, '$1\\par');
+    
+    // Asegurar que después de las listas se restaura correctamente el formato
+    content = content.replace(/\\pard\\f0\\fs22\s+\\pard/g, '\\pard');
     
     // Verificar balance de llaves
     let openBraces = 0;
@@ -88,13 +92,10 @@ function fixRtfContent(content) {
 function escapeRtf(text) {
     if (!text) return '';
     
-    // Eliminar la letra 'd' al inicio del texto
-    if (text.trim().startsWith('d ')) {
-        text = text.replace(/^d\s+/, '');
-    }
-    
-    // Eliminar la letra 'd' en cualquier parte del texto
+    // Eliminar la letra 'd' al inicio del texto y en cualquier parte
+    text = text.replace(/^d\s+/g, '');
     text = text.replace(/\s+d\s+/g, ' ');
+    text = text.replace(/\s+d$/g, '');
     
     // Reemplazar caracteres especiales con sus equivalentes RTF
     let escaped = text;
@@ -267,6 +268,9 @@ function convertListToRtf(listNode, isOrdered) {
     let rtf = '';
     let counter = 1;
     
+    // Iniciar grupo para la lista completa para mantener el formato consistente
+    rtf += '{';
+    
     for (let i = 0; i < listNode.childNodes.length; i++) {
         const child = listNode.childNodes[i];
         
@@ -282,9 +286,12 @@ function convertListToRtf(listNode, isOrdered) {
             }
             
             // Agregar el contenido del elemento de lista
-            rtf += convertNodeToRtf(child) + '\\par ';
+            rtf += convertNodeToRtf(child) + '\\par';
         }
     }
+    
+    // Cerrar el grupo de la lista
+    rtf += '}';
     
     // Restaurar el formato de párrafo normal después de la lista
     rtf += '\\pard\\f0\\fs22 ';
