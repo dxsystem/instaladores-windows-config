@@ -17,11 +17,16 @@ function rtfToHtml(rtf) {
     try {
         console.log('rtfToHtml: Iniciando conversión, longitud RTF:', rtf.length);
         
-        // Limpiar encabezado RTF y metadatos
-        rtf = rtf.replace(/\\rtf1.*?\\viewkind\d+\\uc1/s, '');
+        // Eliminar cualquier 'd' al inicio del documento completo
+        rtf = rtf.replace(/^d\s+/m, '');
         
-        // Eliminar la letra 'd' al inicio del documento
-        rtf = rtf.replace(/^\s*d\s+/, '');
+        // Eliminar 'd' que aparece antes de las viñetas
+        rtf = rtf.replace(/d\\bullet/g, '\\bullet');
+        rtf = rtf.replace(/d\\b7/g, '\\b7');
+        rtf = rtf.replace(/d\s+•/g, '•');
+        
+        // Eliminar 'd' que aparece después de las listas
+        rtf = rtf.replace(/\\par\s+d\s+/g, '\\par ');
         
         // Crear el HTML base
         let html = '';
@@ -42,11 +47,6 @@ function rtfToHtml(rtf) {
             
             // Saltar párrafos que solo contienen códigos de control
             if (paragraph.startsWith('\\') && !paragraph.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/)) continue;
-            
-            // Eliminar la letra 'd' al inicio del párrafo (especialmente importante para el primer párrafo)
-            if (i === 0) {
-                paragraph = paragraph.replace(/^\s*d\s+/, '');
-            }
             
             // Detectar si es una viñeta
             const isBulletPoint = paragraph.includes('\\pntext') || 
@@ -159,6 +159,8 @@ function rtfToHtml(rtf) {
                 .replace(/\{|\}/g, '')
                 .replace(/\s+/g, ' ')
                 .replace(/^\s*d\s+/, '') // Eliminar 'd' al inicio
+                .replace(/d\s+•/g, '•') // Eliminar 'd' antes de viñetas
+                .replace(/d\s+(\d+)\./g, '$1.') // Eliminar 'd' antes de números
                 .trim();
             
             return `<p>${plainText}</p>`;

@@ -1,84 +1,88 @@
 /**
  * Conversor de HTML a RTF
- * Este archivo contiene funciones para convertir contenido HTML a formato RTF
- * compatible con WPF RichTextBox.
+ * Versión: 1.2.0
  * 
- * Versión 1.5 - Correcciones adicionales para manejo de caracteres especiales y viñetas
+ * Este archivo contiene funciones para convertir contenido HTML a RTF.
+ * Incluye correcciones para manejar caracteres especiales y viñetas.
+ * 
+ * Correcciones:
+ * - Mejora en el manejo de viñetas para evitar caracteres 'd' no deseados
+ * - Corrección de la tabulación después de las listas
+ * - Soporte para caracteres acentuados
  */
 
 // Convertir HTML a RTF mejorado
 function htmlToRtf(html) {
-    if (!html) return '';
+    if (!html || typeof html !== 'string') {
+        console.error('htmlToRtf: El contenido HTML es inválido');
+        return '';
+    }
     
-    // Crear encabezado RTF básico - simplificado para evitar problemas
-    let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082{\\fonttbl{\\f0\\fnil\\fcharset0 Calibri;}}';
-    rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
-    rtf += '\\viewkind4\\uc1\\pard\\f0\\fs22 ';
-    
-    // Crear un elemento temporal para analizar el HTML
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    
-    // Convertir el contenido HTML a RTF
-    rtf += convertNodeToRtf(tempDiv);
-    
-    // Cerrar el documento RTF
-    rtf += '}';
-    
-    // Corregir problemas específicos en el contenido RTF
-    rtf = fixRtfContent(rtf);
-    
-    return rtf;
+    try {
+        // Crear un documento RTF básico
+        let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082';
+        
+        // Agregar tabla de fuentes
+        rtf += '{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}{\\f1\\fswiss\\fcharset0 Arial;}}';
+        
+        // Agregar tabla de colores
+        rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
+        
+        // Configuración de documento
+        rtf += '\\viewkind4\\uc1\\pard\\f0\\fs22 ';
+        
+        // Crear un elemento temporal para parsear el HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        // Convertir el contenido HTML a RTF
+        rtf += convertNodeToRtf(tempDiv);
+        
+        // Cerrar el documento RTF
+        rtf += '}';
+        
+        // Verificar y corregir problemas comunes
+        rtf = fixRtfContent(rtf);
+        
+        return rtf;
+    } catch (error) {
+        console.error('htmlToRtf: Error al convertir HTML a RTF:', error);
+        return '';
+    }
 }
 
 // Función para corregir problemas específicos en el contenido RTF
 function fixRtfContent(content) {
-    // Corregir múltiples saltos de línea consecutivos
-    content = content.replace(/\\par\\par\\par+/g, '\\par\\par');
+    if (!content) return content;
     
-    // Asegurar que los párrafos vacíos se muestren correctamente
-    content = content.replace(/\\par\s+\\par/g, '\\par\\par');
-    
-    // Corregir espacios en blanco excesivos
-    content = content.replace(/\s+/g, ' ').replace(/\s+\\par/g, '\\par');
-    
-    // Asegurar que hay espacio después de cada párrafo para mejor legibilidad
-    content = content.replace(/\\par/g, '\\par\\sa200 ');
-    
-    // Eliminar caracteres 'd' que aparecen al inicio de párrafos
-    content = content.replace(/\\par d /g, '\\par ');
-    content = content.replace(/\\bullet d /g, '\\bullet ');
-    
-    // Eliminar la letra 'd' al inicio del documento
-    content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
-    content = content.replace(/^([^d]*)d\s+/g, '$1');
-    
-    // Verificar balance de llaves
-    let openBraces = 0;
-    let closeBraces = 0;
-    
-    for (let i = 0; i < content.length; i++) {
-        if (content[i] === '{' && (i === 0 || content[i-1] !== '\\')) {
-            openBraces++;
-        } else if (content[i] === '}' && (i === 0 || content[i-1] !== '\\')) {
-            closeBraces++;
+    try {
+        // Eliminar cualquier 'd' al inicio del documento
+        content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
+        
+        // Verificar balance de llaves
+        let openBraces = 0;
+        let closeBraces = 0;
+        
+        for (let i = 0; i < content.length; i++) {
+            if (content[i] === '{') openBraces++;
+            if (content[i] === '}') closeBraces++;
         }
+        
+        // Agregar llaves faltantes si es necesario
+        if (openBraces > closeBraces) {
+            console.warn(`fixRtfContent: Faltan ${openBraces - closeBraces} llaves de cierre. Agregando...`);
+            for (let i = 0; i < openBraces - closeBraces; i++) {
+                content += '}';
+            }
+        } else if (closeBraces > openBraces) {
+            console.warn(`fixRtfContent: Hay ${closeBraces - openBraces} llaves de cierre excesivas.`);
+        }
+        
+        return content;
+    } catch (error) {
+        console.error('fixRtfContent: Error al corregir el contenido RTF:', error);
+        return content;
     }
-    
-    // Agregar llaves de cierre faltantes
-    if (openBraces > closeBraces) {
-        const missingBraces = openBraces - closeBraces;
-        content += '}'.repeat(missingBraces);
-        console.log(`Agregadas ${missingBraces} llaves de cierre faltantes al RTF`);
-    }
-    
-    // Eliminar llaves de cierre excesivas
-    if (closeBraces > openBraces) {
-        console.warn(`El RTF tiene ${closeBraces - openBraces} llaves de cierre excesivas`);
-        // No eliminamos automáticamente para evitar cortar contenido importante
-    }
-    
-    return content;
 }
 
 // Función mejorada para escapar caracteres especiales en RTF
@@ -281,7 +285,8 @@ function convertListToRtf(listNode, isOrdered) {
     }
     
     // Restaurar el formato de párrafo normal después de la lista
-    rtf += '\\pard\\f0\\fs22 ';
+    // Esto es crucial para evitar que las numeraciones hereden la tabulación de las viñetas
+    rtf += '\\pard\\fi0\\li0\\f0\\fs22 ';
     
     return rtf;
 } 
