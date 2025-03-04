@@ -40,6 +40,31 @@ function fixRtfContent(content) {
     // Corregir espacios en blanco excesivos
     content = content.replace(/\s+/g, ' ').replace(/\s+\\par/g, '\\par');
     
+    // Verificar balance de llaves
+    let openBraces = 0;
+    let closeBraces = 0;
+    
+    for (let i = 0; i < content.length; i++) {
+        if (content[i] === '{' && (i === 0 || content[i-1] !== '\\')) {
+            openBraces++;
+        } else if (content[i] === '}' && (i === 0 || content[i-1] !== '\\')) {
+            closeBraces++;
+        }
+    }
+    
+    // Agregar llaves de cierre faltantes
+    if (openBraces > closeBraces) {
+        const missingBraces = openBraces - closeBraces;
+        content += '}'.repeat(missingBraces);
+        console.log(`Agregadas ${missingBraces} llaves de cierre faltantes al RTF`);
+    }
+    
+    // Eliminar llaves de cierre excesivas
+    if (closeBraces > openBraces) {
+        console.warn(`El RTF tiene ${closeBraces - openBraces} llaves de cierre excesivas`);
+        // No eliminamos automáticamente para evitar cortar contenido importante
+    }
+    
     return content;
 }
 
@@ -224,18 +249,21 @@ function convertListToRtf(listNode, isOrdered) {
         if (child.nodeType === 1 && child.tagName.toLowerCase() === 'li') {
             // Agregar viñeta o número según el tipo de lista
             if (isOrdered) {
-                // Lista numerada
+                // Lista numerada - formato simplificado
                 rtf += '\\pard\\fi-360\\li720 ' + counter + '. ';
                 counter++;
             } else {
-                // Lista con viñetas - usar formato más compatible con WPF
-                rtf += '\\pard{\\pntext\\f1\\'+'b7\\tab}\\pn\\pnlvlblt\\pnf1\\pnindent0{\\pntxtb\\'+'b7}\\fi-360\\li720 ';
+                // Lista con viñetas - formato muy simple y robusto
+                rtf += '\\pard\\fi-360\\li720 \\bullet ';
             }
             
             // Agregar el contenido del elemento de lista
             rtf += convertNodeToRtf(child) + '\\par ';
         }
     }
+    
+    // Restaurar el formato de párrafo normal después de la lista
+    rtf += '\\pard\\sa200\\sl276\\slmult1 ';
     
     return rtf;
 } 

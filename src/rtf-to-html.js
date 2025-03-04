@@ -51,7 +51,7 @@ function rtfToHtml(rtf) {
                 let listContent = extractCleanText(paragraph);
                 
                 // Eliminar cualquier carácter de viñeta que pueda haber quedado
-                listContent = listContent.replace(/^[\s•\*\-\u2022\u25E6\u25AA]+/, '').trim();
+                listContent = listContent.replace(/^[\s•\*\-\u2022\u25E6\u25AA\u00B7]+/, '').trim();
                 
                 // Detectar si está en negrita
                 const isBold = paragraph.includes('\\b');
