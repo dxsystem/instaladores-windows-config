@@ -1,133 +1,115 @@
 /**
  * Conversor de RTF a HTML
- * Este archivo contiene funciones para convertir contenido RTF a formato HTML
- * para su visualización en la web.
+ * Versión: 1.3.0
  * 
- * Versión 1.5 - Correcciones adicionales para manejo de caracteres especiales y viñetas
+ * Este archivo contiene funciones para convertir contenido RTF a HTML.
+ * Incluye correcciones para manejar caracteres especiales y viñetas.
+ * 
+ * Correcciones:
+ * - Eliminación de caracteres 'd' y 'b' no deseados al inicio del documento, antes de viñetas y después de listas
+ * - Mejora en el manejo de viñetas y listas
+ * - Soporte para caracteres acentuados
+ * - Eliminación de símbolos extraños como "Arial; Arial;;;"
  */
 
 // Convertir RTF a HTML
 function rtfToHtml(rtf) {
-    // Si no hay contenido RTF, devolver cadena vacía
-    if (!rtf || rtf.trim() === '') {
-        console.warn('rtfToHtml: No hay contenido RTF para convertir');
-        return '';
-    }
-    
     try {
-        console.log('rtfToHtml: Iniciando conversión, longitud RTF:', rtf.length);
+        if (!rtf || typeof rtf !== 'string') {
+            console.error('rtfToHtml: El contenido RTF es inválido');
+            return '';
+        }
         
-        // Eliminar cualquier 'd' al inicio del documento completo
+        // Eliminar cualquier 'd' o 'b' al inicio del documento completo
         rtf = rtf.replace(/^d\s+/m, '');
+        rtf = rtf.replace(/^b\s+/m, '');
         
-        // Eliminar 'd' que aparece antes de las viñetas
-        rtf = rtf.replace(/d\\bullet/g, '\\bullet');
-        rtf = rtf.replace(/d\\b7/g, '\\b7');
-        rtf = rtf.replace(/d\s+•/g, '•');
+        // Eliminar 'd' o 'b' que aparece antes de las viñetas
+        rtf = rtf.replace(/[db]\\bullet/g, '\\bullet');
+        rtf = rtf.replace(/[db]\\b7/g, '\\b7');
+        rtf = rtf.replace(/[db]\s+•/g, '•');
         
-        // Eliminar 'd' que aparece después de las listas
-        rtf = rtf.replace(/\\par\s+d\s+/g, '\\par ');
+        // Eliminar 'd' o 'b' que aparece después de las listas
+        rtf = rtf.replace(/\\par\s+[db]\s+/g, '\\par ');
         
-        // Crear el HTML base
+        // Eliminar "Arial; Arial;;;" que puede aparecer en el texto
+        rtf = rtf.replace(/Arial;\s*Arial;{2,3}/g, '');
+        
         let html = '';
+        let isInList = false;
         
-        // Extraer y procesar párrafos
+        // Dividir el RTF en párrafos
         const paragraphs = rtf.split('\\par');
         
-        // Variables para seguimiento
-        let isInList = false;
-        let listItems = [];
-        
-        // Procesar cada párrafo
         for (let i = 0; i < paragraphs.length; i++) {
-            let paragraph = paragraphs[i].trim();
+            const paragraph = paragraphs[i];
             
-            // Saltar párrafos vacíos o muy cortos
-            if (paragraph.length < 5) continue;
-            
-            // Saltar párrafos que solo contienen códigos de control
-            if (paragraph.startsWith('\\') && !paragraph.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/)) continue;
-            
-            // Detectar si es una viñeta
-            const isBulletPoint = paragraph.includes('\\pntext') || 
-                                 paragraph.includes('\\'+'b7') || 
-                                 paragraph.includes('\\bullet') || 
-                                 paragraph.includes('\\pnlvlblt') ||
-                                 (paragraph.includes('\\fi-360') && paragraph.includes('\\li720')) ||
-                                 paragraph.trim() === 'd';
-            
-            // Si encontramos solo una 'd', podría ser un marcador de viñeta
-            if (paragraph.trim() === 'd' && i < paragraphs.length - 1) {
-                // Verificar si el siguiente párrafo debe ser una viñeta
-                continue; // Saltamos este párrafo y procesaremos el siguiente como viñeta
-            }
-            
-            // Detectar si el párrafo anterior era solo una 'd'
-            const prevParagraphWasD = i > 0 && paragraphs[i-1].trim() === 'd';
-            
-            // Detectar listas
-            if (isBulletPoint || prevParagraphWasD) {
-                // Iniciar lista si no estamos en una
-                if (!isInList) {
-                    html += '<ul>\n';
-                    isInList = true;
-                }
-                
-                // Extraer el texto limpio
-                let listContent = extractCleanText(paragraph);
-                
-                // Eliminar cualquier carácter de viñeta que pueda haber quedado
-                listContent = listContent.replace(/^[\s•\*\-\u2022\u25E6\u25AA\u00B7]+/, '').trim();
-                
-                // Eliminar la 'd' que aparece al inicio de las viñetas
-                listContent = listContent.replace(/^d\s*[•\*\-\u2022\u25E6\u25AA\u00B7]?\s*/, '');
-                
-                // Detectar si está en negrita
-                const isBold = paragraph.includes('\\b');
-                
-                // Solo agregar elemento de lista si tiene contenido
-                if (listContent.trim()) {
-                    if (isBold) {
-                        html += `<li><strong>${listContent}</strong></li>\n`;
-                    } else {
-                        html += `<li>${listContent}</li>\n`;
-                    }
-                }
-                
+            // Saltar párrafos vacíos
+            if (!paragraph.trim()) {
                 continue;
             }
             
-            // Cerrar lista si estamos saliendo de ella
-            if (isInList && !isBulletPoint && !prevParagraphWasD) {
-                html += '</ul>\n';
-                isInList = false;
+            // Detectar encabezados
+            if (paragraph.includes('\\f1\\fs') || paragraph.includes('\\b\\fs')) {
+                let text = extractCleanText(paragraph);
+                
+                // Eliminar la 'd' o 'b' que aparece al inicio de los encabezados
+                text = text.replace(/^[db]\s+/, '');
+                text = text.replace(/^[db]/, '');
+                
+                if (text.trim()) {
+                    if (paragraph.includes('\\fs40')) {
+                        html += `<h1>${text}</h1>\n`;
+                    } else if (paragraph.includes('\\fs36')) {
+                        html += `<h2>${text}</h2>\n`;
+                    } else if (paragraph.includes('\\fs28')) {
+                        html += `<h3>${text}</h3>\n`;
+                    } else {
+                        html += `<h4>${text}</h4>\n`;
+                    }
+                }
+                continue;
             }
             
-            // Detectar encabezados
-            if (paragraph.includes('\\fs') && paragraph.includes('\\b')) {
-                const fontSize = paragraph.match(/\\fs(\d+)/);
-                if (fontSize) {
-                    const size = parseInt(fontSize[1]);
-                    let headingLevel = 3; // Por defecto h3
-                    
-                    if (size >= 40) headingLevel = 1;
-                    else if (size >= 32) headingLevel = 2;
-                    else if (size >= 28) headingLevel = 3;
-                    else if (size >= 24) headingLevel = 4;
-                    
-                    const headingText = extractCleanText(paragraph);
-                    html += `<h${headingLevel}>${headingText}</h${headingLevel}>\n`;
-                    continue;
+            // Detectar viñetas
+            if (paragraph.includes('\\bullet') || paragraph.includes('\\b7') || paragraph.includes('\\pntext') || paragraph.includes('•')) {
+                let text = extractCleanText(paragraph);
+                
+                // Eliminar caracteres de viñeta y 'd' o 'b' no deseados
+                text = text.replace(/^[db]\s*/, '');
+                text = text.replace(/^•\s*/, '');
+                text = text.replace(/\\bullet\s*/, '');
+                text = text.replace(/\\b7\s*/, '');
+                text = text.replace(/\\u183\?/, '');
+                text = text.replace(/\\u00B7\?/, '');
+                
+                if (text.trim()) {
+                    if (!isInList) {
+                        html += '<ul>\n';
+                        isInList = true;
+                    }
+                    html += `<li>${text}</li>\n`;
                 }
+                continue;
+            }
+            
+            // Si estamos en una lista y el párrafo actual no es una viñeta, cerrar la lista
+            if (isInList && !paragraph.includes('\\bullet') && !paragraph.includes('\\b7') && !paragraph.includes('\\pntext') && !paragraph.includes('•')) {
+                html += '</ul>\n';
+                isInList = false;
             }
             
             // Párrafos normales
             let text = extractCleanText(paragraph);
             
-            // Eliminar la 'd' que aparece al inicio de los párrafos
-            text = text.replace(/^d\s+/, '');
+            // Eliminar la 'd' o 'b' que aparece al inicio de los párrafos
+            text = text.replace(/^[db]\s+/, '');
+            text = text.replace(/^[db]/, '');
             // Eliminar '\b' que aparece al inicio de los párrafos en negrita
             text = text.replace(/^\\b\s+/, '');
+            
+            // Eliminar "Arial; Arial;;;" que puede aparecer en el texto
+            text = text.replace(/Arial;\s*Arial;{2,3}/g, '');
             
             if (text.trim()) {
                 // Detectar si está en negrita
@@ -158,108 +140,50 @@ function rtfToHtml(rtf) {
                 .replace(/\\[a-z0-9]+/g, ' ')
                 .replace(/\{|\}/g, '')
                 .replace(/\s+/g, ' ')
-                .replace(/^\s*d\s+/, '') // Eliminar 'd' al inicio
-                .replace(/d\s+•/g, '•') // Eliminar 'd' antes de viñetas
-                .replace(/d\s+(\d+)\./g, '$1.') // Eliminar 'd' antes de números
+                .replace(/^\s*[db]\s+/, '') // Eliminar 'd' o 'b' al inicio
+                .replace(/[db]\s+•/g, '•') // Eliminar 'd' o 'b' antes de viñetas
+                .replace(/[db]\s+(\d+)\./g, '$1.') // Eliminar 'd' o 'b' antes de números
+                .replace(/Arial;\s*Arial;{2,3}/g, '') // Eliminar "Arial; Arial;;;"
                 .trim();
             
             return `<p>${plainText}</p>`;
         } catch (e) {
             console.error('rtfToHtml: Error en método de respaldo:', e);
-            return '<p>Error al procesar el contenido RTF.</p>';
+            return `<p>Error al convertir el contenido RTF: ${e.message}</p>`;
         }
     }
 }
 
 // Función para extraer texto limpio de un fragmento RTF
 function extractCleanText(rtfText) {
-    if (!rtfText) return '';
-    
-    // Eliminar códigos de control RTF
+    // Eliminar códigos RTF comunes
     let text = rtfText
-        // Eliminar códigos de formato de párrafo
-        .replace(/\\pard/g, '')
-        .replace(/\\plain/g, '')
-        .replace(/\\f\d+/g, '')
-        .replace(/\\fs\d+/g, '')
-        .replace(/\\cf\d+/g, '')
-        .replace(/\\highlight\d+/g, '')
-        .replace(/\\ltrch/g, '')
-        .replace(/\\rtlch/g, '')
-        .replace(/\\lang\d+/g, '')
-        .replace(/\\langfe\d+/g, '')
-        .replace(/\\langnp\d+/g, '')
-        .replace(/\\langfenp\d+/g, '')
-        .replace(/\\fi-?\d+/g, '')
-        .replace(/\\li\d+/g, '')
-        .replace(/\\sa\d+/g, '')
-        .replace(/\\sl\d+/g, '')
-        .replace(/\\slmult\d+/g, '')
-        .replace(/\\tx\d+/g, '')
-        .replace(/\\itap\d+/g, '')
-        .replace(/\\ltrpar/g, '')
-        .replace(/\\rtlpar/g, '')
-        .replace(/\\qj/g, '')
-        .replace(/\\ql/g, '')
-        .replace(/\\qr/g, '')
-        .replace(/\\qc/g, '')
-        
-        // Eliminar códigos de lista
-        .replace(/\\pntext/g, '')
-        .replace(/\\pnlvlblt/g, '')
-        .replace(/\\pnlvlbody/g, '')
-        .replace(/\\pnlvlcont/g, '')
-        .replace(/\\pnlvlbody/g, '')
-        .replace(/\\pnstart\d+/g, '')
-        .replace(/\\pnindent\d+/g, '')
-        .replace(/\\pnhang/g, '')
-        .replace(/\\pntxtb/g, '')
-        .replace(/\\pntxta/g, '')
-        .replace(/\\pncard/g, '')
-        
-        // Eliminar caracteres 'd' al inicio de líneas
-        .replace(/^d\s+/gm, '')
-        .replace(/\\par\s+d\s+/g, '\\par ')
-        .replace(/\\bullet\s+d\s+/g, '\\bullet ')
-        
-        // Eliminar códigos de viñeta
-        .replace(/\\bullet/g, '')
-        .replace(/\\b7/g, '')
-        .replace(/\\u8226/g, '')
-        .replace(/\\u183/g, '')
-        .replace(/\\u00B7/g, '')
-        
-        // Convertir saltos de línea y tabulaciones
-        .replace(/\\line/g, '<br>')
-        .replace(/\\tab/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
+        .replace(/\{\\rtf1.*?}/gs, '')
+        .replace(/\\[a-z]+\d*/g, ' ')
+        .replace(/\{|\}/g, '')
+        .replace(/\\'([0-9a-f]{2})/g, function(match, hex) {
+            // Convertir códigos hexadecimales a caracteres
+            return String.fromCharCode(parseInt(hex, 16));
+        });
     
-    // Manejar formato de texto
-    // Negrita
-    text = text.replace(/\\b\s+([^\\]+?)(?:\\|\}|$)/g, '<strong>$1</strong>');
-    // Cursiva
-    text = text.replace(/\\i\s+([^\\]+?)(?:\\|\}|$)/g, '<em>$1</em>');
-    // Subrayado
-    text = text.replace(/\\ul\s+([^\\]+?)(?:\\|\}|$)/g, '<u>$1</u>');
-    // Tachado
-    text = text.replace(/\\strike\s+([^\\]+?)(?:\\|\}|$)/g, '<del>$1</del>');
+    // Eliminar 'd' o 'b' al inicio
+    text = text.replace(/^[db]\s+/, '');
+    text = text.replace(/^[db]/, '');
     
-    // Eliminar llaves y caracteres de control restantes
-    text = text.replace(/\{|\}/g, '');
+    // Eliminar caracteres de viñeta
+    text = text.replace(/•\s*/, '');
+    text = text.replace(/\\bullet\s*/, '');
+    text = text.replace(/\\b7\s*/, '');
+    text = text.replace(/\\u183\?/, '');
+    text = text.replace(/\\u00B7\?/, '');
     
-    // Decodificar caracteres especiales
-    text = decodeRtfCharacters(text);
+    // Eliminar "Arial; Arial;;;" que puede aparecer en el texto
+    text = text.replace(/Arial;\s*Arial;{2,3}/g, '');
     
-    // Eliminar cualquier código RTF restante
-    text = text.replace(/\\[a-z]+\d*/g, '');
-    
-    // Eliminar barras invertidas antes de caracteres especiales
-    text = text.replace(/\\([áéíóúÁÉÍÓÚñÑüÜ©®°])/g, '$1');
-    text = text.replace(/\\([a-zA-Z])/g, '$1');
-    
-    // Eliminar espacios múltiples
+    // Limpiar espacios múltiples
     text = text.replace(/\s+/g, ' ').trim();
     
-    return text;
+    return decodeRtfCharacters(text);
 }
 
 // Función para decodificar caracteres especiales en RTF
