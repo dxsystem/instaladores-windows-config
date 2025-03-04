@@ -2,6 +2,8 @@
  * Conversor de RTF a HTML
  * Este archivo contiene funciones para convertir contenido RTF a formato HTML
  * para su visualización en la web.
+ * 
+ * Versión 1.5 - Correcciones adicionales para manejo de caracteres especiales y viñetas
  */
 
 // Convertir RTF a HTML

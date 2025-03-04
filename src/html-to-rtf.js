@@ -2,6 +2,8 @@
  * Conversor de HTML a RTF
  * Este archivo contiene funciones para convertir contenido HTML a formato RTF
  * compatible con WPF RichTextBox.
+ * 
+ * Versión 1.5 - Correcciones adicionales para manejo de caracteres especiales y viñetas
  */
 
 // Convertir HTML a RTF mejorado
