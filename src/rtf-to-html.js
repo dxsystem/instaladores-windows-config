@@ -18,6 +18,9 @@ function rtfToHtml(rtf) {
         // Limpiar encabezado RTF y metadatos
         rtf = rtf.replace(/\\rtf1.*?\\viewkind\d+\\uc1/s, '');
         
+        // Eliminar la letra 'd' al inicio del documento
+        rtf = rtf.replace(/^\s*d\s+/m, '');
+        
         // Crear el HTML base
         let html = '';
         
@@ -37,6 +40,11 @@ function rtfToHtml(rtf) {
             
             // Saltar párrafos que solo contienen códigos de control
             if (paragraph.startsWith('\\') && !paragraph.match(/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/)) continue;
+            
+            // Si es el primer párrafo, eliminar cualquier 'd' al inicio
+            if (i === 0) {
+                paragraph = paragraph.replace(/^\s*d\s+/m, '');
+            }
             
             // Detectar si es una viñeta
             const isBulletPoint = paragraph.includes('\\pntext') || 
@@ -150,6 +158,9 @@ function rtfToHtml(rtf) {
                 .replace(/\s+/g, ' ')
                 .trim();
             
+            // Eliminar la 'd' al inicio del texto
+            plainText = plainText.replace(/^\s*d\s+/m, '');
+            
             return `<p>${plainText}</p>`;
         } catch (e) {
             console.error('rtfToHtml: Error en método de respaldo:', e);
@@ -161,6 +172,9 @@ function rtfToHtml(rtf) {
 // Función para extraer texto limpio de un fragmento RTF
 function extractCleanText(rtfText) {
     if (!rtfText) return '';
+    
+    // Eliminar la 'd' al inicio del texto
+    rtfText = rtfText.replace(/^\s*d\s+/m, '');
     
     // Eliminar códigos de control RTF
     let text = rtfText

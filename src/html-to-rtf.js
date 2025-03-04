@@ -47,6 +47,10 @@ function fixRtfContent(content) {
     content = content.replace(/\\par d /g, '\\par ');
     content = content.replace(/\\bullet d /g, '\\bullet ');
     
+    // Eliminar la letra 'd' al inicio del documento
+    content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
+    content = content.replace(/\\pard\\f0\\fs22\s+d([^a-zA-Z])/g, '\\pard\\f0\\fs22$1');
+    
     // Verificar balance de llaves
     let openBraces = 0;
     let closeBraces = 0;
@@ -78,6 +82,11 @@ function fixRtfContent(content) {
 // Función mejorada para escapar caracteres especiales en RTF
 function escapeRtf(text) {
     if (!text) return '';
+    
+    // Eliminar la letra 'd' al inicio del texto
+    if (text.trim().startsWith('d ')) {
+        text = text.replace(/^d\s+/, '');
+    }
     
     // Reemplazar caracteres especiales con sus equivalentes RTF
     let escaped = text;
