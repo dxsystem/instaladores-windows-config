@@ -1,19 +1,18 @@
 /**
  * Conversor de HTML a RTF
- * Versión: 1.5.0
+ * Versión: 1.6.0
  * 
  * Este archivo contiene funciones para convertir contenido HTML a RTF.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
  * 
  * Correcciones:
- * - Mejora en el manejo de viñetas para evitar espacios innecesarios
+ * - Mejorado el manejo de viñetas para evitar espacios innecesarios
  * - Corregido el problema de palabras juntas sin espacio
- * - Agregado soporte para caracteres acentuados
+ * - Mejorado el soporte para caracteres acentuados
  * - Eliminación de símbolos no deseados
  * - Cambiado tipo de letra a Segoe UI
- * - Mejora en el espaciado después de puntos
- * - Corrección de palabras juntas sin espacio
- * - Eliminación de caracteres Â no deseados
+ * - Corregido el formato de las viñetas para evitar el "•-" en la salida
+ * - Mejorado el soporte para encabezados H1, H2, H3
  */
 
 /**
@@ -90,8 +89,14 @@ function fixRtfContent(content) {
         // Eliminar caracteres Â no deseados
         content = content.replace(/Â+\s*/g, ' ');
         
-        // Eliminar secuencias de escape para caracteres especiales
-        content = content.replace(/\\\'[0-9a-fA-F]{2}/g, '');
+        // Eliminar códigos RTF problemáticos
+        content = content.replace(/\\bullet\s+(-|•|\\bullet)/g, '\\bullet ');
+        content = content.replace(/\\bullet\s*\\bullet/g, '\\bullet ');
+        content = content.replace(/360\s*[-]?/g, '');
+        
+        // Corregir problema de viñetas duplicadas o con guiones
+        content = content.replace(/•-/g, '•');
+        content = content.replace(/•\s*•/g, '•');
         
         return content;
     } catch (error) {
@@ -129,6 +134,9 @@ function escapeRtf(text) {
             .replace(/Ñ/g, '\\\'d1')
             .replace(/ü/g, '\\\'fc')
             .replace(/Ü/g, '\\\'dc')
+            // Caracteres especiales adicionales
+            .replace(/¿/g, '\\\'bf')
+            .replace(/¡/g, '\\\'a1')
             // Otros caracteres especiales comunes
             .replace(/©/g, '\\\'a9')
             .replace(/®/g, '\\\'ae')
@@ -178,14 +186,14 @@ function convertNodeToRtf(node) {
                 for (let i = 0; i < node.childNodes.length; i++) {
                     rtf += convertNodeToRtf(node.childNodes[i]);
                 }
-                return rtf + '\\par ';
+                return rtf + '\\par\\sa200 ';
                 
             case 'div':
                 // Recorrer los hijos
                 for (let i = 0; i < node.childNodes.length; i++) {
                     rtf += convertNodeToRtf(node.childNodes[i]);
                 }
-                return rtf + '\\par ';
+                return rtf + '\\par\\sa200 ';
                 
             case 'strong':
             case 'b':
@@ -219,7 +227,7 @@ function convertNodeToRtf(node) {
                 for (let i = 0; i < node.childNodes.length; i++) {
                     rtf += convertNodeToRtf(node.childNodes[i]);
                 }
-                return rtf + '\\b0\\fs22\\par ';
+                return rtf + '\\b0\\fs22\\par\\sa200 ';
                 
             case 'h2':
                 rtf += '\\pard\\sa200\\sl276\\slmult1\\f0\\fs36\\b ';
@@ -227,7 +235,7 @@ function convertNodeToRtf(node) {
                 for (let i = 0; i < node.childNodes.length; i++) {
                     rtf += convertNodeToRtf(node.childNodes[i]);
                 }
-                return rtf + '\\b0\\fs22\\par ';
+                return rtf + '\\b0\\fs22\\par\\sa200 ';
                 
             case 'h3':
                 rtf += '\\pard\\sa200\\sl276\\slmult1\\f0\\fs28\\b ';
@@ -235,7 +243,7 @@ function convertNodeToRtf(node) {
                 for (let i = 0; i < node.childNodes.length; i++) {
                     rtf += convertNodeToRtf(node.childNodes[i]);
                 }
-                return rtf + '\\b0\\fs22\\par ';
+                return rtf + '\\b0\\fs22\\par\\sa200 ';
                 
             case 'ul':
                 return convertListToRtf(node, false);
@@ -251,7 +259,7 @@ function convertNodeToRtf(node) {
                 for (let i = 0; i < node.childNodes.length; i++) {
                     rtf += convertNodeToRtf(node.childNodes[i]);
                 }
-                return rtf + '\\par ';
+                return rtf + '\\par\\sa100 ';
                 
             case 'a':
                 // Convertir a texto normal con énfasis
@@ -306,17 +314,17 @@ function convertListToRtf(listNode, isOrdered) {
                 counter++;
             } else {
                 // Lista con viñetas - formato muy simple y robusto
-                rtf += '\\pard\\fi-360\\li720\\bullet'; // Eliminado el espacio después de \\bullet
+                rtf += '\\pard\\fi-360\\li720\\bullet';  // Sin espacio después de \\bullet
             }
             
             // Agregar el contenido del elemento de lista, asegurando un espacio después de la viñeta/número
-            rtf += ' ' + convertNodeToRtf(child) + '\\par ';
+            rtf += ' ' + convertNodeToRtf(child) + '\\par\\sa100 ';
         }
     }
     
     // Restaurar el formato de párrafo normal después de la lista
     // Esto es crucial para evitar que las numeraciones hereden la tabulación de las viñetas
-    rtf += '\\pard\\fi0\\li0\\f0\\fs22 ';
+    rtf += '\\pard\\fi0\\li0\\f0\\fs22\\sa200 ';
     
     return rtf;
 } 
