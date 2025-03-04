@@ -260,73 +260,112 @@ function rtfToHtml(rtf) {
     }
 }
 
-// Funciones auxiliares para el conversor RTF a HTML
+// Función para extraer texto limpio de un fragmento RTF
 function extractCleanText(rtfText) {
-    // Eliminar todas las etiquetas RTF y extraer solo el contenido de texto
+    if (!rtfText) return '';
+    
+    // Eliminar códigos de control RTF
     let text = rtfText
-        .replace(/\\ltrpar\\itap0.*?\\ql/g, '')
-        .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+\\fi\d+\\ql.*/g, '')
-        .replace(/\\li\d+\\ri\d+\\sa\d+\\sb\d+\\jclisttab\\tx\d+\\fi-\d+\\ql.*/g, '')
-        .replace(/\{\\lang\d+\\ltrch\s+/g, '')
-        .replace(/\{\\lang\d+\\b\\ltrch\s+/g, '')
-        .replace(/\{\\fs\d+\\f\d+(\\\w+)?\s+/g, '')
-        .replace(/\{\\fs\d+\\f\d+\s+\{/g, '')
-        .replace(/\{\\pntext\s+[^}]*\}\{[^}]*\}/g, '')
-        .replace(/\\\*\\pn[^}]*\}/g, '')
-        .replace(/\}\\\w+\d*\\ri\d+\\sa\d+\\sb\d+.*/g, '')
-        .replace(/\{|\}/g, '')
-        .replace(/\\ltrch\s+/g, '')
-        .replace(/\\b\\ltrch\s+/g, '')
-        .replace(/\\cf\d+\\ql/g, '')
-        .replace(/\\~/g, '') // Eliminar \~
-        .replace(/\\\w+\s?/g, '');
+        .replace(/\\pard/g, '')
+        .replace(/\\plain/g, '')
+        .replace(/\\f\d+/g, '')
+        .replace(/\\fs\d+/g, '')
+        .replace(/\\cf\d+/g, '')
+        .replace(/\\highlight\d+/g, '')
+        .replace(/\\ltrch/g, '')
+        .replace(/\\rtlch/g, '')
+        .replace(/\\lang\d+/g, '')
+        .replace(/\\langfe\d+/g, '')
+        .replace(/\\langnp\d+/g, '')
+        .replace(/\\langfenp\d+/g, '')
+        .replace(/\\fi-?\d+/g, '')
+        .replace(/\\li\d+/g, '')
+        .replace(/\\sa\d+/g, '')
+        .replace(/\\sl\d+/g, '')
+        .replace(/\\slmult\d+/g, '')
+        .replace(/\\tx\d+/g, '')
+        .replace(/\\itap\d+/g, '')
+        .replace(/\\ltrpar/g, '')
+        .replace(/\\rtlpar/g, '')
+        .replace(/\\qj/g, '')
+        .replace(/\\ql/g, '')
+        .replace(/\\qr/g, '')
+        .replace(/\\qc/g, '')
+        .replace(/\\pntext/g, '')
+        .replace(/\\pnlvlblt/g, '')
+        .replace(/\\pnlvlbody/g, '')
+        .replace(/\\pnlvlcont/g, '')
+        .replace(/\\pnlvlbody/g, '')
+        .replace(/\\pnstart\d+/g, '')
+        .replace(/\\pnindent\d+/g, '')
+        .replace(/\\pnhang/g, '')
+        .replace(/\\pntxtb/g, '')
+        .replace(/\\pntxta/g, '')
+        .replace(/\\pncard/g, '')
+        .replace(/\\line/g, '<br>')
+        .replace(/\\tab/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
     
-    // Limpieza final y eliminar espacios duplicados
-    text = text.replace(/\s{2,}/g, ' ').trim();
+    // Manejar formato de texto
+    // Negrita
+    text = text.replace(/\\b\s+([^\\]+?)(?:\\|\}|$)/g, '<strong>$1</strong>');
+    // Cursiva
+    text = text.replace(/\\i\s+([^\\]+?)(?:\\|\}|$)/g, '<em>$1</em>');
+    // Subrayado
+    text = text.replace(/\\ul\s+([^\\]+?)(?:\\|\}|$)/g, '<u>$1</u>');
+    // Tachado
+    text = text.replace(/\\strike\s+([^\\]+?)(?:\\|\}|$)/g, '<del>$1</del>');
     
-    // Aplicar decodificación de caracteres RTF
+    // Eliminar llaves y caracteres de control restantes
+    text = text.replace(/\{|\}/g, '');
+    
+    // Decodificar caracteres especiales
     text = decodeRtfCharacters(text);
     
-    return text;
+    return text.trim();
 }
 
+// Función para decodificar caracteres especiales en RTF
 function decodeRtfCharacters(text) {
-    // Primero, buscar patrones de caracteres especiales RTF y reemplazarlos
-    const rtfCharMap = {
-        "\\'e9": "é",
-        "\\'e1": "á",
-        "\\'ed": "í",
-        "\\'f3": "ó",
-        "\\'fa": "ú",
-        "\\'f1": "ñ",
-        "\\'c1": "Á",
-        "\\'c9": "É",
-        "\\'cd": "Í",
-        "\\'d3": "Ó",
-        "\\'da": "Ú",
-        "\\'d1": "Ñ",
-        "\\'e0": "à",
-        "\\'e8": "è",
-        "\\'ec": "ì",
-        "\\'f2": "ò",
-        "\\'f9": "ù",
-        "\\'c0": "À",
-        "\\'c8": "È",
-        "\\'cc": "Ì",
-        "\\'d2": "Ò",
-        "\\'d9": "Ù",
-        "\\'a9": "©",
-        "\u0027": "'",
-        "\u0022": '"'
-    };
-
-    // Reemplazar todos los caracteres especiales
-    for (let rtf in rtfCharMap) {
-        text = text.replace(new RegExp(rtf.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), rtfCharMap[rtf]);
-    }
-
-    // Proceso adicional para encontrar patrones como \á, \é, etc. y eliminar la barra invertida
-    text = text.replace(/\\([áéíóúñÁÉÍÓÚÑàèìòùÀÈÌÒÙ©])/g, '$1');
+    if (!text) return '';
+    
+    // Decodificar caracteres especiales en formato hexadecimal
+    text = text.replace(/\\'([0-9a-f]{2})/g, function(match, hex) {
+        try {
+            // Convertir el código hexadecimal a decimal
+            const decimal = parseInt(hex, 16);
+            // Convertir el decimal a carácter
+            return String.fromCharCode(decimal);
+        } catch (e) {
+            console.error('Error al decodificar carácter RTF:', match, e);
+            return match;
+        }
+    });
+    
+    // Decodificar caracteres Unicode
+    text = text.replace(/\\u(\d+)\s*\?/g, function(match, unicode) {
+        try {
+            // Convertir el código Unicode a carácter
+            return String.fromCharCode(parseInt(unicode, 10));
+        } catch (e) {
+            console.error('Error al decodificar carácter Unicode:', match, e);
+            return match;
+        }
+    });
+    
+    // Reemplazar códigos específicos de RTF de forma individual
+    text = text.replace(/\\bullet/g, "•");
+    text = text.replace(/\\endash/g, "-");
+    text = text.replace(/\\emdash/g, "--");
+    text = text.replace(/\\lquote/g, "'");
+    text = text.replace(/\\rquote/g, "'");
+    text = text.replace(/\\ldblquote/g, "\"");
+    text = text.replace(/\\rdblquote/g, "\"");
+    text = text.replace(/\\~/g, " ");
+    text = text.replace(/\\_/g, "-");
+    text = text.replace(/\\:/g, " ");
+    text = text.replace(/\\;/g, " ");
+    text = text.replace(/\\ltrmark/g, "");
+    text = text.replace(/\\rtlmark/g, "");
     
     return text;
 } 

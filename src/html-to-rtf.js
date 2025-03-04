@@ -6,188 +6,39 @@
 
 // Convertir HTML a RTF mejorado
 function htmlToRtf(html) {
-    // Encabezado RTF mejorado compatible con WPF RichTextBox
-    let rtf = '{\\rtf1\\ansi\\deff0\\ansicpg1252';
+    if (!html) return '';
     
-    // Tabla de fuentes - Usar fuentes estándar de Windows
-    rtf += '{\\fonttbl{\\f0\\fswiss\\fcharset0 Segoe UI;}{\\f1\\froman\\fcharset0 Times New Roman;}{\\f2\\fswiss\\fcharset0 Arial;}}';
+    // Crear encabezado RTF básico
+    let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082{\\fonttbl{\\f0\\fnil\\fcharset0 Calibri;}}';
+    rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
+    rtf += '\\viewkind4\\uc1\\pard\\sa200\\sl276\\slmult1\\f0\\fs22 ';
     
-    // Tabla de colores - Añadir color blanco (255,255,255)
-    rtf += '{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;\\red255\\green0\\blue0;\\red255\\green255\\blue255;}';
-    
-    // Información del documento
-    rtf += '{\\info{\\title Términos y Condiciones}{\\author Edudigital.LATAM}}';
-    
-    // Configuración de página - Fondo oscuro
-    rtf += '\\viewkind4\\uc1\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440';
-    
-    // Agregar tabla de listas para soportar listas con viñetas
-    rtf += '{\\*\\listtable{\\list\\listtemplateid1\\listhybrid{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace360\\levelindent0{\\*\\levelmarker \\{bullet\\}}{\\leveltext\\leveltemplateid1\\\'01\\bullet;}{\\levelnumbers;}\\fi-360\\li720\\jclisttab\\tx720}\\listid1}}';
-    rtf += '{\\*\\listoverridetable{\\listoverride\\listid1\\listoverridecount0\\ls1}}';
-    
-    // Iniciar el cuerpo del documento - Usar \ltrpar\itap0 para compatibilidad con rtf-to-html.js
-    // Usar color blanco (cf4)
-    rtf += '\\pard\\ltrpar\\itap0\\f0\\fs22\\cf4\\qc';
-    
-    // Crear un elemento temporal para procesar el HTML
+    // Crear un elemento temporal para analizar el HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     
-    // Eliminar elementos no deseados (style, script, etc.)
-    const elementsToRemove = tempDiv.querySelectorAll('style, script, head');
-    elementsToRemove.forEach(el => el.remove());
+    // Convertir el contenido HTML a RTF
+    rtf += convertNodeToRtf(tempDiv);
     
-    // Añadir el título principal en negrita (usando el subtítulo correcto)
-    let content = '\\b\\fs28 Términos y Condiciones - Instaladores de Windows Online C#\\b0\\par';
+    // Cerrar el documento RTF
+    rtf += '}';
     
-    // Función recursiva para procesar nodos
-    function processNode(node, inList = false) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            // Escapar caracteres especiales de RTF
-            return escapeRtf(node.textContent);
-        }
-        
-        if (node.nodeType === Node.ELEMENT_NODE) {
-            let nodeContent = '';
-            let prefix = '';
-            let suffix = '';
-            
-            // Aplicar formato según el tipo de elemento
-            switch (node.nodeName.toLowerCase()) {
-                case 'body':
-                    // Procesar directamente el contenido del body
-                    break;
-                case 'h1':
-                    // Omitir el título principal ya que lo añadimos manualmente
-                    if (node.textContent.includes('Términos y Condiciones') && 
-                        node.textContent.includes('Instaladores de Windows')) {
-                        return '';
-                    }
-                    // Otros títulos h1
-                    prefix = '\\pard\\qc\\b\\fs28 ';
-                    suffix = '\\b0\\par';
-                    break;
-                case 'h2':
-                    // Subtítulos alineados a la izquierda en color blanco
-                    prefix = '\\pard\\ql\\b\\fs24 ';
-                    suffix = '\\b0\\par';
-                    break;
-                case 'p':
-                    if (node.className === 'bold') {
-                        prefix = '\\pard\\ql\\b\\fs22 ';
-                        suffix = '\\b0\\par';
-                    } else {
-                        prefix = '\\pard\\ql\\fs22 ';
-                        suffix = '\\par';
-                    }
-                    break;
-                case 'span':
-                    if (node.className === 'bold') {
-                        prefix = '\\b ';
-                        suffix = '\\b0 ';
-                    } else {
-                        prefix = '';
-                        suffix = '';
-                    }
-                    break;
-                case 'b':
-                case 'strong':
-                    prefix = '\\b ';
-                    suffix = '\\b0 ';
-                    break;
-                case 'i':
-                case 'em':
-                    prefix = '\\i ';
-                    suffix = '\\i0 ';
-                    break;
-                case 'u':
-                    prefix = '\\ul ';
-                    suffix = '\\ulnone ';
-                    break;
-                case 'br':
-                    return '\\line';
-                case 'ul':
-                    // No añadir prefijo/sufijo especial para ul, se maneja en los elementos li
-                    break;
-                case 'li':
-                    // Mejorar el formato de las viñetas
-                    prefix = '\\pard{\\*\\pn\\pnlvlblt\\pnf1\\pnindent0{\\pntxtb\\\'95}}\\fi-360\\li720\\ql\\fs22 ';
-                    suffix = '\\par';
-                    break;
-                case 'a':
-                    // Para enlaces, usar color azul
-                    prefix = '{\\field{\\*\\fldinst{HYPERLINK "' + (node.getAttribute('href') || '') + '"}}{\\fldrslt{\\cf2\\ul ';
-                    suffix = '}}}';
-                    break;
-                default:
-                    // Para otros elementos, solo procesar su contenido
-                    break;
-            }
-            
-            // Procesar nodos hijos
-            for (const child of node.childNodes) {
-                nodeContent += processNode(child, node.nodeName.toLowerCase() === 'ul');
-            }
-            
-            return prefix + nodeContent + suffix;
-        }
-        
-        return '';
-    }
+    // Corregir problemas específicos en el contenido RTF
+    rtf = fixRtfContent(rtf);
     
-    // Procesar el contenido HTML (excepto el título principal que ya añadimos)
-    for (const child of tempDiv.childNodes) {
-        // Omitir el título principal si ya está en el contenido
-        if (child.nodeType === Node.ELEMENT_NODE && 
-            child.nodeName.toLowerCase() === 'h1' && 
-            child.textContent.includes('Términos y Condiciones') && 
-            child.textContent.includes('Instaladores de Windows')) {
-            continue;
-        }
-        content += processNode(child);
-    }
-    
-    // Si no hay contenido o solo hay espacios en blanco, agregar un párrafo vacío
-    if (!content.trim()) {
-        content = '\\pard\\ql\\fs22 \\par';
-    }
-    
-    // Procesar el contenido para corregir problemas específicos
-    content = fixRtfContent(content);
-    
-    // Finalizar el RTF
-    rtf += content + '}';
     return rtf;
 }
 
 // Función para corregir problemas específicos en el contenido RTF
 function fixRtfContent(content) {
-    // Eliminar múltiples \par consecutivos
-    content = content.replace(/\\par\s*\\par+/g, '\\par');
+    // Corregir múltiples saltos de línea consecutivos
+    content = content.replace(/\\par\\par\\par+/g, '\\par\\par');
     
-    // Eliminar secuencias problemáticas que causan la "d" al inicio de líneas
-    content = content.replace(/\\par\\pard/g, '\\par\\pard');
+    // Asegurar que los párrafos vacíos se muestren correctamente
+    content = content.replace(/\\par\s+\\par/g, '\\par\\par');
     
-    // Eliminar espacios después de \line
-    content = content.replace(/\\line\s+/g, '\\line');
-    
-    // Eliminar secuencias de \line consecutivas
-    content = content.replace(/\\line\\line+/g, '\\line');
-    
-    // Corregir viñetas
-    content = content.replace(/\\bullet/g, '\\\'95');
-    
-    // Eliminar espacios extra antes de \par
-    content = content.replace(/\s+\\par/g, '\\par');
-    
-    // Eliminar espacios al inicio de párrafos
-    content = content.replace(/\\par\s+/g, '\\par');
-    
-    // Eliminar espacios después de comandos RTF
-    content = content.replace(/\\([a-z0-9]+)\s+/g, '\\$1 ');
-    
-    // Eliminar espacios duplicados
-    content = content.replace(/\s{2,}/g, ' ');
+    // Corregir espacios en blanco excesivos
+    content = content.replace(/\s+/g, ' ').replace(/\s+\\par/g, '\\par');
     
     return content;
 }
@@ -196,55 +47,193 @@ function fixRtfContent(content) {
 function escapeRtf(text) {
     if (!text) return '';
     
-    // Crear un mapa de caracteres especiales
-    const charMap = {
-        '\\': '\\\\',
-        '{': '\\{',
-        '}': '\\}',
-        '\n': '\\line',
-        '\r': '',
-        '\t': '\\tab',
-        'á': '\\\'e1',
-        'é': '\\\'e9',
-        'í': '\\\'ed',
-        'ó': '\\\'f3',
-        'ú': '\\\'fa',
-        'ñ': '\\\'f1',
-        'Á': '\\\'c1',
-        'É': '\\\'c9',
-        'Í': '\\\'cd',
-        'Ó': '\\\'d3',
-        'Ú': '\\\'da',
-        'Ñ': '\\\'d1',
-        'ü': '\\\'fc',
-        'Ü': '\\\'dc',
-        'ª': '\\\'aa',
-        'º': '\\\'ba',
-        '©': '\\\'a9',
-        '®': '\\\'ae',
-        '™': '\\\'99',
-        '€': '\\\'80',
-        '£': '\\\'a3',
-        '¥': '\\\'a5',
-        '¿': '\\\'bf',
-        '¡': '\\\'a1',
-        '"': '"', // Usar comillas normales en lugar de códigos RTF
-        '\'': '\'', // Usar comilla simple normal
-        '–': '\\\'96',
-        '—': '\\\'97',
-        '•': '\\\'95',
-        '…': '\\\'85'
-    };
+    // Reemplazar caracteres especiales con sus equivalentes RTF
+    let escaped = text;
     
-    // Reemplazar cada carácter especial
-    let result = '';
-    for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        result += charMap[char] || char;
+    // Caracteres de control RTF
+    escaped = escaped.replace(/\\/g, '\\\\');
+    escaped = escaped.replace(/\{/g, '\\{');
+    escaped = escaped.replace(/\}/g, '\\}');
+    
+    // Caracteres acentuados y especiales - versión simplificada
+    escaped = escaped.replace(/á/g, "\\'e1");
+    escaped = escaped.replace(/é/g, "\\'e9");
+    escaped = escaped.replace(/í/g, "\\'ed");
+    escaped = escaped.replace(/ó/g, "\\'f3");
+    escaped = escaped.replace(/ú/g, "\\'fa");
+    escaped = escaped.replace(/Á/g, "\\'c1");
+    escaped = escaped.replace(/É/g, "\\'c9");
+    escaped = escaped.replace(/Í/g, "\\'cd");
+    escaped = escaped.replace(/Ó/g, "\\'d3");
+    escaped = escaped.replace(/Ú/g, "\\'da");
+    escaped = escaped.replace(/ñ/g, "\\'f1");
+    escaped = escaped.replace(/Ñ/g, "\\'d1");
+    escaped = escaped.replace(/ü/g, "\\'fc");
+    escaped = escaped.replace(/Ü/g, "\\'dc");
+    escaped = escaped.replace(/¿/g, "\\'bf");
+    escaped = escaped.replace(/¡/g, "\\'a1");
+    escaped = escaped.replace(/€/g, "\\'80");
+    escaped = escaped.replace(/£/g, "\\'a3");
+    escaped = escaped.replace(/©/g, "\\'a9");
+    escaped = escaped.replace(/®/g, "\\'ae");
+    escaped = escaped.replace(/°/g, "\\'b0");
+    escaped = escaped.replace(/±/g, "\\'b1");
+    escaped = escaped.replace(/²/g, "\\'b2");
+    escaped = escaped.replace(/³/g, "\\'b3");
+    escaped = escaped.replace(/·/g, "\\'b7");
+    escaped = escaped.replace(/¼/g, "\\'bc");
+    escaped = escaped.replace(/½/g, "\\'bd");
+    escaped = escaped.replace(/¾/g, "\\'be");
+    escaped = escaped.replace(/×/g, "\\'d7");
+    escaped = escaped.replace(/÷/g, "\\'f7");
+    
+    // Caracteres especiales que no tienen representación directa en ANSI
+    // Para estos usamos una aproximación o un marcador
+    escaped = escaped.replace(/[""]/g, "\"");
+    escaped = escaped.replace(/['']/g, "'");
+    escaped = escaped.replace(/–/g, "-");
+    escaped = escaped.replace(/—/g, "--");
+    escaped = escaped.replace(/•/g, "*");
+    escaped = escaped.replace(/…/g, "...");
+    escaped = escaped.replace(/™/g, "(TM)");
+    
+    return escaped;
+}
+
+// Función para convertir un nodo HTML a RTF
+function convertNodeToRtf(node) {
+    if (!node) return '';
+    
+    let rtf = '';
+    
+    // Procesar nodos hijos
+    for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        
+        // Nodo de texto
+        if (child.nodeType === 3) { // Nodo de texto
+            rtf += escapeRtf(child.textContent);
+        }
+        // Elemento HTML
+        else if (child.nodeType === 1) { // Elemento
+            const tagName = child.tagName.toLowerCase();
+            
+            // Aplicar formato según el tipo de elemento
+            switch (tagName) {
+                case 'p':
+                    rtf += convertNodeToRtf(child) + '\\par ';
+                    break;
+                    
+                case 'br':
+                    rtf += '\\line ';
+                    break;
+                    
+                case 'b':
+                case 'strong':
+                    rtf += '{\\b ' + convertNodeToRtf(child) + '}';
+                    break;
+                    
+                case 'i':
+                case 'em':
+                    rtf += '{\\i ' + convertNodeToRtf(child) + '}';
+                    break;
+                    
+                case 'u':
+                    rtf += '{\\ul ' + convertNodeToRtf(child) + '}';
+                    break;
+                    
+                case 'strike':
+                case 's':
+                case 'del':
+                    rtf += '{\\strike ' + convertNodeToRtf(child) + '}';
+                    break;
+                    
+                case 'h1':
+                    rtf += '{\\fs40\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    break;
+                    
+                case 'h2':
+                    rtf += '{\\fs36\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    break;
+                    
+                case 'h3':
+                    rtf += '{\\fs32\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    break;
+                    
+                case 'h4':
+                    rtf += '{\\fs28\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    break;
+                    
+                case 'h5':
+                    rtf += '{\\fs24\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    break;
+                    
+                case 'h6':
+                    rtf += '{\\fs22\\b ' + convertNodeToRtf(child) + '}\\par ';
+                    break;
+                    
+                case 'ul':
+                    rtf += convertListToRtf(child, false);
+                    break;
+                    
+                case 'ol':
+                    rtf += convertListToRtf(child, true);
+                    break;
+                    
+                case 'li':
+                    // Los elementos li se manejan en convertListToRtf
+                    rtf += convertNodeToRtf(child);
+                    break;
+                    
+                case 'a':
+                    // Enlaces - en RTF básico solo mostramos el texto
+                    rtf += '{\\cf1\\ul ' + convertNodeToRtf(child) + '}';
+                    break;
+                    
+                case 'img':
+                    // Las imágenes no se soportan en esta implementación básica
+                    rtf += '[Imagen]';
+                    break;
+                    
+                case 'table':
+                    // Las tablas son complejas en RTF, implementación básica
+                    rtf += '[Tabla]\\par ';
+                    break;
+                    
+                case 'div':
+                case 'span':
+                default:
+                    // Para otros elementos, simplemente procesamos su contenido
+                    rtf += convertNodeToRtf(child);
+                    break;
+            }
+        }
     }
     
-    // Eliminar espacios duplicados
-    result = result.replace(/\s{2,}/g, ' ');
+    return rtf;
+}
+
+// Función para convertir listas HTML a RTF
+function convertListToRtf(listNode, isOrdered) {
+    let rtf = '';
+    let counter = 1;
     
-    return result;
+    for (let i = 0; i < listNode.childNodes.length; i++) {
+        const child = listNode.childNodes[i];
+        
+        if (child.nodeType === 1 && child.tagName.toLowerCase() === 'li') {
+            // Agregar viñeta o número según el tipo de lista
+            if (isOrdered) {
+                rtf += '\\pard\\fi-360\\li720 ' + counter + '. ';
+                counter++;
+            } else {
+                rtf += '\\pard\\fi-360\\li720 \\'+'b7 ';  // Viñeta en formato hexadecimal
+            }
+            
+            // Agregar el contenido del elemento de lista
+            rtf += convertNodeToRtf(child) + '\\par ';
+        }
+    }
+    
+    return rtf;
 } 
