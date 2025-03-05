@@ -62,10 +62,11 @@ async function initializeAppsManager() {
         setupEventListeners();
         
         hideLoading();
+        console.log('Gestor de aplicaciones inicializado correctamente');
     } catch (error) {
         console.error('Error al inicializar el gestor de aplicaciones:', error);
-        showError('Error al inicializar el gestor de aplicaciones: ' + error.message);
         hideLoading();
+        showError('Error al inicializar el gestor de aplicaciones: ' + error.message);
     }
 }
 
@@ -2658,7 +2659,6 @@ async function loadEliteApps() {
         hideLoading();
         return false;
     }
-    }
 }
 
 /**
@@ -2804,3 +2804,6 @@ async function saveEliteApps() {
         return false;
     }
 }
+
+// Hacer disponible globalmente la función de inicialización
+window.initializeAppsManager = initializeAppsManager;
