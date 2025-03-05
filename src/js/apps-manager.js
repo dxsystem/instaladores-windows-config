@@ -1455,6 +1455,15 @@ async function syncAllConfigurations() {
         showLoading('Actualizando descripciones desde el diccionario...');
         updateLoadingProgress(60);
 
+        // Primero, convertir allDescriptions a un formato más fácil de buscar
+        const descriptionsMap = {};
+        allDescriptions.forEach(desc => {
+            descriptionsMap[desc.name.toLowerCase()] = {
+                description: desc.description,
+                category: desc.category
+            };
+        });
+
         allApps = allApps.map(app => {
             const appCopy = { ...app };
             
@@ -1466,24 +1475,22 @@ async function syncAllConfigurations() {
                 .trim();
 
             // Buscar coincidencia exacta
-            const exactMatch = allDescriptions.find(d => 
-                d.name.toLowerCase() === baseName.toLowerCase()
-            );
+            let found = descriptionsMap[baseName.toLowerCase()];
             
-            if (exactMatch) {
-                appCopy.description = exactMatch.description;
-                appCopy.category = exactMatch.category;
+            if (found) {
+                appCopy.description = found.description;
+                appCopy.category = found.category;
                 console.log(`[Sync] Coincidencia exacta encontrada para ${app.name}`);
             } else {
                 // Buscar coincidencia parcial
-                const partialMatch = allDescriptions.find(d => 
-                    d.name.toLowerCase().includes(baseName.toLowerCase()) ||
-                    baseName.toLowerCase().includes(d.name.toLowerCase())
+                const partialMatch = Object.entries(descriptionsMap).find(([key, value]) => 
+                    key.includes(baseName.toLowerCase()) ||
+                    baseName.toLowerCase().includes(key)
                 );
                 
                 if (partialMatch) {
-                    appCopy.description = partialMatch.description;
-                    appCopy.category = partialMatch.category;
+                    appCopy.description = partialMatch[1].description;
+                    appCopy.category = partialMatch[1].category;
                     console.log(`[Sync] Coincidencia parcial encontrada para ${app.name}`);
                 } else {
                     // Si no hay coincidencia, mantener descripción actual o usar genérica
