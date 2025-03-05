@@ -1,6 +1,6 @@
 /**
  * Conversor de RTF a HTML
- * Versión: 1.2.3
+ * Versión: 1.2.5
  * 
  * Este archivo contiene funciones para convertir contenido RTF a HTML.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
@@ -11,9 +11,11 @@
  * - Mejora en el manejo de viñetas y listas
  * - Soporte para caracteres acentuados
  * - Mejora en la detección de encabezados
- * - Eliminación de "Segoe UI; Segoe UI;;;" en el texto
+ * - Eliminación de "Segoe UI; Segoe UI;;;" y otras referencias a fuentes en el texto
  * - Mejora en el manejo de espacios entre palabras en mayúsculas
  * - Corrección de espaciado después de negritas y entre párrafos
+ * - Eliminación de texto de tabla de fuentes en el HTML
+ * - Optimización para eliminar completamente cualquier info de fuentes
  */
 
 // Convertir RTF a HTML
@@ -23,6 +25,32 @@ function rtfToHtml(rtf) {
             console.error('rtfToHtml: El contenido RTF es inválido');
             return '';
         }
+        
+        // Eliminar completamente la tabla de fuentes y la tabla de colores
+        rtf = rtf.replace(/\{\\fonttbl.*?\}/gs, '');
+        rtf = rtf.replace(/\{\\colortbl.*?\}/gs, '');
+        rtf = rtf.replace(/\{\\stylesheet.*?\}/gs, '');
+        rtf = rtf.replace(/\{\\info.*?\}/gs, '');
+        rtf = rtf.replace(/\{\\listtable.*?\}/gs, '');
+        rtf = rtf.replace(/\{\\listoverridetable.*?\}/gs, '');
+        
+        // Eliminar cualquier referencia a fuentes específicas
+        rtf = rtf.replace(/Times New Roman;.*?(\*|\})/gs, '');
+        rtf = rtf.replace(/Segoe UI;.*?(\*|\})/gs, '');
+        rtf = rtf.replace(/Segoe U I;.*?(\*|\})/gs, '');
+        rtf = rtf.replace(/Aptos;.*?(\*|\})/gs, '');
+        rtf = rtf.replace(/\\f\d+\\.*?(\*|\})/gs, '');
+        
+        // Eliminar nombres de fuentes sueltos y patrones problemáticos
+        rtf = rtf.replace(/Times New Roman;/g, '');
+        rtf = rtf.replace(/Segoe UI;/g, '');
+        rtf = rtf.replace(/Segoe U I;/g, '');
+        rtf = rtf.replace(/Aptos;/g, '');
+        rtf = rtf.replace(/\\f\d+/g, '');
+        rtf = rtf.replace(/;+/g, '');
+        rtf = rtf.replace(/\\(\\\*)+/g, '');
+        rtf = rtf.replace(/\\\*\\·/g, '');
+        rtf = rtf.replace(/\.;+/g, '.');
         
         // Eliminar cualquier 'd' al inicio del documento completo
         rtf = rtf.replace(/^d\s+/m, '');
@@ -40,14 +68,16 @@ function rtfToHtml(rtf) {
         rtf = rtf.replace(/\\par\s+d\s*(\d+)\./g, '\\par $1.');
         rtf = rtf.replace(/d\s*\n*\s*(\d+)\./g, '$1.');
         
-        // Eliminar "Segoe UI; Segoe UI;;;" del texto
-        rtf = rtf.replace(/Segoe UI;\s*Segoe UI;+/g, '');
-        rtf = rtf.replace(/Segoe U I;+/g, '');
+        // Remover símbolos extraños en las viñetas
+        rtf = rtf.replace(/\\'B7\s*\\\*\\'B7/g, '');
+        rtf = rtf.replace(/\\'B7/g, '');
+        rtf = rtf.replace(/\\b7/g, '•');
+        rtf = rtf.replace(/\\bullet/g, '•');
         
-        // Insertar espacios entre palabras en mayúsculas
-        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/g, '$1 $2');
+        // Insertar espacios entre palabras en mayúsculas para corregir texto como "PORFA VOR"
+        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
         
-        // Asegurar espacios entre palabras en mayúsculas
+        // Asegurar espacios entre palabras en mayúsculas pero sin duplicarlos
         rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})/g, '$1 $2');
         
         let html = '';
@@ -75,10 +105,6 @@ function rtfToHtml(rtf) {
                 text = text.replace(/^d\s+/, '');
                 text = text.replace(/^d/, '');
                 
-                // Eliminar "Segoe UI; Segoe UI;;;" del texto
-                text = text.replace(/Segoe UI;\s*Segoe UI;+/g, '');
-                text = text.replace(/Segoe U I;+/g, '');
-                
                 if (text.trim()) {
                     if (paragraph.includes('\\fs40')) {
                         html += `<h1>${text}</h1>\n`;
@@ -104,6 +130,8 @@ function rtfToHtml(rtf) {
                 text = text.replace(/\\b7\s*/, '');
                 text = text.replace(/\\u183\?/, '');
                 text = text.replace(/\\u00B7\?/, '');
+                text = text.replace(/\\'B7\s*\\\*\\'B7/g, '');
+                text = text.replace(/\\'B7/g, '');
                 
                 if (text.trim()) {
                     if (!isInList) {
@@ -179,9 +207,15 @@ function rtfToHtml(rtf) {
                 .replace(/d\s+(\d+)\./g, '$1.') // Eliminar 'd' antes de números
                 .replace(/Segoe UI;\s*Segoe UI;+/g, '') // Eliminar "Segoe UI; Segoe UI;;;"
                 .replace(/Segoe U I;+/g, '') // Eliminar "Segoe U I;;;"
+                .replace(/Times New Roman;/g, '') // Eliminar referencia a Times New Roman
+                .replace(/Aptos;+/g, '') // Eliminar referencia a Aptos
+                .replace(/\\f\d+/g, '') // Eliminar referencias a fuentes
+                .replace(/;+/g, '') // Eliminar punto y comas
+                .replace(/\\(\\\*)+/g, '') // Eliminar caracteres extraños
+                .replace(/\\\*\\·/g, '') // Eliminar caracteres extraños
                 // Insertar espacios entre palabras en mayúsculas
-                .replace(/([A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/g, '$1 $2')
-                // Asegurar espacios entre palabras en mayúsculas
+                .replace(/([A-ZÁÉÍÓÚÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2')
+                // Asegurar espacios entre palabras en mayúsculas sin duplicarlos
                 .replace(/([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})/g, '$1 $2')
                 .trim();
             
@@ -197,8 +231,23 @@ function rtfToHtml(rtf) {
 function extractCleanText(rtfText) {
     if (!rtfText) return '';
     
+    // Primer paso: Eliminar referencias a la tabla de fuentes y a fuentes específicas
+    let text = rtfText;
+    
+    // Eliminar referencias a fuentes específicas al inicio del texto
+    text = text.replace(/Times New Roman;.*?(\\|\*|\})/g, '');
+    text = text.replace(/Segoe UI;.*?(\\|\*|\})/g, '');
+    text = text.replace(/Segoe U I;.*?(\\|\*|\})/g, '');
+    text = text.replace(/Aptos;.*?(\\|\*|\})/g, '');
+    text = text.replace(/\\f\d.*?(\\|\*|\})/g, '');
+    text = text.replace(/\\f\d+/g, '');
+    text = text.replace(/;+/g, '');
+    text = text.replace(/\\(\\|\*)+/g, '');
+    text = text.replace(/\\\*\\·/g, '');
+    text = text.replace(/\.;+/g, '.');
+    
     // Eliminar códigos de control RTF
-    let text = rtfText
+    text = text
         // Eliminar códigos de formato de párrafo
         .replace(/\\pard/g, '')
         .replace(/\\plain/g, '')
@@ -248,74 +297,97 @@ function extractCleanText(rtfText) {
         .replace(/\\bullet\s+d\s+/g, '\\bullet ');
     
     // Eliminar 'd' antes de números
-    text = text.replace(/d\s+(\d+)\.\s+/g, '$1. ');
+    text = text
+        .replace(/d\s+(\d+)\./g, '$1.')
+        .replace(/d\s*(\d+)\./g, '$1.');
     
-    // Eliminar 'd' suelta
-    text = text.replace(/\s+d\s+/g, ' ');
-    text = text.replace(/\s+d$/g, '');
+    // Eliminar códigos de formato de carácter
+    text = text
+        .replace(/\\b(?!\d)/g, '') // Mantener \b seguido de dígitos (como \b0)
+        .replace(/\\b0/g, '')
+        .replace(/\\i(?!\d)/g, '')
+        .replace(/\\i0/g, '')
+        .replace(/\\ul(?!\d)/g, '')
+        .replace(/\\ul0/g, '')
+        .replace(/\\ulnone/g, '')
+        .replace(/\\strike(?!\d)/g, '')
+        .replace(/\\strike0/g, '')
+        .replace(/\\super(?!\d)/g, '')
+        .replace(/\\super0/g, '')
+        .replace(/\\sub(?!\d)/g, '')
+        .replace(/\\sub0/g, '')
+        .replace(/\\expnd\d+/g, '')
+        .replace(/\\expndtw\d+/g, '')
+        .replace(/\\kerning\d+/g, '')
+        .replace(/\\outl(?!\d)/g, '')
+        .replace(/\\outl0/g, '')
+        .replace(/\\up\d+/g, '')
+        .replace(/\\dn\d+/g, '')
+        .replace(/\\nosupersub/g, '')
+        .replace(/\\charscalex\d+/g, '')
+        .replace(/\\caps(?!\d)/g, '')
+        .replace(/\\caps0/g, '')
+        .replace(/\\scaps(?!\d)/g, '')
+        .replace(/\\scaps0/g, '')
+        .replace(/\\v(?!\d)/g, '')
+        .replace(/\\v0/g, '')
+        .replace(/\\revised/g, '')
+        .replace(/\\noproof/g, '')
+        .replace(/\\lang\d+/g, '')
+        .replace(/\\ltrch/g, '')
+        .replace(/\\rtlch/g, '');
     
-    // Eliminar "Segoe UI; Segoe UI;;;" del texto
-    text = text.replace(/Segoe UI;\s*Segoe UI;+/g, '');
-    text = text.replace(/Segoe U I;+/g, '');
+    // Eliminar códigos de control unicode
+    text = text
+        .replace(/\\u\d+\?/g, '')
+        .replace(/\\'[0-9a-f]{2}/g, function(match) {
+            // Convertir la representación hexadecimal a un carácter
+            try {
+                const hexValue = match.substring(2);
+                const decimalValue = parseInt(hexValue, 16);
+                return String.fromCharCode(decimalValue);
+            } catch (e) {
+                return '';
+            }
+        });
     
-    // Corregir problemas con espacios entre palabras
-    text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+    // Eliminar secuencias de escape y otras
+    text = text
+        .replace(/\\\\/g, '\\')
+        .replace(/\\{/g, '{')
+        .replace(/\\}/g, '}')
+        .replace(/\\\n/g, '')
+        .replace(/\\\r/g, '');
     
-    // Corregir problemas con palabras pegadas como "deResponsabilidad"
-    text = text.replace(/([a-z])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+    // Eliminar llaves, espacios múltiples y otros caracteres extraños
+    text = text
+        .replace(/\{|\}/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/\\$/g, '')
+        .replace(/\\/g, '')
+        .replace(/\*+/g, '')
+        .replace(/·+/g, '')
+        .replace(/\.;+/g, '.')
+        .replace(/;+/g, '')
+        .replace(/\s+\./g, '.')
+        .replace(/\.\s+/g, '. ');
     
-    // Corregir problemas con dos puntos sin espacio
-    text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ]):([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1: $2');
-    
-    // Corregir problemas con puntos sin espacio
-    text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\.([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1. $2');
+    // Agregar espacios después de caracteres de puntuación si no hay
+    text = text
+        .replace(/\.([A-Z])/g, '. $1')
+        .replace(/\,([A-Z])/g, ', $1')
+        .replace(/\:([A-Z])/g, ': $1')
+        .replace(/\;([A-Z])/g, '; $1')
+        .replace(/\!([A-Z])/g, '! $1')
+        .replace(/\?([A-Z])/g, '? $1');
     
     // Insertar espacios entre palabras en mayúsculas
-    text = text.replace(/([A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/g, '$1 $2');
+    text = text.replace(/([A-ZÁÉÍÓÚÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
     
-    // Asegurar espacios entre palabras en mayúsculas
-    text = text.replace(/([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})/g, '$1 $2');
+    // Asegurar que haya un espacio entre palabras con letras mayúsculas y minúsculas
+    text = text.replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
     
-    // Corregir problema específico de duplicación en el punto 4
-    text = text.replace(/(4\.\s+Descargo\s+de\s*Responsabilidad.*?)\s+\1/s, '$1');
-    
-    // Corregir problema de espaciado antes del punto 5
-    text = text.replace(/Â\s+(\d+\.\s+Propiedad)/g, '\n$1');
-    
-    // Asegurar espacio después de negritas
-    text = text.replace(/\\b0\s*([A-Za-záéíóúÁÉÍÓÚÑñ])/g, '\\b0 $1');
-    
-    // Asegurar espacio después de números de sección
-    text = text.replace(/(\d+)\.\s*([A-Za-záéíóúÁÉÍÓÚÑñ])/g, '$1. $2');
-    
-    // Eliminar códigos de viñeta
-    text = text
-        .replace(/\\bullet/g, '')
-        .replace(/\\b7/g, '')
-        .replace(/\\u8226/g, '')
-        .replace(/\\u183/g, '')
-        .replace(/\\u00B7/g, '')
-        .replace(/•\s*/, '');
-    
-    // Convertir saltos de línea y tabulaciones
-    text = text
-        .replace(/\\line/g, '<br>')
-        .replace(/\\tab/g, '    ');
-    
-    // Eliminar llaves y caracteres de control restantes
-    text = text.replace(/\{|\}/g, '');
-    
-    // Decodificar caracteres especiales
-    text = decodeRtfCharacters(text);
-    
-    // Eliminar cualquier código RTF restante
-    text = text.replace(/\\[a-z]+\d*/g, '');
-    
-    // Eliminar barras invertidas antes de caracteres especiales
-    text = text.replace(/\\([áéíóúÁÉÍÓÚñÑüÜ©®°])/g, '$1');
-    text = text.replace(/\\([a-zA-Z])/g, '$1');
-    
-    // Eliminar espacios múltiples
+    // Corregir espacios múltiples
     text = text.replace(/\s+/g, ' ').trim();
     
     return text;
