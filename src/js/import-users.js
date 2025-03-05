@@ -169,12 +169,17 @@ class UserImporter {
         const durationIndex = this.findColumnIndex(headers, ['duración', 'duracion', 'vigencia', 'duration']);
         const statusIndex = this.findColumnIndex(headers, ['estado', 'status', 'activo', 'active']);
         
+        console.log('Datos del Excel:', {
+            headers: headers,
+            firstRow: data[1],
+            allData: data
+        });
+        
         console.log('Índices encontrados:', {
             email: emailIndex,
             subscription: subscriptionIndex,
             duration: durationIndex,
-            status: statusIndex,
-            headers: headers
+            status: statusIndex
         });
         
         // Si no se encuentran los encabezados específicos, usar posiciones por defecto
@@ -219,33 +224,41 @@ class UserImporter {
             // Calcular fechas basadas en la duración
             const dates = this.calculateDates(duration, today);
             
+            // Normalizar el tipo de suscripción antes de crear el usuario
+            let normalizedSubscriptionType = subscriptionType.toUpperCase().trim();
+            if (normalizedSubscriptionType.includes('ELITE') || normalizedSubscriptionType === 'ÉLITE') {
+                normalizedSubscriptionType = 'ELITE';
+            } else if (normalizedSubscriptionType.includes('PRO')) {
+                normalizedSubscriptionType = 'PRO';
+            } else if (normalizedSubscriptionType.includes('GRATIS') || 
+                      normalizedSubscriptionType.includes('GRATUITA') || 
+                      normalizedSubscriptionType === 'FREE') {
+                normalizedSubscriptionType = 'Gratuita';
+            }
+
+            console.log('Procesando usuario:', {
+                email: email,
+                originalSubscriptionType: subscriptionType,
+                normalizedSubscriptionType: normalizedSubscriptionType
+            });
+            
             const user = {
                 email: email,
                 password: null, // Siempre null para usuarios nuevos
-                subscriptionType: subscriptionType,
+                subscriptionType: normalizedSubscriptionType,
                 startDate: dates.startDate,
                 endDate: dates.endDate,
                 isActive: isActive,
                 selected: true,
                 rowIndex: index + 2,
                 existingUser: null, // Se llenará después con la información del usuario existente
-                newSubscriptionType: subscriptionType // Guardar el nuevo tipo de suscripción
+                newSubscriptionType: normalizedSubscriptionType // Usar el tipo normalizado
             };
 
             // Validar datos
             const validationError = this.validateUserData(user);
             if (validationError) {
                 user.error = validationError;
-            } else {
-                // Si la validación es exitosa, asegurarse de que el tipo de suscripción esté normalizado
-                if (user.subscriptionType.toUpperCase().includes('ELITE')) {
-                    user.newSubscriptionType = 'ELITE';
-                } else if (user.subscriptionType.toUpperCase().includes('PRO')) {
-                    user.newSubscriptionType = 'PRO';
-                } else if (user.subscriptionType.toUpperCase().includes('GRATIS') || 
-                         user.subscriptionType.toUpperCase().includes('GRATUITA')) {
-                    user.newSubscriptionType = 'Gratuita';
-                }
             }
 
             return user;
