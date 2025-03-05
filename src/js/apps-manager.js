@@ -165,126 +165,23 @@ function setupEventListeners() {
 async function loadApps() {
     try {
         showLoading('Cargando aplicaciones...');
-        updateLoadingProgress(10);
+        updateLoadingProgress(20);
         
         // Verificar que spGraph esté disponible
         if (!spGraph) {
-            showError('Error: No se ha inicializado la conexión con SharePoint');
-            return;
+            throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
-        // Cargar configuración existente
-        updateLoadingProgress(20);
-        showLoading('Obteniendo configuración existente...');
-        
-        let config = null;
+        // Cargar configuración base
+        let config;
         try {
-            const eliteConfigJson = await spGraph.getFileContent('elite_apps_config.json');
-            if (eliteConfigJson) {
-                config = JSON.parse(eliteConfigJson);
-                console.log('Configuración existente cargada:', config);
-            }
-        } catch (configError) {
-            console.error('Error al cargar la configuración existente:', configError);
+            const configContent = await spGraph.getFileContent('apps_config.json');
+            config = JSON.parse(configContent);
+            console.log('Configuración base cargada correctamente');
+        } catch (error) {
+            console.error('Error al cargar configuración base:', error);
+            throw error;
         }
-        
-        // Si no hay configuración, crear una inicial
-        if (!config) {
-            console.log('No hay configuración de aplicaciones, creando una inicial');
-            config = {
-                lastUpdate: new Date().toISOString(),
-                applications: []
-            };
-        }
-        
-        // Obtener archivos de la carpeta exe
-        updateLoadingProgress(40);
-        showLoading('Obteniendo archivos de SharePoint...');
-        
-        const executableFiles = await spGraph.getExeFiles();
-        console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat) en la carpeta principal exe`);
-        
-        // Log detallado de los archivos encontrados
-        console.log('Detalle de archivos encontrados:', {
-            total: executableFiles.length,
-            extensiones: [...new Set(executableFiles.map(file => 
-                file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : ''))],
-            primeros10: executableFiles.slice(0, 10).map(file => ({
-                nombre: file.name,
-                tamaño: file.size,
-                id: file.id
-            }))
-        });
-        
-        // Verificación adicional para asegurar que solo se procesen archivos .exe y .bat
-        const validExecutableFiles = executableFiles.filter(file => {
-            const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
-            return extension === 'exe' || extension === 'bat';
-        });
-        
-        if (validExecutableFiles.length !== executableFiles.length) {
-            console.warn(`Se filtraron ${executableFiles.length - validExecutableFiles.length} archivos que no son .exe o .bat`);
-        }
-        
-        console.log(`Se procesarán ${validExecutableFiles.length} archivos ejecutables válidos`);
-        
-        // Actualizar la configuración con los nuevos archivos
-        updateLoadingProgress(60);
-        showLoading('Actualizando configuración...');
-        
-        // Mapear los archivos existentes por ID para facilitar la búsqueda
-        const existingAppsById = {};
-        if (config.applications && Array.isArray(config.applications)) {
-            config.applications.forEach(app => {
-                if (app.sharePointId) {
-                    existingAppsById[app.sharePointId] = app;
-                }
-            });
-        }
-        
-        // Contar archivos nuevos
-        let newFilesCount = 0;
-        
-        // Procesar los archivos ejecutables
-        for (const file of validExecutableFiles) {
-            // Verificar si el archivo ya existe en la configuración
-            if (!existingAppsById[file.id]) {
-                // Es un archivo nuevo, agregarlo a la configuración
-                newFilesCount++;
-                
-                const fileName = file.name;
-                const name = fileName.substring(0, fileName.lastIndexOf('.'));
-                const version = file.lastModified ? new Date(file.lastModified).toISOString().split('T')[0].replace(/-/g, '.') : '1.0.0';
-                
-                const newApp = {
-                    name: name,
-                    fileName: fileName,
-                    sharePointId: file.id,
-                    webUrl: file.webUrl,
-                    downloadUrl: file.downloadUrl,
-                    version: version,
-                    lastModified: file.lastModified || new Date().toISOString(),
-                    size: file.size || 0,
-                    category: 'General',
-                    description: `Software profesional ${name} v${version}`,
-                    installationOrder: (config.applications.length || 0) + 1
-                };
-                
-                config.applications.push(newApp);
-            } else {
-                // Actualizar la URL de descarga que puede haber cambiado
-                existingAppsById[file.id].downloadUrl = file.downloadUrl;
-            }
-        }
-        
-        console.log(`Se encontraron ${newFilesCount} archivos nuevos que no están en la configuración`);
-        
-        // Actualizar la fecha de última actualización
-        config.lastUpdate = new Date().toISOString();
-        
-        // Guardar la configuración actualizada
-        updateLoadingProgress(80);
-        showLoading('Guardando configuración actualizada...');
         
         // Actualizar las aplicaciones en memoria
         allApps = config.applications.map(app => ({
@@ -299,8 +196,8 @@ async function loadApps() {
             downloadUrl: app.downloadUrl,
             webUrl: app.webUrl,
             installationOrder: app.installationOrder,
-            icon: app.icon || DEFAULT_ICON_URL, // Usar el icono existente si está disponible
-            iconUrl: app.iconUrl || DEFAULT_ICON_URL // Mantener también iconUrl para compatibilidad
+            icon: app.icon || DEFAULT_ICON_URL,
+            iconUrl: app.iconUrl || DEFAULT_ICON_URL
         }));
         
         // Extraer categorías únicas
@@ -313,7 +210,7 @@ async function loadApps() {
             }
         });
         
-        // Asignar iconos a las aplicaciones DESPUÉS de que estén cargadas
+        // Asignar iconos a las aplicaciones
         if (iconService) {
             console.log('Asignando iconos a las aplicaciones...');
             iconService.assignIconsToApps(allApps);
@@ -326,14 +223,21 @@ async function loadApps() {
         updateCategoryFilter();
         updateCounters();
         
-        updateLoadingProgress(100);
-        hideLoading();
-        
-        // Cargar descripciones y aplicaciones obligatorias
+        // Cargar descripciones primero
         await loadDescriptions();
-        await loadRequiredApps();
+        
+        // Cargar ELITE primero para asignar descripciones
+        await loadEliteApps();
+        
+        // Luego cargar PRO y FREE que heredarán las descripciones de ELITE
         await loadProApps();
         await loadFreeApps();
+        
+        // Cargar aplicaciones obligatorias al final
+        await loadRequiredApps();
+        
+        updateLoadingProgress(100);
+        hideLoading();
         
         return allApps;
     } catch (error) {
@@ -1693,6 +1597,12 @@ async function loadFreeApps() {
             return false;
         }
         
+        // Verificar que ELITE esté cargado
+        if (!eliteAppsLoaded) {
+            console.warn('Las aplicaciones ELITE no están cargadas. Cargando ELITE primero...');
+            await loadEliteApps();
+        }
+        
         // Obtener el contenido del archivo de configuración de aplicaciones Gratuitas
         let freeAppsContent;
         try {
@@ -1700,7 +1610,6 @@ async function loadFreeApps() {
             console.log('Configuración de aplicaciones Gratuitas cargada correctamente');
         } catch (error) {
             console.warn('No se encontró el archivo de configuración de aplicaciones Gratuitas:', error);
-            // Continuar con listas vacías
             freeAppsContent = JSON.stringify({ applications: [] });
         }
         
@@ -1708,7 +1617,6 @@ async function loadFreeApps() {
         let freeAppsConfig;
         try {
             freeAppsConfig = JSON.parse(freeAppsContent || '{"applications":[]}');
-            console.log('Contenido parseado de freeAppsConfig:', JSON.stringify(freeAppsConfig, null, 2));
         } catch (parseError) {
             console.error('Error al parsear la configuración de aplicaciones Gratuitas:', parseError);
             freeAppsConfig = { applications: [] };
@@ -1726,16 +1634,6 @@ async function loadFreeApps() {
             }
         }
         
-        console.log(`Se encontraron ${freeAppIds.length} aplicaciones Gratuitas en la configuración`);
-        console.log('IDs de aplicaciones Gratuitas:', freeAppIds);
-        
-        // Verificar que apps esté definido
-        if (!allApps || !Array.isArray(allApps)) {
-            console.warn('La lista de aplicaciones no está disponible');
-            hideLoading();
-            return false;
-        }
-        
         // Distribuir las aplicaciones entre las dos listas
         allApps.forEach(app => {
             if (!app || !app.id) {
@@ -1743,19 +1641,22 @@ async function loadFreeApps() {
                 return;
             }
             
+            // Buscar la aplicación en ELITE para heredar su descripción
+            const eliteApp = eliteApps.find(e => e.id === app.id);
+            if (eliteApp) {
+                app.description = eliteApp.description;
+                app.category = eliteApp.category;
+            }
+            
             // Verificar si la aplicación está en la lista de Gratuitas
             if (freeAppIds.includes(app.id)) {
-                // Marcar como seleccionada y agregar a Gratuitas
                 app.isSelected = true;
                 freeApps.push(app);
             } else {
-                // Marcar como no seleccionada y agregar a disponibles
                 app.isSelected = false;
                 availableFreeApps.push(app);
             }
         });
-        
-        console.log(`Distribuidas ${freeApps.length} aplicaciones Gratuitas y ${availableFreeApps.length} disponibles`);
         
         // Ordenar las listas por nombre
         availableFreeApps.sort((a, b) => a.name.localeCompare(b.name));
@@ -1771,13 +1672,10 @@ async function loadFreeApps() {
         // Marcar como cargado
         freeAppsLoaded = true;
         
-        updateLoadingProgress(100);
         hideLoading();
         return true;
     } catch (error) {
         console.error('Error al cargar aplicaciones Gratuitas:', error);
-        console.warn('Continuando sin cargar aplicaciones Gratuitas');
-        freeAppsLoaded = false;
         hideLoading();
         return false;
     }
@@ -2076,6 +1974,12 @@ async function loadProApps() {
             return false;
         }
         
+        // Verificar que ELITE esté cargado
+        if (!eliteAppsLoaded) {
+            console.warn('Las aplicaciones ELITE no están cargadas. Cargando ELITE primero...');
+            await loadEliteApps();
+        }
+        
         // Obtener el contenido del archivo de configuración de aplicaciones PRO
         let proAppsContent;
         try {
@@ -2083,7 +1987,6 @@ async function loadProApps() {
             console.log('Configuración de aplicaciones PRO cargada correctamente');
         } catch (error) {
             console.warn('No se encontró el archivo de configuración de aplicaciones PRO:', error);
-            // Continuar con listas vacías
             proAppsContent = JSON.stringify({ applications: [] });
         }
         
@@ -2091,7 +1994,6 @@ async function loadProApps() {
         let proAppsConfig;
         try {
             proAppsConfig = JSON.parse(proAppsContent || '{"applications":[]}');
-            console.log('Contenido parseado de proAppsConfig:', JSON.stringify(proAppsConfig, null, 2));
         } catch (parseError) {
             console.error('Error al parsear la configuración de aplicaciones PRO:', parseError);
             proAppsConfig = { applications: [] };
@@ -2109,16 +2011,6 @@ async function loadProApps() {
             }
         }
         
-        console.log(`Se encontraron ${proAppIds.length} aplicaciones PRO en la configuración`);
-        console.log('IDs de aplicaciones PRO:', proAppIds);
-        
-        // Verificar que apps esté definido
-        if (!allApps || !Array.isArray(allApps)) {
-            console.warn('La lista de aplicaciones no está disponible');
-            hideLoading();
-            return false;
-        }
-        
         // Distribuir las aplicaciones entre las dos listas
         allApps.forEach(app => {
             if (!app || !app.id) {
@@ -2126,19 +2018,22 @@ async function loadProApps() {
                 return;
             }
             
+            // Buscar la aplicación en ELITE para heredar su descripción
+            const eliteApp = eliteApps.find(e => e.id === app.id);
+            if (eliteApp) {
+                app.description = eliteApp.description;
+                app.category = eliteApp.category;
+            }
+            
             // Verificar si la aplicación está en la lista de PRO
             if (proAppIds.includes(app.id)) {
-                // Marcar como seleccionada y agregar a PRO
                 app.isSelected = true;
                 proApps.push(app);
             } else {
-                // Marcar como no seleccionada y agregar a disponibles
                 app.isSelected = false;
                 availableProApps.push(app);
             }
         });
-        
-        console.log(`Distribuidas ${proApps.length} aplicaciones PRO y ${availableProApps.length} disponibles`);
         
         // Ordenar las listas por nombre
         availableProApps.sort((a, b) => a.name.localeCompare(b.name));
@@ -2154,13 +2049,10 @@ async function loadProApps() {
         // Marcar como cargado
         proAppsLoaded = true;
         
-        updateLoadingProgress(100);
         hideLoading();
         return true;
     } catch (error) {
         console.error('Error al cargar aplicaciones PRO:', error);
-        console.warn('Continuando sin cargar aplicaciones PRO');
-        proAppsLoaded = false;
         hideLoading();
         return false;
     }
