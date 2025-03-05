@@ -25,8 +25,8 @@ function htmlToRtf(html) {
         // Crear un documento RTF básico
         let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang3082';
         
-        // Agregar tabla de fuentes con Segoe UI como fuente predeterminada
-        rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}}';
+        // Agregar tabla de fuentes simplificada con Segoe UI como fuente predeterminada
+        rtf += '{\\fonttbl{\\f0\\fnil Segoe UI;}}';
         
         // Agregar tabla de colores
         rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
@@ -64,6 +64,7 @@ function fixRtfContent(content) {
         
         // Eliminar símbolos extraños como "Segoe UI; Segoe UI;;;"
         content = content.replace(/Segoe UI;\s*Segoe UI;+/g, '');
+        content = content.replace(/Segoe U I;+/g, '');
         
         // Agregar espacio después de cada punto aparte
         content = content.replace(/\.\\par/g, '.\\sa200\\par');
@@ -71,11 +72,18 @@ function fixRtfContent(content) {
         // Corregir problemas con espacios entre palabras
         content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
         
+        // Corregir problemas con palabras pegadas como "deResponsabilidad"
+        content = content.replace(/([a-z])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+        
         // Corregir problemas con dos puntos sin espacio
         content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ]):([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1: $2');
         
         // Corregir problemas con puntos sin espacio
         content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\.([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1. $2');
+        
+        // Corregir problemas con espacios entre letras mayúsculas
+        content = content.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2$3');
+        content = content.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2');
         
         // Verificar balance de llaves
         let openBraces = 0;
@@ -176,24 +184,32 @@ function convertNodeToRtf(node) {
         switch (tagName) {
             case 'h1':
                 rtf += '\\pard\\f0\\fs40\\b ';
-                rtf += convertNodeToRtf(node.childNodes[0]);
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
                 rtf += '\\b0\\fs22\\par\n';
                 break;
             case 'h2':
                 rtf += '\\pard\\f0\\fs36\\b ';
-                rtf += convertNodeToRtf(node.childNodes[0]);
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
                 rtf += '\\b0\\fs22\\par\n';
                 break;
             case 'h3':
                 rtf += '\\pard\\f0\\fs28\\b ';
-                rtf += convertNodeToRtf(node.childNodes[0]);
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
                 rtf += '\\b0\\fs22\\par\n';
                 break;
             case 'h4':
             case 'h5':
             case 'h6':
                 rtf += '\\pard\\f0\\fs24\\b ';
-                rtf += convertNodeToRtf(node.childNodes[0]);
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    rtf += convertNodeToRtf(node.childNodes[i]);
+                }
                 rtf += '\\b0\\fs22\\par\n';
                 break;
             case 'p':
@@ -278,8 +294,14 @@ function convertListToRtf(listNode, isOrdered) {
                 rtf += '\\pard\\fi-360\\li720 \\bullet ';
             }
             
-            // Agregar el contenido del elemento de lista
-            rtf += convertNodeToRtf(child) + '\\par ';
+            // Procesar el contenido del elemento de lista
+            let liContent = '';
+            for (let j = 0; j < child.childNodes.length; j++) {
+                liContent += convertNodeToRtf(child.childNodes[j]);
+            }
+            
+            // Asegurarse de que no haya duplicación de texto
+            rtf += liContent.trim() + '\\par\n';
         }
     }
     

@@ -40,6 +40,11 @@ function rtfToHtml(rtf) {
         
         // Eliminar "Segoe UI; Segoe UI;;;" del texto
         rtf = rtf.replace(/Segoe UI;\s*Segoe UI;+/g, '');
+        rtf = rtf.replace(/Segoe U I;+/g, '');
+        
+        // Corregir problemas con espacios entre letras mayúsculas
+        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2$3');
+        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2');
         
         let html = '';
         let isInList = false;
@@ -68,6 +73,7 @@ function rtfToHtml(rtf) {
                 
                 // Eliminar "Segoe UI; Segoe UI;;;" del texto
                 text = text.replace(/Segoe UI;\s*Segoe UI;+/g, '');
+                text = text.replace(/Segoe U I;+/g, '');
                 
                 if (text.trim()) {
                     if (paragraph.includes('\\fs40')) {
@@ -168,6 +174,9 @@ function rtfToHtml(rtf) {
                 .replace(/d\s+•/g, '•') // Eliminar 'd' antes de viñetas
                 .replace(/d\s+(\d+)\./g, '$1.') // Eliminar 'd' antes de números
                 .replace(/Segoe UI;\s*Segoe UI;+/g, '') // Eliminar "Segoe UI; Segoe UI;;;"
+                .replace(/Segoe U I;+/g, '') // Eliminar "Segoe U I;;;"
+                .replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2$3') // Corregir espacios entre mayúsculas
+                .replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2') // Corregir espacios entre mayúsculas
                 .trim();
             
             return `<p>${plainText}</p>`;
@@ -241,6 +250,7 @@ function extractCleanText(rtfText) {
     
     // Eliminar "Segoe UI; Segoe UI;;;" del texto
     text = text.replace(/Segoe UI;\s*Segoe UI;+/g, '');
+    text = text.replace(/Segoe U I;+/g, '');
     
     // Corregir problemas con espacios entre palabras
     text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
@@ -250,6 +260,16 @@ function extractCleanText(rtfText) {
     
     // Corregir problemas con puntos sin espacio
     text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\.([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1. $2');
+    
+    // NUEVO: Eliminar espacios entre letras mayúsculas consecutivas
+    text = text.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2$3');
+    text = text.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2');
+    
+    // Corregir problema específico de duplicación en el punto 4
+    text = text.replace(/(4\.\s+Descargo\s+de\s*Responsabilidad.*?)\s+\1/s, '$1');
+    
+    // Corregir problema de espaciado antes del punto 5
+    text = text.replace(/Â\s+(\d+\.\s+Propiedad)/g, '\n$1');
     
     // Eliminar códigos de viñeta
     text = text
