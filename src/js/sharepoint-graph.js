@@ -810,13 +810,12 @@ class SharePointGraph {
             console.log(`Guardando contenido en el archivo: ${fileName}`);
             
             // Log detallado del contenido a guardar
-            if (fileName.includes('_apps_config.json')) {
+            if (fileName.includes('_apps_config.json') || fileName === 'app_descriptions.json') {
                 try {
                     const contentObj = JSON.parse(content);
                     console.log(`Contenido a guardar en ${fileName}:`, {
                         lastUpdate: contentObj.lastUpdate,
-                        totalApps: contentObj.applications.length,
-                        primeros5Archivos: contentObj.applications.slice(0, 5).map(app => app.fileName),
+                        totalItems: contentObj.descriptions ? Object.keys(contentObj.descriptions).length : (contentObj.applications ? contentObj.applications.length : 0),
                         tamaño: content.length
                     });
                 } catch (parseError) {
@@ -835,20 +834,28 @@ class SharePointGraph {
             // Usar el driveId conocido
             const driveId = "b!Y4G7xKhAwE63GzVWFoZqEoZ6a3u1ygZDon3BUkpZKN5vf5RQYNfFQZUvvITooz_l";
             
-            // Probar diferentes rutas para guardar el archivo
-            const possiblePaths = [`/root:/${fileName}:/content`, `/items/root:/${fileName}:/content`,
-                `/root:/InstaladoresWindowsCOnline/${fileName}:/content`
-            ];
+            // Primero intentar obtener el archivo existente
+            const searchUrl = `${this.graphEndpoint}/drives/${driveId}/root/search(q='${fileName}')?select=id,name,webUrl`;
+            console.log(`Buscando archivo existente: ${searchUrl}`);
             
-            let success = false;
+            const searchResponse = await fetch(searchUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
             
-            // Intentar cada ruta hasta encontrar una que funcione
-            for (const path of possiblePaths) {
-                const url = `${this.graphEndpoint}/drives/${driveId}${path}`;
-                console.log(`Intentando guardar archivo con URL: ${url}`);
+            if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                const existingFile = searchData.value?.find(f => f.name === fileName);
                 
-                try {
-                    const response = await fetch(url, {
+                if (existingFile) {
+                    // Si el archivo existe, actualizarlo
+                    console.log(`Actualizando archivo existente con ID: ${existingFile.id}`);
+                    const updateUrl = `${this.graphEndpoint}/drives/${driveId}/items/${existingFile.id}/content`;
+                    
+                    const updateResponse = await fetch(updateUrl, {
                         method: 'PUT',
                         headers: {
                             'Authorization': `Bearer ${token}`,
@@ -857,51 +864,33 @@ class SharePointGraph {
                         body: content
                     });
                     
-                    if (response.ok) {
-                        console.log(`Archivo guardado correctamente en ${url}`);
-                        success = true;
-                        break;
-                    } else {
-                        console.log(`Ruta ${url} no funcionó: ${response.status} ${response.statusText}`);
+                    if (updateResponse.ok) {
+                        console.log(`Archivo ${fileName} actualizado correctamente`);
+                        return true;
                     }
-                } catch (pathError) {
-                    console.log(`Error al intentar ruta ${url}:`, pathError.message);
                 }
             }
             
-            // Si no funcionó ninguna ruta, intentar crear el archivo en la raíz
-            if (!success) {
-                try {
-                    // Intentar crear el archivo en la raíz del drive
-                    const rootUrl = `${this.graphEndpoint}/drives/${driveId}/root:/content`;
-                    console.log(`Intentando crear archivo en la raíz: ${rootUrl}`);
-                    
-                    const rootResponse = await fetch(rootUrl, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: content
-                    });
-                    
-                    if (rootResponse.ok) {
-                        console.log(`Archivo creado correctamente en la raíz`);
-                        success = true;
-                    } else {
-                        console.log(`Creación en raíz no funcionó: ${rootResponse.status} ${rootResponse.statusText}`);
-                    }
-                } catch (rootError) {
-                    console.log('Error al crear en raíz:', rootError.message);
-                }
+            // Si no se encontró el archivo o falló la actualización, intentar crearlo
+            const createUrl = `${this.graphEndpoint}/drives/${driveId}/root:/${fileName}:/content`;
+            console.log(`Intentando crear nuevo archivo: ${createUrl}`);
+            
+            const createResponse = await fetch(createUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: content
+            });
+            
+            if (createResponse.ok) {
+                console.log(`Archivo ${fileName} creado correctamente`);
+                return true;
             }
             
-            if (!success) {
-                console.error(`No se pudo guardar el archivo ${fileName} en ninguna ruta`);
-                return false;
-            }
-            
-            return true;
+            console.error(`No se pudo guardar el archivo ${fileName}`);
+            return false;
         } catch (error) {
             console.error(`Error al guardar contenido en el archivo ${fileName}:`, error);
             return false;
