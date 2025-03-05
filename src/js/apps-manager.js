@@ -584,21 +584,18 @@ async function loadDescriptions() {
         showLoading('Cargando descripciones de aplicaciones...');
         updateLoadingProgress(20);
         
-        // Verificar que spGraph esté disponible
         if (!spGraph) {
             console.warn('El cliente de SharePoint Graph no está inicializado');
             hideLoading();
             return false;
         }
         
-        // Obtener el contenido del archivo de descripciones
         let descriptionsContent;
         try {
             descriptionsContent = await spGraph.getFileContent('app_descriptions.json');
             console.log('Archivo de descripciones cargado correctamente');
         } catch (error) {
             console.warn('No se pudo cargar el archivo de descripciones:', error);
-            // Si no existe, crear un objeto vacío
             allDescriptions = [];
             updateDescriptionsTable();
             descriptionsLoaded = true;
@@ -609,7 +606,6 @@ async function loadDescriptions() {
         
         if (!descriptionsContent) {
             console.warn('El archivo de descripciones está vacío');
-            // Si no hay contenido, crear un objeto vacío
             allDescriptions = [];
             updateDescriptionsTable();
             descriptionsLoaded = true;
@@ -618,58 +614,140 @@ async function loadDescriptions() {
             return true;
         }
         
-        // Parsear el contenido JSON
         let descriptionsConfig;
         try {
             descriptionsConfig = JSON.parse(descriptionsContent);
-            console.log('Configuración de descripciones parseada correctamente');
+            console.log('Descripciones parseadas correctamente:', descriptionsConfig);
         } catch (parseError) {
-            console.error('Error al parsear el archivo de descripciones:', parseError);
-            allDescriptions = [];
-            updateDescriptionsTable();
-            descriptionsLoaded = true;
-            updateLoadingProgress(100);
+            console.error('Error al parsear las descripciones:', parseError);
+            showError('Error al parsear las descripciones: ' + parseError.message);
             hideLoading();
             return false;
         }
         
-        // Procesar las descripciones
-        allDescriptions = [];
-        if (descriptionsConfig && descriptionsConfig.descriptions) {
-            for (const [name, description] of Object.entries(descriptionsConfig.descriptions || {})) {
-                if (name && description) {
-                    allDescriptions.push({
-                        id: `desc-${allDescriptions.length}`,
-                        name: name,
-                        category: description.category || 'General',
-                        description: description.description || ''
-                    });
+        // Convertir el mapa de descripciones a un array y normalizar las claves
+        allDescriptions = Object.entries(descriptionsConfig.descriptions || {}).map(([key, value]) => ({
+            name: key,
+            description: value.description,
+            category: value.category,
+            normalizedName: normalizeAppName(key),
+            keywords: extractKeywords(key)
+        }));
+
+        // Crear índices para búsqueda rápida
+        descriptionIndices = {
+            exact: new Map(),
+            normalized: new Map(),
+            keywords: new Map()
+        };
+
+        // Poblar los índices
+        allDescriptions.forEach(desc => {
+            // Índice exacto
+            descriptionIndices.exact.set(desc.name.toLowerCase(), desc);
+            
+            // Índice normalizado
+            descriptionIndices.normalized.set(desc.normalizedName, desc);
+            
+            // Índice de palabras clave
+            desc.keywords.forEach(keyword => {
+                if (!descriptionIndices.keywords.has(keyword)) {
+                    descriptionIndices.keywords.set(keyword, []);
                 }
-            }
-        }
+                descriptionIndices.keywords.get(keyword).push(desc);
+            });
+        });
+
+        console.log(`Índices creados: ${allDescriptions.length} descripciones indexadas`);
         
-        console.log(`Se cargaron ${allDescriptions.length} descripciones`);
-        
-        // Ordenar por nombre
-        allDescriptions.sort((a, b) => a.name.localeCompare(b.name));
-        
-        // Actualizar la tabla de descripciones
         updateDescriptionsTable();
-        
-        // Marcar como cargado
         descriptionsLoaded = true;
-        
         updateLoadingProgress(100);
         hideLoading();
         return true;
     } catch (error) {
         console.error('Error al cargar descripciones:', error);
-        // No mostrar error al usuario para no interrumpir la carga
-        console.warn('Continuando sin cargar descripciones');
-        descriptionsLoaded = false;
+        showError('Error al cargar descripciones: ' + error.message);
         hideLoading();
         return false;
     }
+}
+
+/**
+ * Normaliza el nombre de una aplicación para búsqueda
+ * @param {string} name Nombre de la aplicación
+ * @returns {string} Nombre normalizado
+ */
+function normalizeAppName(name) {
+    return name
+        .toLowerCase()
+        .replace(/[_\-\.]/g, ' ')           // Reemplazar símbolos con espacios
+        .replace(/\([^)]*\)/g, '')          // Eliminar contenido entre paréntesis
+        .replace(/\d+(\.\d+)*/g, '')        // Eliminar números y versiones
+        .replace(/\s+/g, ' ')               // Normalizar espacios
+        .replace(/actiar/g, 'activar')      // Correcciones comunes
+        .replace(/conerter/g, 'converter')
+        .replace(/recoery/g, 'recovery')
+        .replace(/adanced/g, 'advanced')
+        .replace(/zoomer/g, 'zoom')
+        .replace(/&/g, 'and')
+        .replace(/\+/g, 'plus')
+        .trim();
+}
+
+/**
+ * Extrae palabras clave de un nombre de aplicación
+ * @param {string} name Nombre de la aplicación
+ * @returns {string[]} Array de palabras clave
+ */
+function extractKeywords(name) {
+    const normalized = normalizeAppName(name);
+    return normalized
+        .split(' ')
+        .filter(word => word.length > 2)    // Ignorar palabras muy cortas
+        .map(word => word.toLowerCase());
+}
+
+/**
+ * Busca la mejor descripción para una aplicación
+ * @param {string} appName Nombre de la aplicación
+ * @returns {Object|null} Descripción encontrada o null
+ */
+function findBestDescription(appName) {
+    const normalizedName = normalizeAppName(appName);
+    const keywords = extractKeywords(appName);
+    
+    // 1. Búsqueda exacta
+    const exactMatch = descriptionIndices.exact.get(appName.toLowerCase());
+    if (exactMatch) {
+        console.log(`[Búsqueda Exacta] ${appName} -> ${exactMatch.name}`);
+        return exactMatch;
+    }
+    
+    // 2. Búsqueda por nombre normalizado
+    const normalizedMatch = descriptionIndices.normalized.get(normalizedName);
+    if (normalizedMatch) {
+        console.log(`[Búsqueda Normalizada] ${appName} -> ${normalizedMatch.name}`);
+        return normalizedMatch;
+    }
+    
+    // 3. Búsqueda por palabras clave
+    const keywordMatches = new Map();
+    keywords.forEach(keyword => {
+        const matches = descriptionIndices.keywords.get(keyword) || [];
+        matches.forEach(match => {
+            keywordMatches.set(match, (keywordMatches.get(match) || 0) + 1);
+        });
+    });
+    
+    if (keywordMatches.size > 0) {
+        const bestMatch = Array.from(keywordMatches.entries())
+            .sort((a, b) => b[1] - a[1])[0][0];
+        console.log(`[Búsqueda Keywords] ${appName} -> ${bestMatch.name} (${keywordMatches.get(bestMatch)} coincidencias)`);
+        return bestMatch;
+    }
+    
+    return null;
 }
 
 /**
@@ -1432,7 +1510,6 @@ async function syncAllConfigurations() {
         showLoading('Iniciando sincronización completa...');
         updateLoadingProgress(10);
 
-        // Verificar que spGraph esté disponible
         if (!spGraph) {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
@@ -1455,163 +1532,116 @@ async function syncAllConfigurations() {
         showLoading('Actualizando descripciones desde el diccionario...');
         updateLoadingProgress(60);
 
-        // Primero, convertir allDescriptions a un formato más fácil de buscar
-        const descriptionsMap = {};
-        allDescriptions.forEach(desc => {
-            descriptionsMap[desc.name.toLowerCase()] = {
-                description: desc.description,
-                category: desc.category
-            };
-        });
+        let descripcionesEncontradas = 0;
+        let descripcionesGenericas = 0;
 
         allApps = allApps.map(app => {
             const appCopy = { ...app };
+            const bestMatch = findBestDescription(app.name);
             
-            // Normalizar el nombre de la aplicación
-            let baseName = app.name
-                .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
-                .replace(/\d+(\.\d+)*/, '') // Remover números de versión
-                .replace(/\s+/g, ' ') // Normalizar espacios
-                .trim();
-
-            // Buscar coincidencia exacta
-            let found = descriptionsMap[baseName.toLowerCase()];
-            
-            if (found) {
-                appCopy.description = found.description;
-                appCopy.category = found.category;
-                console.log(`[Sync] Coincidencia exacta encontrada para ${app.name}`);
+            if (bestMatch) {
+                appCopy.description = bestMatch.description;
+                appCopy.category = bestMatch.category;
+                descripcionesEncontradas++;
             } else {
-                // Buscar coincidencia parcial
-                const partialMatch = Object.entries(descriptionsMap).find(([key, value]) => 
-                    key.includes(baseName.toLowerCase()) ||
-                    baseName.toLowerCase().includes(key)
+                // Generar una descripción inteligente si no se encuentra coincidencia
+                appCopy.description = GenerateSmartDescription(
+                    app.name,
+                    app.version,
+                    app.size,
+                    app.lastModified
                 );
-                
-                if (partialMatch) {
-                    appCopy.description = partialMatch[1].description;
-                    appCopy.category = partialMatch[1].category;
-                    console.log(`[Sync] Coincidencia parcial encontrada para ${app.name}`);
-                } else {
-                    // Si no hay coincidencia, mantener descripción actual o usar genérica
-                    if (!appCopy.description) {
-                        appCopy.description = `Software ${app.name}`;
-                        appCopy.category = 'General';
-                        console.log(`[Sync] No se encontró descripción para ${app.name}, usando genérica`);
-                    }
-                }
+                appCopy.category = 'General';
+                descripcionesGenericas++;
             }
             
             return appCopy;
         });
 
-        // Paso 4: Guardar configuración ELITE
-        showLoading('Guardando configuración ELITE...');
-        updateLoadingProgress(70);
-        
-        const eliteConfig = {
-            lastUpdate: new Date().toISOString(),
-            applications: allApps.map(app => ({
-                sharePointId: app.id,
-                name: app.name,
-                fileName: app.fileName,
-                category: app.category,
-                description: app.description,
-                version: app.version || 'N/A',
-                size: formatFileSize(app.size),
-                lastModified: app.lastModified ? 
-                    new Date(app.lastModified).toLocaleDateString('es-ES', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    }) : new Date().toLocaleDateString('es-ES'),
-                installationOrder: app.installationOrder || 0
-            }))
-        };
+        console.log('Resumen de asignación de descripciones:');
+        console.log(`- Total de aplicaciones: ${allApps.length}`);
+        console.log(`- Descripciones encontradas: ${descripcionesEncontradas}`);
+        console.log(`- Descripciones genéricas: ${descripcionesGenericas}`);
 
-        await spGraph.saveFileContent('elite_apps_config.json', JSON.stringify(eliteConfig, null, 2));
-
-        // Paso 5: Guardar configuración PRO
-        showLoading('Guardando configuración PRO...');
+        // Paso 4: Guardar configuraciones actualizadas
+        showLoading('Guardando configuraciones actualizadas...');
         updateLoadingProgress(80);
-        
-        const totalApps = allApps.length;
-        const proAppsCount = Math.ceil(totalApps * 0.67); // 67% del total
-        
-        const proConfig = {
-            lastUpdate: new Date().toISOString(),
-            applications: allApps
-                .slice(0, proAppsCount)
-                .map(app => ({
-                    sharePointId: app.id,
-                    name: app.name,
-                    fileName: app.fileName,
-                    category: app.category,
-                    description: app.description,
-                    version: app.version || 'N/A',
-                    size: formatFileSize(app.size),
-                    lastModified: app.lastModified ? 
-                        new Date(app.lastModified).toLocaleDateString('es-ES', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        }) : new Date().toLocaleDateString('es-ES'),
-                    installationOrder: app.installationOrder || 0
-                }))
-        };
 
-        await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
+        // Guardar configuración ELITE (todas las apps)
+        await saveEliteApps(allApps);
 
-        // Paso 6: Guardar configuración FREE
-        showLoading('Guardando configuración FREE...');
-        updateLoadingProgress(90);
-        
-        const freeAppsCount = Math.min(30, totalApps);
-        
-        const freeConfig = {
-            lastUpdate: new Date().toISOString(),
-            applications: allApps
-                .slice(0, freeAppsCount)
-                .map(app => ({
-                    sharePointId: app.id,
-                    name: app.name,
-                    fileName: app.fileName,
-                    category: app.category,
-                    description: app.description,
-                    version: app.version || 'N/A',
-                    size: formatFileSize(app.size),
-                    lastModified: app.lastModified ? 
-                        new Date(app.lastModified).toLocaleDateString('es-ES', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        }) : new Date().toLocaleDateString('es-ES'),
-                    installationOrder: app.installationOrder || 0
-                }))
-        };
+        // Guardar configuración PRO (67% de las apps)
+        const proAppsCount = Math.min(Math.ceil(allApps.length * 0.67), allApps.length);
+        const proApps = allApps.slice(0, proAppsCount);
+        await saveProApps(proApps);
 
-        await spGraph.saveFileContent('free_apps_config.json', JSON.stringify(freeConfig, null, 2));
-
-        // Paso 7: Actualizar la interfaz
-        updateAppsTable();
-        updateCategoryFilter();
-        updateCounters();
-
-        if (eliteAppsLoaded) updateEliteAppsList();
-        if (proAppsLoaded) updateProAppsList();
-        if (freeAppsLoaded) updateFreeAppsList();
+        // Guardar configuración FREE (máximo 30 apps)
+        const freeAppsCount = Math.min(30, allApps.length);
+        const freeApps = allApps.slice(0, freeAppsCount);
+        await saveFreeApps(freeApps);
 
         updateLoadingProgress(100);
         hideLoading();
+        showInfoMessage('✅ Sincronización completada correctamente');
         
-        showInfoMessage('✅ Sincronización completa realizada correctamente');
+        // Actualizar las tablas
+        updateEliteAppsList();
+        updateProAppsList();
+        updateFreeAppsList();
+        
         return true;
     } catch (error) {
-        console.error('Error durante la sincronización completa:', error);
-        showError('Error durante la sincronización completa: ' + error.message);
+        console.error('Error en la sincronización:', error);
+        showError('Error en la sincronización: ' + error.message);
         hideLoading();
         return false;
     }
+}
+
+/**
+ * Genera una descripción inteligente para una aplicación
+ * @param {string} appName Nombre de la aplicación
+ * @param {string} version Versión de la aplicación
+ * @param {number} size Tamaño en bytes
+ * @param {Date} lastModified Fecha de última modificación
+ * @returns {string} Descripción generada
+ */
+function GenerateSmartDescription(appName, version, size, lastModified) {
+    let baseDescription = "";
+    const normalizedName = normalizeAppName(appName);
+    
+    // Detectar tipo de aplicación y generar descripción apropiada
+    if (normalizedName.includes('office')) {
+        baseDescription = "Herramienta para activar Microsoft Office de forma permanente. " +
+                        "Permite la activación completa de la suite ofimática incluyendo Word, Excel, PowerPoint y demás aplicaciones.";
+    } else if (normalizedName.includes('duplicate') && normalizedName.includes('file')) {
+        baseDescription = "Utilidad para encontrar y eliminar archivos duplicados en tu sistema. " +
+                        "Ayuda a liberar espacio en disco y mantener tu PC organizado.";
+    } else if (normalizedName.includes('partition')) {
+        baseDescription = "Gestor avanzado de particiones de disco. " +
+                        "Permite crear, eliminar, redimensionar y administrar particiones de manera segura.";
+    } else if (normalizedName.includes('converter') && normalizedName.includes('video')) {
+        baseDescription = "Conversor de video profesional. " +
+                        "Soporta múltiples formatos y permite ajustar la calidad de conversión.";
+    } else if (normalizedName.includes('cryptor')) {
+        baseDescription = "Software de encriptación de archivos. " +
+                        "Protege tus documentos sensibles con encriptación avanzada.";
+    } else if (normalizedName.includes('organizer')) {
+        baseDescription = "Organizador automático de archivos. " +
+                        "Clasifica y ordena tus archivos por tipo, fecha o categorías personalizadas.";
+    } else if (normalizedName.includes('7z')) {
+        baseDescription = "Compresor de archivos 7-Zip. " +
+                        "Comprime y descomprime archivos en múltiples formatos con alta tasa de compresión.";
+    } else {
+        baseDescription = `Aplicación ${appName}. ` +
+                        "Herramienta profesional para Windows.";
+    }
+
+    // Agregar información técnica
+    return `${baseDescription}\n\n` +
+           `Versión: ${version}\n` +
+           `Tamaño: ${formatFileSize(size)}\n` +
+           `Última actualización: ${lastModified ? new Date(lastModified).toLocaleDateString() : 'Desconocida'}`;
 }
 
 /**
