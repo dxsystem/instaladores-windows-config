@@ -1395,7 +1395,7 @@ async function syncAllConfigurations() {
                 }
 
                 // Formatear la descripción para la aplicación de escritorio
-                const formattedDescription = `${app.name}\n${description?.description || `Software ${app.name}`}\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
+                const formattedDescription = `${description?.description || `Software ${app.name}`}\n\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
