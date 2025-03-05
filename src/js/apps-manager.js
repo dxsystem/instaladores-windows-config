@@ -1636,6 +1636,15 @@ async function loadFreeApps() {
         availableFreeApps.sort((a, b) => a.name.localeCompare(b.name));
         freeApps.sort((a, b) => a.name.localeCompare(b.name));
         
+        // Asignar iconos a las aplicaciones gratuitas
+        if (iconService) {
+            console.log('Asignando iconos a las aplicaciones gratuitas...');
+            iconService.assignIconsToApps(availableFreeApps);
+            iconService.assignIconsToApps(freeApps);
+        } else {
+            console.warn('Servicio de iconos no inicializado para aplicaciones gratuitas');
+        }
+        
         // Actualizar listas en la interfaz
         updateAvailableFreeAppsList();
         updateFreeAppsList();
@@ -1981,6 +1990,15 @@ async function loadProApps() {
         availableProApps.sort((a, b) => a.name.localeCompare(b.name));
         proApps.sort((a, b) => a.name.localeCompare(b.name));
         
+        // Asignar iconos a las aplicaciones PRO
+        if (iconService) {
+            console.log('Asignando iconos a las aplicaciones PRO...');
+            iconService.assignIconsToApps(availableProApps);
+            iconService.assignIconsToApps(proApps);
+        } else {
+            console.warn('Servicio de iconos no inicializado para aplicaciones PRO');
+        }
+        
         // Actualizar listas en la interfaz
         updateAvailableProAppsList();
         updateProAppsList();
@@ -2307,6 +2325,14 @@ async function loadEliteApps() {
             iconUrl: DEFAULT_ICON_URL
         }));
         
+        // Asignar iconos a las aplicaciones ELITE
+        if (iconService) {
+            console.log('Asignando iconos a las aplicaciones ELITE...');
+            iconService.assignIconsToApps(eliteApps);
+        } else {
+            console.warn('Servicio de iconos no inicializado para aplicaciones ELITE');
+        }
+        
         // Ordenar las listas por nombre
         eliteApps.sort((a, b) => a.name.localeCompare(b.name));
         
@@ -2520,6 +2546,21 @@ async function saveEliteApps() {
         showError('Error al guardar aplicaciones ELITE: ' + error.message);
         hideLoading();
         return false;
+    }
+}
+
+/**
+ * Actualiza los contadores de la lista Gratuita
+ */
+function updateFreeListCounters() {
+    const availableFreeAppsCounter = document.getElementById('availableFreeAppsCounter');
+    if (availableFreeAppsCounter) {
+        availableFreeAppsCounter.textContent = `${availableFreeApps.length} aplicaciones disponibles`;
+    }
+    
+    const freeAppsCounter = document.getElementById('freeAppsCounter');
+    if (freeAppsCounter) {
+        freeAppsCounter.textContent = `${freeApps.length} aplicaciones para Gratuita`;
     }
 }
 
