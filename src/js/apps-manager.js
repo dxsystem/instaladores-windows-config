@@ -530,17 +530,30 @@ function showLoading(message = 'Cargando...') {
 function hideLoading() {
     const loadingState = document.getElementById('loadingState');
     if (loadingState) {
-        // Añadir la clase hidden que contiene los estilos para ocultar completamente
         loadingState.classList.add('hidden');
-        // Mantener los estilos inline para compatibilidad
-        loadingState.style.display = "none"; 
-        loadingState.style.backdropFilter = "none";
-        loadingState.style.opacity = "0";
-        loadingState.style.zIndex = "-1";
-        console.log("Loader ocultado correctamente");
-    } else {
-        console.warn('Elemento loadingState no encontrado en el DOM');
     }
+}
+
+/**
+ * Muestra un mensaje informativo en el loader
+ * @param {string} message - Mensaje a mostrar
+ * @param {number} duration - Duración en milisegundos (por defecto 2000ms)
+ */
+function showInfoMessage(message, duration = 2000) {
+    showLoading(message);
+    // Añadir clase de estilo para mensaje informativo
+    const loadingState = document.getElementById('loadingState');
+    if (loadingState) {
+        loadingState.classList.add('info-message');
+    }
+    
+    setTimeout(() => {
+        const loadingState = document.getElementById('loadingState');
+        if (loadingState) {
+            loadingState.classList.remove('info-message');
+        }
+        hideLoading();
+    }, duration);
 }
 
 /**
@@ -559,7 +572,7 @@ function updateLoadingProgress(percentage) {
  * Muestra un mensaje de error
  */
 function showError(message) {
-    alert(message);
+    showInfoMessage('❌ ' + message);
 }
 
 /**
@@ -877,7 +890,7 @@ async function saveAllDescriptions() {
         updateLoadingProgress(100);
         hideLoading();
         
-        alert('Descripciones guardadas correctamente');
+        showInfoMessage('✅ Descripciones guardadas correctamente');
         return true;
     } catch (error) {
         console.error('Error al guardar descripciones:', error);
@@ -1200,7 +1213,7 @@ async function saveRequiredApps() {
         updateLoadingProgress(100);
         hideLoading();
         
-        alert('Aplicaciones obligatorias guardadas correctamente');
+        showInfoMessage('✅ Aplicaciones obligatorias guardadas correctamente');
         return true;
     } catch (error) {
         console.error('Error al guardar aplicaciones obligatorias:', error);
@@ -1741,7 +1754,7 @@ async function syncAllConfigurations() {
         updateLoadingProgress(100);
         hideLoading();
         
-        alert('Sincronización completa realizada correctamente');
+        showInfoMessage('✅ Sincronización completa realizada correctamente');
         return true;
     } catch (error) {
         console.error('Error durante la sincronización completa:', error);
@@ -2173,7 +2186,7 @@ async function saveFreeApps() {
         updateLoadingProgress(100);
         hideLoading();
         
-        alert('Aplicaciones Gratuitas guardadas correctamente');
+        showInfoMessage('✅ Aplicaciones Gratuitas guardadas correctamente');
         return true;
     } catch (error) {
         console.error('Error al guardar aplicaciones Gratuitas:', error);
@@ -2545,7 +2558,7 @@ async function saveProApps() {
         updateLoadingProgress(100);
         hideLoading();
         
-        alert('Aplicaciones PRO guardadas correctamente');
+        showInfoMessage('✅ Aplicaciones PRO guardadas correctamente');
         return true;
     } catch (error) {
         console.error('Error al guardar aplicaciones PRO:', error);
@@ -2750,7 +2763,7 @@ async function saveEliteApps() {
         updateLoadingProgress(100);
         hideLoading();
         
-        alert('Aplicaciones ELITE guardadas correctamente');
+        showInfoMessage('✅ Aplicaciones ELITE guardadas correctamente');
         return true;
     } catch (error) {
         console.error('Error al guardar aplicaciones ELITE:', error);
