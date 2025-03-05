@@ -1684,9 +1684,9 @@ function updateAvailableFreeAppsList() {
         // Asignar icono desde iconService si está disponible
         let iconUrl = app.icon || DEFAULT_ICON_URL;
         if (iconService) {
-            const appIcon = iconService.getIconForApp(app);
-            if (appIcon) {
-                iconUrl = appIcon;
+            // Usar directamente app.icon en lugar de getIconForApp
+            if (app.icon) {
+                iconUrl = app.icon;
             }
         }
         
@@ -1758,9 +1758,9 @@ function updateFreeAppsList() {
         // Asignar icono desde iconService si está disponible
         let iconUrl = app.icon || DEFAULT_ICON_URL;
         if (iconService) {
-            const appIcon = iconService.getIconForApp(app);
-            if (appIcon) {
-                iconUrl = appIcon;
+            // Usar directamente app.icon en lugar de getIconForApp
+            if (app.icon) {
+                iconUrl = app.icon;
             }
         }
         
@@ -2029,9 +2029,9 @@ function updateAvailableProAppsList() {
         // Asignar icono desde iconService si está disponible
         let iconUrl = app.icon || DEFAULT_ICON_URL;
         if (iconService) {
-            const appIcon = iconService.getIconForApp(app);
-            if (appIcon) {
-                iconUrl = appIcon;
+            // Usar directamente app.icon en lugar de getIconForApp
+            if (app.icon) {
+                iconUrl = app.icon;
             }
         }
         
@@ -2080,9 +2080,9 @@ function updateProAppsList() {
         // Asignar icono desde iconService si está disponible
         let iconUrl = app.icon || DEFAULT_ICON_URL;
         if (iconService) {
-            const appIcon = iconService.getIconForApp(app);
-            if (appIcon) {
-                iconUrl = appIcon;
+            // Usar directamente app.icon en lugar de getIconForApp
+            if (app.icon) {
+                iconUrl = app.icon;
             }
         }
         
@@ -2347,9 +2347,9 @@ function updateEliteAppsList() {
         // Asignar icono desde iconService si está disponible
         let iconUrl = app.icon || DEFAULT_ICON_URL;
         if (iconService) {
-            const appIcon = iconService.getIconForApp(app);
-            if (appIcon) {
-                iconUrl = appIcon;
+            // Usar directamente app.icon en lugar de getIconForApp
+            if (app.icon) {
+                iconUrl = app.icon;
             }
         }
         
