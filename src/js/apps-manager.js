@@ -172,33 +172,36 @@ async function loadApps() {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
-        // Cargar configuración base
-        let config;
-        try {
-            const configContent = await spGraph.getFileContent('apps_config.json');
-            config = JSON.parse(configContent);
-            console.log('Configuración base cargada correctamente');
-        } catch (error) {
-            console.error('Error al cargar configuración base:', error);
-            throw error;
-        }
+        // Obtener archivos de la carpeta exe
+        const executableFiles = await spGraph.getExeFiles();
+        console.log(`Se encontraron ${executableFiles.length} archivos en la carpeta exe`);
         
-        // Actualizar las aplicaciones en memoria
-        allApps = config.applications.map(app => ({
-            id: app.sharePointId,
-            name: app.name,
-            fileName: app.fileName,
-            category: app.category || 'General',
-            version: app.version,
-            size: app.size,
-            lastModified: app.lastModified,
-            description: app.description,
-            downloadUrl: app.downloadUrl,
-            webUrl: app.webUrl,
-            installationOrder: app.installationOrder,
-            icon: app.icon || DEFAULT_ICON_URL,
-            iconUrl: app.iconUrl || DEFAULT_ICON_URL
+        // Verificación adicional para asegurar que solo se procesen archivos .exe y .bat
+        const validExecutableFiles = executableFiles.filter(file => {
+            const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+            return extension === 'exe' || extension === 'bat';
+        });
+        
+        console.log(`Total de archivos ejecutables válidos: ${validExecutableFiles.length}`);
+        
+        // Mapear los archivos a aplicaciones
+        allApps = validExecutableFiles.map(file => ({
+            id: file.id,
+            name: file.name.substring(0, file.name.lastIndexOf('.')),
+            fileName: file.name,
+            category: 'General',
+            version: file.lastModified ? new Date(file.lastModified).toISOString().split('T')[0].replace(/-/g, '.') : '1.0.0',
+            size: file.size || 0,
+            lastModified: file.lastModified || new Date().toISOString(),
+            description: '',
+            downloadUrl: file.downloadUrl,
+            webUrl: file.webUrl,
+            installationOrder: 0,
+            icon: DEFAULT_ICON_URL,
+            iconUrl: DEFAULT_ICON_URL
         }));
+        
+        console.log(`Total de aplicaciones cargadas en memoria: ${allApps.length}`);
         
         // Extraer categorías únicas
         categories = new Set();
@@ -225,13 +228,18 @@ async function loadApps() {
         
         // Cargar descripciones primero
         await loadDescriptions();
+        console.log(`Total de descripciones cargadas: ${allDescriptions.length}`);
         
         // Cargar ELITE primero para asignar descripciones
         await loadEliteApps();
+        console.log(`Total de aplicaciones ELITE: ${eliteApps.length}`);
         
         // Luego cargar PRO y FREE que heredarán las descripciones de ELITE
         await loadProApps();
+        console.log(`Total de aplicaciones PRO: ${proApps.length}`);
+        
         await loadFreeApps();
+        console.log(`Total de aplicaciones GRATUITAS: ${freeApps.length}`);
         
         // Cargar aplicaciones obligatorias al final
         await loadRequiredApps();
@@ -1603,6 +1611,12 @@ async function loadFreeApps() {
             await loadEliteApps();
         }
         
+        console.log('Estado de las aplicaciones ELITE:', {
+            totalEliteApps: eliteApps.length,
+            primeraApp: eliteApps[0],
+            ultimaApp: eliteApps[eliteApps.length - 1]
+        });
+        
         // Obtener el contenido del archivo de configuración de aplicaciones Gratuitas
         let freeAppsContent;
         try {
@@ -1617,6 +1631,9 @@ async function loadFreeApps() {
         let freeAppsConfig;
         try {
             freeAppsConfig = JSON.parse(freeAppsContent || '{"applications":[]}');
+            console.log('Configuración FREE parseada:', {
+                totalApps: freeAppsConfig.applications?.length || 0
+            });
         } catch (parseError) {
             console.error('Error al parsear la configuración de aplicaciones Gratuitas:', parseError);
             freeAppsConfig = { applications: [] };
@@ -1634,6 +1651,8 @@ async function loadFreeApps() {
             }
         }
         
+        console.log(`IDs de aplicaciones gratuitas encontrados: ${freeAppIds.length}`);
+        
         // Distribuir las aplicaciones entre las dos listas
         allApps.forEach(app => {
             if (!app || !app.id) {
@@ -1641,21 +1660,37 @@ async function loadFreeApps() {
                 return;
             }
             
+            // Crear una copia de la aplicación
+            const appCopy = { ...app };
+            
             // Buscar la aplicación en ELITE para heredar su descripción
             const eliteApp = eliteApps.find(e => e.id === app.id);
             if (eliteApp) {
-                app.description = eliteApp.description;
-                app.category = eliteApp.category;
+                console.log(`Heredando descripción de ELITE para ${app.name}:`, {
+                    description: eliteApp.description,
+                    category: eliteApp.category
+                });
+                appCopy.description = eliteApp.description;
+                appCopy.category = eliteApp.category;
+            } else {
+                console.warn(`No se encontró aplicación ELITE para ${app.name}`);
             }
             
             // Verificar si la aplicación está en la lista de Gratuitas
             if (freeAppIds.includes(app.id)) {
-                app.isSelected = true;
-                freeApps.push(app);
+                appCopy.isSelected = true;
+                freeApps.push(appCopy);
             } else {
-                app.isSelected = false;
-                availableFreeApps.push(app);
+                appCopy.isSelected = false;
+                availableFreeApps.push(appCopy);
             }
+        });
+        
+        console.log('Resumen de aplicaciones gratuitas:', {
+            totalFreeApps: freeApps.length,
+            totalAvailableFreeApps: availableFreeApps.length,
+            primeraFreeApp: freeApps[0],
+            ultimaFreeApp: freeApps[freeApps.length - 1]
         });
         
         // Ordenar las listas por nombre
