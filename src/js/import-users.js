@@ -162,20 +162,12 @@ class UserImporter {
 
         // Obtener los encabezados para identificar las columnas
         const headers = data[0].map(h => String(h || '').toLowerCase().trim());
-        console.log('Encabezados encontrados:', headers);
         
         // Buscar índices de columnas basados en los encabezados
         const emailIndex = this.findColumnIndex(headers, ['email', 'correo', 'correo electrónico', 'e-mail']);
         const subscriptionIndex = this.findColumnIndex(headers, ['tipo de suscripción', 'suscripcion', 'tipo', 'subscription', 'subscriptiontype', 'nueva suscripción']);
         const durationIndex = this.findColumnIndex(headers, ['duración', 'duracion', 'vigencia', 'duration']);
         const statusIndex = this.findColumnIndex(headers, ['estado', 'status', 'activo', 'active']);
-        
-        console.log('Índices encontrados:', {
-            email: emailIndex,
-            subscription: subscriptionIndex,
-            duration: durationIndex,
-            status: statusIndex
-        });
         
         // Si no se encuentran los encabezados específicos, usar posiciones por defecto
         const useDefaultPositions = emailIndex === -1;
@@ -191,8 +183,8 @@ class UserImporter {
             if (useDefaultPositions) {
                 // Usar posiciones por defecto (formato simple)
                 email = row[0] ? String(row[0]).trim() : '';
-                subscriptionType = row[1] ? String(row[1]).trim() : '';
-                duration = row[2] ? String(row[2]).trim() : '';
+                subscriptionType = row.length > 1 ? String(row[1] || '').trim() : '';
+                duration = row.length > 2 ? String(row[2] || '').trim() : '';
                 
                 // Leer estado (activo/inactivo) si está disponible (columna 4)
                 isActive = true; // Por defecto activo
@@ -203,9 +195,9 @@ class UserImporter {
                 }
             } else {
                 // Usar posiciones basadas en encabezados
-                email = emailIndex >= 0 && row.length > emailIndex ? String(row[emailIndex]).trim() : '';
-                subscriptionType = subscriptionIndex >= 0 && row.length > subscriptionIndex ? String(row[subscriptionIndex]).trim() : '';
-                duration = durationIndex >= 0 && row.length > durationIndex ? String(row[durationIndex]).trim() : '';
+                email = emailIndex >= 0 && row.length > emailIndex ? String(row[emailIndex] || '').trim() : '';
+                subscriptionType = subscriptionIndex >= 0 && row.length > subscriptionIndex ? String(row[subscriptionIndex] || '').trim() : '';
+                duration = durationIndex >= 0 && row.length > durationIndex ? String(row[durationIndex] || '').trim() : '';
                 
                 // Parsear estado
                 isActive = true; // Por defecto activo
@@ -215,9 +207,6 @@ class UserImporter {
                                activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
                 }
             }
-            
-            // Normalizar el tipo de suscripción
-            subscriptionType = this.normalizeSubscriptionType(subscriptionType);
             
             // Calcular fechas basadas en la duración
             const dates = this.calculateDates(duration, today);
@@ -231,20 +220,14 @@ class UserImporter {
                 isActive: isActive,
                 selected: true,
                 rowIndex: index + 2,
-                existingUser: null // Se llenará después con la información del usuario existente
+                existingUser: null, // Se llenará después con la información del usuario existente
+                newSubscriptionType: subscriptionType // Guardar el nuevo tipo de suscripción
             };
 
             // Validar datos
             const validationError = this.validateUserData(user);
             if (validationError) {
                 user.error = validationError;
-                console.error('Error de validación para usuario:', {
-                    email: user.email,
-                    error: validationError,
-                    subscriptionType: user.subscriptionType,
-                    startDate: user.startDate,
-                    endDate: user.endDate
-                });
             }
 
             return user;
@@ -365,23 +348,6 @@ class UserImporter {
         return `${year}-${month}-${day}`;
     }
 
-    // Normaliza el tipo de suscripción
-    normalizeSubscriptionType(type) {
-        if (!type) return '';
-        
-        const normalizedType = type.toUpperCase().trim();
-        
-        if (normalizedType.includes('ELITE') || normalizedType === 'ÉLITE') {
-            return 'ELITE';
-        } else if (normalizedType.includes('PRO')) {
-            return 'PRO';
-        } else if (normalizedType.includes('GRATIS') || normalizedType.includes('GRATUITA') || normalizedType === 'FREE') {
-            return 'Gratuita';
-        }
-        
-        return type.trim(); // Mantener el valor original si no coincide con ninguno
-    }
-
     // Valida los datos de un usuario
     validateUserData(user) {
         console.log('Validando usuario:', {
@@ -404,11 +370,23 @@ class UserImporter {
             return 'Tipo de suscripción es requerido';
         }
         
-        // Validar que el tipo de suscripción sea uno de los permitidos
+        // Normalizar el tipo de suscripción para la comparación
         const normalizedType = user.subscriptionType.toUpperCase().trim();
-        if (!['ELITE', 'PRO', 'GRATUITA'].includes(normalizedType) &&
-            !['ELITE', 'PRO', 'GRATUITA'].includes(user.subscriptionType)) {
-            return `Tipo de suscripción debe ser: ELITE, PRO o Gratuita`;
+        const validSubscriptions = ['ELITE', 'PRO', 'GRATUITA'];
+        
+        if (!validSubscriptions.includes(normalizedType)) {
+            console.warn(`Tipo de suscripción "${user.subscriptionType}" no coincide exactamente con los valores permitidos:`, validSubscriptions);
+            
+            // Intentar hacer coincidir con variaciones comunes
+            if (normalizedType.includes('ELITE') || normalizedType === 'ÉLITE') {
+                user.subscriptionType = 'ELITE';
+            } else if (normalizedType.includes('PRO')) {
+                user.subscriptionType = 'PRO';
+            } else if (normalizedType.includes('GRATIS') || normalizedType.includes('GRATUITA') || normalizedType === 'FREE') {
+                user.subscriptionType = 'Gratuita';
+            } else {
+                return `Tipo de suscripción debe ser: ${validSubscriptions.join(', ')}`;
+            }
         }
 
         // Validar fechas
@@ -447,6 +425,15 @@ class UserImporter {
             return 'Fecha de fin inválida';
         }
 
+        // Verificar que la fecha de fin sea posterior a la de inicio
+        if (endDate <= startDate) {
+            console.error('La fecha de fin debe ser posterior a la fecha de inicio:', {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString()
+            });
+            return 'La fecha de fin debe ser posterior a la fecha de inicio';
+        }
+
         return null;
     }
 
@@ -475,42 +462,148 @@ class UserImporter {
             const emails = this.users.map(user => user.email).filter(email => email);
             console.log(`Comparando ${emails.length} emails con la lista de usuarios existentes...`);
             
-            // Buscar usuarios existentes por email
-            const existingUsers = await this.userManager.findUsersByEmails(emails);
-            console.log(`Se encontraron ${existingUsers.length} usuarios existentes`);
+            if (debugMode) {
+                console.log('Lista de emails a comparar:', emails);
+            }
             
-            // Crear un mapa de usuarios existentes por email
+            // Buscar usuarios existentes por email (usando la lista local)
+            const existingUsers = await this.userManager.findUsersByEmails(emails);
+            console.log(`Se encontraron ${existingUsers.length} usuarios existentes en la lista local`);
+            
+            if (debugMode) {
+                console.log('Usuarios existentes encontrados:', existingUsers);
+            }
+            
+            // Crear un mapa de usuarios existentes por email para facilitar la búsqueda
             const existingUsersMap = {};
             existingUsers.forEach(user => {
                 if (user && user.email) {
+                    // Usar email en minúsculas y sin espacios para la comparación
                     const emailLower = user.email.toLowerCase().trim();
                     existingUsersMap[emailLower] = user;
+                    console.log(`Usuario existente mapeado: ${emailLower} (ID: ${user.id})`);
                 }
             });
             
-            // Actualizar usuarios con información existente
+            console.log('Emails de usuarios existentes:', Object.keys(existingUsersMap));
+            
+            // Actualizar usuarios con información de usuarios existentes
             this.users.forEach(user => {
                 if (user && user.email) {
+                    // Usar email en minúsculas y sin espacios para la comparación
                     const emailLower = user.email.toLowerCase().trim();
                     const existingUser = existingUsersMap[emailLower];
                     
                     if (existingUser) {
+                        console.log(`Usuario encontrado: ${user.email} (ID: ${existingUser.id})`);
                         user.existingUser = existingUser;
                         user.estado = 'Actualizar';
-                        // Guardar la suscripción actual
-                        user.currentSubscriptionType = existingUser.subscriptionType;
                     } else {
+                        console.log(`Usuario nuevo, no existe: ${user.email}`);
                         user.estado = 'Nuevo';
                     }
                 }
             });
             
+            // Verificar si hay discrepancias
+            const nuevosCount = this.users.filter(u => u.estado === 'Nuevo').length;
+            const actualizarCount = this.users.filter(u => u.estado === 'Actualizar').length;
+            
+            console.log(`Resumen de comparación: ${nuevosCount} nuevos, ${actualizarCount} a actualizar`);
+            
+            // Mostrar información adicional en modo depuración
+            if (debugMode) {
+                // Crear un botón para mostrar/ocultar información de depuración
+                const debugButton = document.createElement('button');
+                debugButton.className = 'btn btn-danger mb-3';
+                debugButton.textContent = 'Mostrar Información de Depuración';
+                debugButton.addEventListener('click', () => {
+                    const debugInfo = document.getElementById('debug-info');
+                    if (debugInfo.style.display === 'none') {
+                        debugInfo.style.display = 'block';
+                        debugButton.textContent = 'Ocultar Información de Depuración';
+                    } else {
+                        debugInfo.style.display = 'none';
+                        debugButton.textContent = 'Mostrar Información de Depuración';
+                    }
+                });
+                
+                // Crear contenedor para información de depuración
+                const debugInfo = document.createElement('div');
+                debugInfo.id = 'debug-info';
+                debugInfo.className = 'alert alert-danger';
+                debugInfo.style.display = 'none';
+                
+                // Añadir información de depuración
+                let debugHtml = '<h4>Información de Depuración</h4>';
+                debugHtml += '<h5>Usuarios en archivo:</h5>';
+                debugHtml += '<ul>';
+                this.users.forEach(user => {
+                    debugHtml += `<li>${user.email} - Estado: ${user.estado}</li>`;
+                });
+                debugHtml += '</ul>';
+                
+                debugHtml += '<h5>Usuarios encontrados en la lista local:</h5>';
+                debugHtml += '<ul>';
+                existingUsers.forEach(user => {
+                    debugHtml += `<li>${user.email} - ID: ${user.id}</li>`;
+                });
+                debugHtml += '</ul>';
+                
+                // Añadir lista completa de usuarios cargados
+                debugHtml += '<h5>Lista completa de usuarios en el sistema:</h5>';
+                debugHtml += '<ul>';
+                this.userManager.users.forEach(user => {
+                    debugHtml += `<li>${user.email} - ID: ${user.id}</li>`;
+                });
+                debugHtml += '</ul>';
+                
+                debugInfo.innerHTML = debugHtml;
+                
+                // Insertar elementos de depuración antes de la tabla
+                const tableContainer = this.previewTableBody.closest('.table-responsive');
+                tableContainer.parentNode.insertBefore(debugButton, tableContainer);
+                tableContainer.parentNode.insertBefore(debugInfo, tableContainer);
+            }
+            
+            // Crear encabezados de tabla más similares a la imagen 2
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = `
+                <th width="50">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="selectAllCheckbox" checked>
+                    </div>
+                </th>
+                <th>Email</th>
+                <th>Estado</th>
+                <th>Suscripción Actual</th>
+                <th>Nueva Suscripción</th>
+                <th>Vigencia Actual</th>
+                <th>Nueva Vigencia</th>
+                <th>Validación</th>
+            `;
+            
+            // Reemplazar encabezados existentes
+            const thead = this.previewTableBody.parentElement.querySelector('thead');
+            if (thead) {
+                thead.innerHTML = '';
+                thead.appendChild(headerRow);
+            }
+            
             // Agregar filas de usuarios
             this.users.forEach((user, index) => {
-                if (!user || !user.email) return;
+                if (!user || !user.email) return; // Saltar filas vacías
                 
                 const row = document.createElement('tr');
                 row.className = user.error ? 'table-danger' : '';
+                
+                // Determinar si hay cambios en los datos
+                const existingUser = user.existingUser;
+                const subscriptionChanged = existingUser && existingUser.subscriptionType !== user.newSubscriptionType;
+                const datesChanged = existingUser && (
+                    existingUser.startDate !== user.startDate || 
+                    existingUser.endDate !== user.endDate
+                );
                 
                 row.innerHTML = `
                     <td>
@@ -525,13 +618,9 @@ class UserImporter {
                             ${user.estado}
                         </span>
                     </td>
-                    <td>${this.escapeHtml(user.currentSubscriptionType || '-')}</td>
-                    <td>${this.escapeHtml(user.subscriptionType)}</td>
-                    <td>${user.existingUser ? 
-                        (user.existingUser.startDate ? 
-                            `${this.formatDate(user.existingUser.startDate)} - ${this.formatDate(user.existingUser.endDate)}` 
-                            : '-') 
-                        : '-'}</td>
+                    <td>${existingUser ? this.escapeHtml(existingUser.subscriptionType || '-') : '-'}</td>
+                    <td>${this.escapeHtml(user.newSubscriptionType)}</td>
+                    <td>${existingUser ? (existingUser.startDate ? `${this.formatDate(existingUser.startDate)} - ${this.formatDate(existingUser.endDate)}` : '-') : '-'}</td>
                     <td>${this.formatDate(user.startDate)} - ${this.formatDate(user.endDate)}</td>
                     <td>
                         ${user.error ? 
@@ -540,6 +629,7 @@ class UserImporter {
                     </td>
                 `;
                 
+                // Agregar evento de cambio al checkbox
                 const checkbox = row.querySelector('.user-checkbox');
                 checkbox.addEventListener('change', (e) => this.handleUserSelection(e, index));
                 
@@ -554,7 +644,13 @@ class UserImporter {
             this.previewContainer.classList.remove('d-none');
             this.importButtonContainer.classList.remove('d-none');
             
+            // Ocultar el indicador de carga
             this.hideLoading();
+            
+            console.log('Previsualización completada. Usuarios nuevos vs existentes:');
+            console.log('- Nuevos:', this.users.filter(u => u.estado === 'Nuevo').length);
+            console.log('- Actualizar:', this.users.filter(u => u.estado === 'Actualizar').length);
+            console.log('- Con errores:', this.users.filter(u => u.error).length);
         } catch (error) {
             console.error('Error al mostrar previsualización:', error);
             this.hideLoading();
