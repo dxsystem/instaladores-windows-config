@@ -4,7 +4,6 @@
  * @returns {string} Contenido HTML convertido
  */
 function rtfToHtml(rtfContent) {
-    // Verificar si el contenido es válido
     if (!rtfContent || typeof rtfContent !== 'string') {
         return '';
     }
@@ -13,67 +12,103 @@ function rtfToHtml(rtfContent) {
         // Extraer el contenido RTF del objeto JSON si es necesario
         let rtfText = rtfContent;
         if (rtfContent.includes('"Content":')) {
-            const rtfObject = JSON.parse(rtfContent);
-            rtfText = rtfObject.TermsAndConditions.Content;
+            try {
+                const rtfObject = JSON.parse(rtfContent);
+                rtfText = rtfObject.TermsAndConditions.Content;
+            } catch (e) {
+                console.warn('No se pudo parsear el JSON, usando el contenido como está');
+            }
         }
 
-        // Procesar caracteres especiales y codificación
+        // Limpiar códigos RTF de control y metadatos
         let htmlContent = rtfText
-            // Reemplazar caracteres especiales RTF
-            .replace(/\\\'(\d+)/g, (match, code) => String.fromCharCode(code))
-            .replace(/\\u(\d+)\?/g, (match, code) => String.fromCharCode(code))
-            .replace(/\\u(\d+)/g, (match, code) => String.fromCharCode(code))
-            .replace(/\\par/g, '</p><p class="MsoNormal">')
-            .replace(/\\pard/g, '')
-            .replace(/\\plain/g, '')
-            .replace(/\\f\d+/g, '')
-            .replace(/\\fs\d+/g, '')
-            .replace(/\\cf\d+/g, '')
+            // Eliminar encabezados RTF
+            .replace(/\{\\rtf1[^}]*\}/, '')
+            .replace(/\{\\fonttbl[^}]*\}/, '')
+            .replace(/\{\\colortbl[^}]*\}/, '')
+            .replace(/\{\\stylesheet[^}]*\}/, '')
+            .replace(/\{\\listtable[^}]*\}/, '')
+            .replace(/\{\\listoverridetable[^}]*\}/, '')
+            .replace(/\{\\generator[^}]*\}/, '')
             
-            // Procesar estilos
-            .replace(/\\b\s/g, '<b>')
-            .replace(/\\b0\s/g, '</b>')
-            .replace(/\\i\s/g, '<i>')
-            .replace(/\\i0\s/g, '</i>')
-            .replace(/\\ul\s/g, '<u>')
-            .replace(/\\ulnone\s/g, '</u>')
+            // Convertir caracteres especiales
+            // Vocales con tilde
+            .replace(/\\\'e1/g, 'á')
+            .replace(/\\\'e9/g, 'é')
+            .replace(/\\\'ed/g, 'í')
+            .replace(/\\\'f3/g, 'ó')
+            .replace(/\\\'fa/g, 'ú')
+            // Vocales con diéresis
+            .replace(/\\\'e4/g, 'ä')
+            .replace(/\\\'eb/g, 'ë')
+            .replace(/\\\'ef/g, 'ï')
+            .replace(/\\\'f6/g, 'ö')
+            .replace(/\\\'fc/g, 'ü')
+            // Vocales con acento grave
+            .replace(/\\\'e0/g, 'à')
+            .replace(/\\\'e8/g, 'è')
+            .replace(/\\\'ec/g, 'ì')
+            .replace(/\\\'f2/g, 'ò')
+            .replace(/\\\'f9/g, 'ù')
+            // Vocales con circunflejo
+            .replace(/\\\'e2/g, 'â')
+            .replace(/\\\'ea/g, 'ê')
+            .replace(/\\\'ee/g, 'î')
+            .replace(/\\\'f4/g, 'ô')
+            .replace(/\\\'fb/g, 'û')
+            // Otros caracteres especiales
+            .replace(/\\\'f1/g, 'ñ')
+            .replace(/\\\'d1/g, 'Ñ')
+            .replace(/\\\'a9/g, '©')
+            .replace(/\\\'ae/g, '®')
+            .replace(/\\\'99/g, '™')
+            .replace(/\\\'80/g, '€')
+            .replace(/\\\'a3/g, '£')
+            .replace(/\\\'b0/g, '°')
+            .replace(/\\\'bf/g, '¿')
+            .replace(/\\\'a1/g, '¡')
+            // Comillas y otros símbolos
+            .replace(/\\\'94/g, '"')
+            .replace(/\\\'93/g, '"')
+            .replace(/\\\'92/g, "'")
+            .replace(/\\\'91/g, "'")
+            .replace(/\\\'85/g, '...')
+            .replace(/\\\'96/g, '-')
+            .replace(/\\\'97/g, '--')
+            .replace(/\\\'b7/g, '•')
+            
+            // Convertir formatos RTF a HTML
+            .replace(/\\pard\\plain\\sa160\\sl252\\slmult1\\f0\\fs22\s*/g, '<p class="MsoNormal">')
+            .replace(/\\pard\\plain\\f0\\fs22\s*/g, '<p>')
+            .replace(/\\par\s*/g, '</p>')
+            .replace(/\{\\b\s+([^}]+)\}/g, '<b>$1</b>')
+            .replace(/\{\\i\s+([^}]+)\}/g, '<i>$1</i>')
+            .replace(/\{\\ul\s+([^}]+)\}/g, '<u>$1</u>')
+            .replace(/\\line\s*/g, '<br>')
             
             // Procesar listas
-            .replace(/\\pntext[^}]*}/g, '')
-            .replace(/\\ls\d+\\ilvl\d+/g, '')
-            .replace(/\\listtext/g, '')
-            .replace(/\{\\\\pn[^}]*\}/g, '')
-            .replace(/\\bullet/g, '•')
+            .replace(/\\pard\{\\\*\\pn\\pnlvlblt\\pnf3\\pnindent0\{\\pntxtb\\\'b7\}\}\\fi-360\\li720\\sa160\\sl252\\slmult1\\f0\\fs22\s*/g, '<ul>')
+            .replace(/\\pard\\plain\\f0\\fs22\s*(?=<\/p>)/g, '</ul>')
             
-            // Limpiar códigos RTF restantes
-            .replace(/\{\\rtf1[^}]*\}/g, '')
-            .replace(/\{\\fonttbl[^}]*\}/g, '')
-            .replace(/\{\\colortbl[^}]*\}/g, '')
-            .replace(/\{\\stylesheet[^}]*\}/g, '')
-            .replace(/\{\\listtable[^}]*\}/g, '')
-            .replace(/\{\\listoverridetable[^}]*\}/g, '')
+            // Procesar enlaces
+            .replace(/\{\\field\{\\*\\fldinst\{HYPERLINK "([^"]+)"\}\}\{\\fldrslt\{\\ul\\cf1\s+([^}]+)\}\}\}/g, '<a href="$1">$2</a>')
+            
+            // Procesar idiomas
+            .replace(/\{\\lang3082\s+([^}]+)\}/g, '<span lang="ES-ES">$1</span>')
+            .replace(/\{\\lang1033\s+([^}]+)\}/g, '<span lang="EN-US">$1</span>')
+            
+            // Limpiar códigos RTF restantes y espacios
             .replace(/\\[a-z]+\d*/g, '')
             .replace(/\{|\}/g, '')
-            
-            // Limpiar espacios y líneas vacías múltiples
             .replace(/\s+/g, ' ')
-            .replace(/(<\/p><p class="MsoNormal">)\s*(<\/p><p class="MsoNormal">)/g, '$1')
             .trim();
 
-        // Procesar listas
-        htmlContent = procesarListas(htmlContent);
-
-        // Envolver el contenido en los divs necesarios
+        // Envolver el contenido en un div con los estilos necesarios
         htmlContent = `<div id="termsPreview" class="terms-preview p-3" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.25rem;" bis_skin_checked="1">
-            <p class="MsoNormal">${htmlContent}</p>
+            ${htmlContent}
         </div>`;
 
-        // Limpiar formato final
-        return htmlContent
-            .replace(/<p class="MsoNormal"><\/p>/g, '')
-            .replace(/\s+</g, '<')
-            .replace(/>\s+/g, '>')
-            .replace(/\s+/g, ' ');
+        return htmlContent;
     } catch (error) {
         console.error('Error al convertir RTF a HTML:', error);
         return '';
@@ -94,7 +129,6 @@ function procesarListas(content) {
         let listaHtml = '<ul>';
         items.forEach(item => {
             const textoItem = item.replace('•', '').trim();
-            // Preservar negritas y otros formatos dentro de los items
             listaHtml += `<li>${textoItem}</li>`;
         });
         listaHtml += '</ul>';
