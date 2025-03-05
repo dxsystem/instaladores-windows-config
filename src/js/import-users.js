@@ -165,9 +165,17 @@ class UserImporter {
         
         // Buscar índices de columnas basados en los encabezados
         const emailIndex = this.findColumnIndex(headers, ['email', 'correo', 'correo electrónico', 'e-mail']);
-        const subscriptionIndex = this.findColumnIndex(headers, ['tipo de suscripción', 'suscripcion', 'tipo', 'subscription', 'subscriptiontype', 'nueva suscripción']);
+        const subscriptionIndex = this.findColumnIndex(headers, ['tipo de suscripción', 'suscripcion', 'tipo', 'subscription', 'subscriptiontype', 'nueva suscripción', 'nueva suscripcion']);
         const durationIndex = this.findColumnIndex(headers, ['duración', 'duracion', 'vigencia', 'duration']);
         const statusIndex = this.findColumnIndex(headers, ['estado', 'status', 'activo', 'active']);
+        
+        console.log('Índices encontrados:', {
+            email: emailIndex,
+            subscription: subscriptionIndex,
+            duration: durationIndex,
+            status: statusIndex,
+            headers: headers
+        });
         
         // Si no se encuentran los encabezados específicos, usar posiciones por defecto
         const useDefaultPositions = emailIndex === -1;
@@ -619,7 +627,7 @@ class UserImporter {
                         </span>
                     </td>
                     <td>${existingUser ? this.escapeHtml(existingUser.subscriptionType || '-') : '-'}</td>
-                    <td>${this.escapeHtml(user.newSubscriptionType)}</td>
+                    <td>${this.escapeHtml(user.subscriptionType || '-')}</td>
                     <td>${existingUser ? (existingUser.startDate ? `${this.formatDate(existingUser.startDate)} - ${this.formatDate(existingUser.endDate)}` : '-') : '-'}</td>
                     <td>${this.formatDate(user.startDate)} - ${this.formatDate(user.endDate)}</td>
                     <td>
