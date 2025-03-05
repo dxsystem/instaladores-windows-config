@@ -1,365 +1,324 @@
 /**
- * Conversor de HTML a RTF
- * Versión: 1.2.5
+ * html-to-rtf.js
+ * Conversor de HTML a RTF que preserva formato, tildes, viñetas, negritas, etc.
  * 
- * Este archivo contiene funciones para convertir contenido HTML a RTF.
- * Incluye correcciones para manejar caracteres especiales y viñetas.
- * 
- * Correcciones:
- * - Mejora en el manejo de viñetas para evitar caracteres 'd' no deseados
- * - Corrección de la tabulación después de las listas
- * - Soporte para caracteres acentuados
- * - Cambio de fuente a Segoe UI
- * - Mejora en el espaciado después de puntos
- * - Corrección de problemas con espacios entre palabras
- * - Definición correcta del idioma español (3082)
- * - Mejora en el manejo de espacios entre palabras en mayúsculas
- * - Simplificación de la tabla de fuentes para evitar duplicaciones
- * - Eliminación de referencias a fuentes innecesarias
+ * @author Claude AI
+ * @version 1.0
  */
 
-// Convertir HTML a RTF mejorado
-function htmlToRtf(html) {
-    if (!html || typeof html !== 'string') {
-        console.error('htmlToRtf: El contenido HTML es inválido');
-        return '';
+/**
+ * Convierte contenido HTML a RTF
+ * @param {string} htmlContent - Contenido en formato HTML
+ * @returns {string} - Contenido convertido a RTF
+ */
+function htmlToRtf(htmlContent) {
+    // Si no hay contenido, devolver un RTF vacío
+    if (!htmlContent) {
+        return '{\\rtf1\\ansi\\ansicpg1252\\deff0{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}}\r\n\\viewkind4\\uc1\\pard\\f0\\fs22 \\par\r\n}';
     }
+
+    // Inicializar el documento RTF
+    let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\htmautsp\\deff2{\\fonttbl{\\f0\\fcharset0 Times New Roman;}{\\f2\\fcharset0 Segoe UI;}{\\f3\\fcharset0 Aptos;}}{\\colortbl\\red0\\green0\\blue0;\\red255\\green255\\blue255;}\r\n';
     
-    try {
-        // Crear un documento RTF básico con codificación UTF-8 y español como idioma
-        // Usamos una sola fuente (Segoe UI) para simplificar y evitar problemas
-        let rtf = '{\\rtf1\\ansi\\ansicpg1252\\uc1\\deff0\\deflang3082';
-        
-        // Tabla de fuentes ultra simplificada - solo Segoe UI
-        rtf += '{\\fonttbl{\\f0\\fnil Segoe UI;}}';
-        
-        // Agregar tabla de colores básica
-        rtf += '{\\colortbl;\\red0\\green0\\blue0;}';
-        
-        // Configuración de documento con idioma español
-        rtf += '\\viewkind4\\uc1\\pard\\f0\\fs22\\lang3082 ';
-        
-        // Crear un elemento temporal para parsear el HTML
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-        
-        // Convertir el contenido HTML a RTF
-        rtf += convertNodeToRtf(tempDiv);
-        
-        // Cerrar el documento RTF
-        rtf += '}';
-        
-        // Verificar y corregir problemas comunes
-        rtf = fixRtfContent(rtf);
-        
-        return rtf;
-    } catch (error) {
-        console.error('htmlToRtf: Error al convertir HTML a RTF:', error);
-        return '';
+    // Añadir definición de listas si es necesario
+    if (htmlContent.includes('<ul>') || htmlContent.includes('<ol>')) {
+        rtf += `{\\*\\listtable
+{\\list\\listtemplateid1\\listhybrid
+{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid5\\\\u002701\\\\u0027b7}{\\levelnumbers;}\\fi-360\\li720\\lin720\\jclisttab\\tx720}
+{\\listlevel\\levelnfc0\\levelnfcn0\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1\\levelspace0\\levelindent0{\\leveltext\\leveltemplateid6\\\\u002702\\\\u002701.;}{\\levelnumbers\\\\u002701;}\\fi-360\\li1440\\lin1440\\jclisttab\\tx1440}
+{\\listname ;}\\listid1}}
+{\\*\\listoverridetable
+{\\listoverride\\listid1\\listoverridecount0\\ls1}
+}\r\n`;
     }
+
+    // Comenzar el contenido principal
+    rtf += '\\loch\\hich\\dbch\\pard\\plain\\ltrpar\\itap0{\\lang1033\\fs21\\f2\\cf1 \\cf1\\ql';
+    
+    // Crear un parser de DOM temporal
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    
+    // Procesar nodos del cuerpo
+    const body = doc.body || doc.documentElement;
+    
+    // Procesar elementos
+    rtf += processHtmlNode(body);
+    
+    // Cerrar el documento RTF
+    rtf += '}\r\n}';
+    
+    return rtf;
 }
 
-// Función para corregir problemas específicos en el contenido RTF
-function fixRtfContent(content) {
-    if (!content) return content;
+/**
+ * Procesa un nodo HTML y lo convierte a formato RTF
+ * @param {Node} node - Nodo DOM a procesar
+ * @returns {string} - Fragmento RTF correspondiente
+ */
+function processHtmlNode(node) {
+    let rtfContent = '';
     
-    try {
-        // Eliminar cualquier 'd' al inicio del documento
-        content = content.replace(/\\pard\\f0\\fs22\s+d\s+/g, '\\pard\\f0\\fs22 ');
-        
-        // Eliminar símbolos extraños como "Segoe UI; Segoe UI;;;"
-        content = content.replace(/Segoe UI;\s*Segoe UI;+/g, '');
-        content = content.replace(/Segoe U I;+/g, '');
-        content = content.replace(/Times New Roman;/g, '');
-        content = content.replace(/Aptos;+/g, '');
-        
-        // Eliminar patrones extraños de símbolos
-        content = content.replace(/\\b7\s*\\\*\\b7/g, '\\b7');
-        content = content.replace(/;+/g, '');
-        content = content.replace(/\\(\*)+/g, '');
-        content = content.replace(/·+/g, '');
-        content = content.replace(/\.;+/g, '.');
-        
-        // Agregar espacio después de cada punto aparte
-        content = content.replace(/\.\\par/g, '.\\sa200\\par');
-        
-        // Corregir problemas con espacios entre palabras
-        content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
-        
-        // Corregir problemas con palabras pegadas como "deResponsabilidad"
-        content = content.replace(/([a-z])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
-        
-        // Corregir problemas con dos puntos sin espacio
-        content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ]):([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1: $2');
-        
-        // Corregir problemas con puntos sin espacio
-        content = content.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\.([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1. $2');
-        
-        // NUEVO: Insertar espacios entre palabras en mayúsculas
-        content = content.replace(/([A-ZÁÉÍÓÚÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
-        
-        // Corregir espacios entre palabras en mayúsculas
-        content = content.replace(/([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})/g, '$1 $2');
-        
-        // Asegurar espacio después de negritas
-        content = content.replace(/\\b0\s*([A-Za-záéíóúÁÉÍÓÚÑñ])/g, '\\b0 $1');
-        
-        // Asegurar espacio después de números de sección
-        content = content.replace(/(\d+)\.\s*([A-Za-záéíóúÁÉÍÓÚÑñ])/g, '$1. $2');
-        
-        // Agregar definición de idioma español después de cada formato
-        content = content.replace(/\\pard/g, '\\pard\\lang3082');
-        content = content.replace(/\\par/g, '\\par\\lang3082');
-        
-        // Verificar balance de llaves
-        let openBraces = 0;
-        let closeBraces = 0;
-        
-        for (let i = 0; i < content.length; i++) {
-            if (content[i] === '{') openBraces++;
-            if (content[i] === '}') closeBraces++;
+    // Procesar nodos hijos
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        // Manejar diferentes tipos de elementos
+        switch (node.nodeName.toLowerCase()) {
+            case 'p':
+                rtfContent += '{';
+                
+                // Aplicar clase si existe
+                if (node.className) {
+                    if (node.className.includes('MsoNormal')) {
+                        rtfContent += '\\fs22\\f3 ';
+                    }
+                }
+                
+                // Procesar contenido del párrafo
+                for (let child of node.childNodes) {
+                    rtfContent += processHtmlNode(child);
+                }
+                
+                rtfContent += '\\li0\\ri0\\sa160\\sb0\\fi0\\ql\\par}\r\n';
+                break;
+                
+            case 'div':
+                // Simplemente procesa el contenido del div
+                for (let child of node.childNodes) {
+                    rtfContent += processHtmlNode(child);
+                }
+                break;
+                
+            case 'br':
+                rtfContent += '\\par ';
+                break;
+                
+            case 'b':
+            case 'strong':
+                rtfContent += '{\\b ';
+                for (let child of node.childNodes) {
+                    rtfContent += processHtmlNode(child);
+                }
+                rtfContent += '}';
+                break;
+                
+            case 'i':
+            case 'em':
+                rtfContent += '{\\i ';
+                for (let child of node.childNodes) {
+                    rtfContent += processHtmlNode(child);
+                }
+                rtfContent += '}';
+                break;
+                
+            case 'u':
+                rtfContent += '{\\ul ';
+                for (let child of node.childNodes) {
+                    rtfContent += processHtmlNode(child);
+                }
+                rtfContent += '}';
+                break;
+                
+            case 'span':
+                rtfContent += '{';
+                
+                // Aplicar estilo de lenguaje si existe un atributo lang
+                const lang = node.getAttribute('lang');
+                if (lang) {
+                    rtfContent += `\\lang${getLangCode(lang)}`;
+                }
+                
+                // Aplicar estilo de dirección de texto
+                if (node.style.direction === 'rtl') {
+                    rtfContent += '\\rtlch';
+                } else {
+                    rtfContent += '\\ltrch';
+                }
+                
+                // Procesar contenido del span
+                for (let child of node.childNodes) {
+                    rtfContent += processHtmlNode(child);
+                }
+                
+                rtfContent += '}';
+                break;
+                
+            case 'ul':
+                // Procesar elementos de lista
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    const child = node.childNodes[i];
+                    if (child.nodeName.toLowerCase() === 'li') {
+                        rtfContent += processBulletedListItem(child);
+                    }
+                }
+                break;
+                
+            case 'ol':
+                // Procesar elementos de lista numerada
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    const child = node.childNodes[i];
+                    if (child.nodeName.toLowerCase() === 'li') {
+                        rtfContent += processNumberedListItem(child, i + 1);
+                    }
+                }
+                break;
+                
+            case 'li':
+                // Los elementos <li> se procesarán en <ul> o <ol>
+                break;
+                
+            default:
+                // Procesar cualquier otro elemento de manera genérica
+                for (let child of node.childNodes) {
+                    rtfContent += processHtmlNode(child);
+                }
+                break;
         }
-        
-        // Agregar llaves faltantes si es necesario
-        if (openBraces > closeBraces) {
-            console.warn(`fixRtfContent: Faltan ${openBraces - closeBraces} llaves de cierre. Agregando...`);
-            for (let i = 0; i < openBraces - closeBraces; i++) {
-                content += '}';
-            }
-        } else if (closeBraces > openBraces) {
-            console.warn(`fixRtfContent: Hay ${closeBraces - openBraces} llaves de cierre excesivas.`);
-        }
-        
-        return content;
-    } catch (error) {
-        console.error('fixRtfContent: Error al corregir el contenido RTF:', error);
-        return content;
+    } else if (node.nodeType === Node.TEXT_NODE) {
+        // Convertir texto a formato RTF
+        rtfContent += convertTextToRtf(node.textContent);
     }
+    
+    return rtfContent;
 }
 
-// Función mejorada para escapar caracteres especiales en RTF
-function escapeRtf(text) {
+/**
+ * Procesa un elemento de lista con viñetas
+ * @param {Element} liElement - Elemento de lista
+ * @returns {string} - Fragmento RTF correspondiente
+ */
+function processBulletedListItem(liElement) {
+    let rtfContent = `{\\pntext \\\\u0027B7\\tab}{\\*\\pn\\pnlvlblt\\pnstart1{\\pntxtb\\\\u0027B7}}`;
+    
+    // Procesar el contenido del elemento de lista
+    for (let child of liElement.childNodes) {
+        rtfContent += processHtmlNode(child);
+    }
+    
+    rtfContent += '\\li720\\ri0\\sa160\\sb0\\jclisttab\\tx720\\fi-360\\ql\\par}\r\n';
+    
+    return rtfContent;
+}
+
+/**
+ * Procesa un elemento de lista numerada
+ * @param {Element} liElement - Elemento de lista
+ * @param {number} index - Índice del elemento (número)
+ * @returns {string} - Fragmento RTF correspondiente
+ */
+function processNumberedListItem(liElement, index) {
+    let rtfContent = `{\\pntext ${index}.\\tab}{\\*\\pn\\pnlvlbody\\pnstart${index}\\pndec{\\pntxta.}}`;
+    
+    // Procesar el contenido del elemento de lista
+    for (let child of liElement.childNodes) {
+        rtfContent += processHtmlNode(child);
+    }
+    
+    rtfContent += '\\li720\\ri0\\sa160\\sb0\\jclisttab\\tx720\\fi-360\\ql\\par}\r\n';
+    
+    return rtfContent;
+}
+
+/**
+ * Convierte texto plano a formato RTF
+ * @param {string} text - Texto plano
+ * @returns {string} - Texto en formato RTF
+ */
+function convertTextToRtf(text) {
     if (!text) return '';
     
-    // Reemplazar caracteres especiales con sus equivalentes RTF
-    let escaped = text;
+    // Escapar caracteres especiales RTF
+    text = text
+        .replace(/\\/g, '\\\\')
+        .replace(/\{/g, '\\{')
+        .replace(/\}/g, '\\}')
+        .replace(/\n/g, '\\par ');
     
-    // Caracteres de control RTF
-    escaped = escaped.replace(/\\/g, '\\\\');
-    escaped = escaped.replace(/\{/g, '\\{');
-    escaped = escaped.replace(/\}/g, '\\}');
+    // Manejar caracteres especiales y acentos
+    const charMap = {
+        'á': "\\'e1",
+        'é': "\\'e9",
+        'í': "\\'ed",
+        'ó': "\\'f3",
+        'ú': "\\'fa",
+        'Á': "\\'c1",
+        'É': "\\'c9",
+        'Í': "\\'cd",
+        'Ó': "\\'d3",
+        'Ú': "\\'da",
+        'ñ': "\\'f1",
+        'Ñ': "\\'d1",
+        'ü': "\\'fc",
+        'Ü': "\\'dc",
+        '¿': "\\'bf",
+        '¡': "\\'a1",
+        '€': '\\u8364',
+        '£': '\\u163',
+        '©': '\\u169',
+        '®': '\\u174',
+        '°': '\\u176',
+        '±': '\\u177',
+        '×': '\\u215',
+        '÷': '\\u247'
+    };
     
-    // Caracteres acentuados y especiales - versión simplificada
-    escaped = escaped.replace(/á/g, "\\'e1");
-    escaped = escaped.replace(/é/g, "\\'e9");
-    escaped = escaped.replace(/í/g, "\\'ed");
-    escaped = escaped.replace(/ó/g, "\\'f3");
-    escaped = escaped.replace(/ú/g, "\\'fa");
-    escaped = escaped.replace(/Á/g, "\\'c1");
-    escaped = escaped.replace(/É/g, "\\'c9");
-    escaped = escaped.replace(/Í/g, "\\'cd");
-    escaped = escaped.replace(/Ó/g, "\\'d3");
-    escaped = escaped.replace(/Ú/g, "\\'da");
-    escaped = escaped.replace(/ñ/g, "\\'f1");
-    escaped = escaped.replace(/Ñ/g, "\\'d1");
-    escaped = escaped.replace(/ü/g, "\\'fc");
-    escaped = escaped.replace(/Ü/g, "\\'dc");
-    escaped = escaped.replace(/¿/g, "\\'bf");
-    escaped = escaped.replace(/¡/g, "\\'a1");
-    escaped = escaped.replace(/€/g, "\\'80");
-    escaped = escaped.replace(/£/g, "\\'a3");
-    escaped = escaped.replace(/©/g, "\\'a9");
-    escaped = escaped.replace(/®/g, "\\'ae");
-    escaped = escaped.replace(/°/g, "\\'b0");
-    escaped = escaped.replace(/±/g, "\\'b1");
-    escaped = escaped.replace(/²/g, "\\'b2");
-    escaped = escaped.replace(/³/g, "\\'b3");
-    escaped = escaped.replace(/·/g, "\\'b7");
-    escaped = escaped.replace(/¼/g, "\\'bc");
-    escaped = escaped.replace(/½/g, "\\'bd");
-    escaped = escaped.replace(/¾/g, "\\'be");
-    escaped = escaped.replace(/×/g, "\\'d7");
-    escaped = escaped.replace(/÷/g, "\\'f7");
-    
-    // Caracteres especiales que no tienen representación directa en ANSI
-    // Para estos usamos una aproximación o un marcador
-    escaped = escaped.replace(/[""]/g, "\"");
-    escaped = escaped.replace(/['']/g, "'");
-    escaped = escaped.replace(/–/g, "-");
-    escaped = escaped.replace(/—/g, "--");
-    escaped = escaped.replace(/•/g, "*");
-    escaped = escaped.replace(/…/g, "...");
-    escaped = escaped.replace(/™/g, "(TM)");
-    
-    return escaped;
-}
-
-// Función para convertir un nodo HTML a RTF
-function convertNodeToRtf(node) {
-    if (!node) return '';
-    
-    let rtf = '';
-    
-    // Manejar diferentes tipos de nodos
-    if (node.nodeType === 3) { // Nodo de texto
-        return escapeRtf(node.textContent);
-    } else if (node.nodeType === 1) { // Nodo de elemento
-        const tagName = node.tagName.toLowerCase();
-        
-        // Manejar diferentes tipos de elementos
-        switch (tagName) {
-            case 'h1':
-                rtf += '\\pard\\f0\\fs40\\b\\lang3082 ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\b0\\fs22\\sa200\\par\n';
-                break;
-            case 'h2':
-                rtf += '\\pard\\f0\\fs36\\b\\lang3082 ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\b0\\fs22\\sa200\\par\n';
-                break;
-            case 'h3':
-                rtf += '\\pard\\f0\\fs28\\b\\lang3082 ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\b0\\fs22\\sa200\\par\n';
-                break;
-            case 'h4':
-            case 'h5':
-            case 'h6':
-                rtf += '\\pard\\f0\\fs24\\b\\lang3082 ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\b0\\fs22\\sa200\\par\n';
-                break;
-            case 'p':
-                rtf += '\\pard\\f0\\fs22\\lang3082 ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\sa200\\par\n';
-                break;
-            case 'strong':
-            case 'b':
-                rtf += '\\b ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\b0 ';
-                break;
-            case 'em':
-            case 'i':
-                rtf += '\\i ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\i0 ';
-                break;
-            case 'u':
-                rtf += '\\ul ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\ulnone ';
-                break;
-            case 'br':
-                rtf += '\\line ';
-                break;
-            case 'ul':
-                rtf += convertListToRtf(node, false);
-                break;
-            case 'ol':
-                rtf += convertListToRtf(node, true);
-                break;
-            case 'li': // Solo procesamos <li> directamente si está fuera de una lista
-                rtf += '\\pard\\f0\\fs22\\lang3082 • ';
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                rtf += '\\sa100\\par\n';
-                break;
-            case 'a':
-                // Simplemente mostrar el texto del enlace sin el formato
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                break;
-            case 'img':
-                // Las imágenes no se soportan en esta versión, agregar un texto indicativo
-                rtf += '[Imagen]';
-                break;
-            case 'table':
-                // Las tablas son complejas en RTF, implementamos una versión básica
-                rtf += '\\pard\\f0\\fs22\\lang3082 [Tabla:]\n';
-                
-                // Procesar cada fila
-                for (let i = 0; i < node.rows.length; i++) {
-                    const row = node.rows[i];
-                    
-                    // Procesar cada celda en la fila
-                    for (let j = 0; j < row.cells.length; j++) {
-                        const cell = row.cells[j];
-                        rtf += '• ';
-                        for (let k = 0; k < cell.childNodes.length; k++) {
-                            rtf += convertNodeToRtf(cell.childNodes[k]);
-                        }
-                        rtf += '\\tab ';
-                    }
-                    rtf += '\\par\n';
-                }
-                rtf += '\\par\n';
-                break;
-            default:
-                // Para otros elementos, simplemente procesar sus hijos
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    rtf += convertNodeToRtf(node.childNodes[i]);
-                }
-                break;
-        }
+    // Reemplazar caracteres especiales
+    for (const [char, rtfChar] of Object.entries(charMap)) {
+        text = text.replace(new RegExp(char, 'g'), rtfChar);
     }
     
-    return rtf;
-}
-
-// Función mejorada para convertir listas a RTF
-function convertListToRtf(node, isOrdered) {
-    let rtf = '';
-    
-    try {
-        // Procesar cada elemento de la lista
-        for (let i = 0; i < node.childNodes.length; i++) {
-            const child = node.childNodes[i];
-            
-            if (child.nodeType === 1 && child.tagName.toLowerCase() === 'li') {
-                if (isOrdered) {
-                    // Lista ordenada: usar números
-                    rtf += `\\pard\\f0\\fs22\\lang3082 ${i + 1}. `;
-                } else {
-                    // Lista no ordenada: usar viñetas (• o similar)
-                    rtf += '\\pard\\f0\\fs22\\lang3082 • ';
-                }
-                
-                // Procesar el contenido del elemento de la lista
-                for (let j = 0; j < child.childNodes.length; j++) {
-                    rtf += convertNodeToRtf(child.childNodes[j]);
-                }
-                
-                // Agregar salto de párrafo después de cada elemento
-                rtf += '\\sa100\\par\n';
+    // Convertir otros caracteres Unicode
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const charCode = text.charCodeAt(i);
+        if (charCode > 127) {
+            // Usar notación Unicode RTF para caracteres no ASCII
+            if (charCode < 32768) {
+                result += `\\u${charCode}?`;  // El ? es un placeholder RTF
+            } else {
+                // Para caracteres fuera del rango Unicode BMP, necesitamos manejo especial
+                result += `\\u-${65536 - charCode}?`;
             }
+        } else {
+            result += text.charAt(i);
         }
-        
-        // Restaurar formato normal después de la lista
-        rtf += '\\pard\\f0\\fs22\\lang3082 ';
-    } catch (error) {
-        console.error('convertListToRtf: Error al convertir lista:', error);
     }
     
-    return rtf;
-} 
+    return result;
+}
+
+/**
+ * Obtiene el código de idioma RTF a partir del código de idioma HTML
+ * @param {string} htmlLang - Código de idioma HTML (ej: "es-ES")
+ * @returns {number} - Código de idioma RTF
+ */
+function getLangCode(htmlLang) {
+    // Mapeo básico de códigos ISO a códigos RTF
+    const langMap = {
+        'en': 1033,    // Inglés
+        'es': 3082,    // Español
+        'fr': 1036,    // Francés
+        'de': 1031,    // Alemán
+        'it': 1040,    // Italiano
+        'pt': 2070,    // Portugués
+        'ru': 1049,    // Ruso
+        'ja': 1041,    // Japonés
+        'zh': 2052,    // Chino
+        'ar': 1025,    // Árabe
+        'hi': 1081,    // Hindi
+        'he': 1037     // Hebreo
+    };
+    
+    // Obtener la parte principal del código de idioma (antes del guion si existe)
+    const mainLang = htmlLang.split('-')[0].toLowerCase();
+    
+    // Devolver el código RTF o un código por defecto
+    return langMap[mainLang] || 1033;
+}
+
+// Si estamos en un entorno Node.js, exportar la función
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { htmlToRtf };
+} else {
+    // Si estamos en un navegador, añadir al objeto window
+    window.htmlToRtf = htmlToRtf;
+}
