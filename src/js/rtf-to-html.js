@@ -22,7 +22,7 @@ function rtfToHtml(rtfContent) {
 
         // Limpiar códigos RTF de control y metadatos
         let htmlContent = rtfText
-            // Eliminar encabezados RTF
+            // Eliminar encabezados RTF y metadatos
             .replace(/\{\\rtf1[^}]*\}/, '')
             .replace(/\{\\fonttbl[^}]*\}/, '')
             .replace(/\{\\colortbl[^}]*\}/, '')
@@ -30,6 +30,9 @@ function rtfToHtml(rtfContent) {
             .replace(/\{\\listtable[^}]*\}/, '')
             .replace(/\{\\listoverridetable[^}]*\}/, '')
             .replace(/\{\\generator[^}]*\}/, '')
+            .replace(/\{\\mmathPr[^}]*\}/, '')
+            .replace(/\\viewkind\d/, '')
+            .replace(/\\uc1/, '')
             
             // Convertir caracteres especiales
             // Vocales con tilde
@@ -38,35 +41,23 @@ function rtfToHtml(rtfContent) {
             .replace(/\\\'ed/g, 'í')
             .replace(/\\\'f3/g, 'ó')
             .replace(/\\\'fa/g, 'ú')
-            // Vocales con diéresis
-            .replace(/\\\'e4/g, 'ä')
-            .replace(/\\\'eb/g, 'ë')
-            .replace(/\\\'ef/g, 'ï')
-            .replace(/\\\'f6/g, 'ö')
-            .replace(/\\\'fc/g, 'ü')
-            // Vocales con acento grave
-            .replace(/\\\'e0/g, 'à')
-            .replace(/\\\'e8/g, 'è')
-            .replace(/\\\'ec/g, 'ì')
-            .replace(/\\\'f2/g, 'ò')
-            .replace(/\\\'f9/g, 'ù')
-            // Vocales con circunflejo
-            .replace(/\\\'e2/g, 'â')
-            .replace(/\\\'ea/g, 'ê')
-            .replace(/\\\'ee/g, 'î')
-            .replace(/\\\'f4/g, 'ô')
-            .replace(/\\\'fb/g, 'û')
-            // Otros caracteres especiales
+            .replace(/\\\'c1/g, 'Á')
+            .replace(/\\\'c9/g, 'É')
+            .replace(/\\\'cd/g, 'Í')
+            .replace(/\\\'d3/g, 'Ó')
+            .replace(/\\\'da/g, 'Ú')
+            // Caracteres especiales españoles
             .replace(/\\\'f1/g, 'ñ')
             .replace(/\\\'d1/g, 'Ñ')
+            .replace(/\\\'bf/g, '¿')
+            .replace(/\\\'a1/g, '¡')
+            // Símbolos especiales
             .replace(/\\\'a9/g, '©')
             .replace(/\\\'ae/g, '®')
             .replace(/\\\'99/g, '™')
             .replace(/\\\'80/g, '€')
             .replace(/\\\'a3/g, '£')
             .replace(/\\\'b0/g, '°')
-            .replace(/\\\'bf/g, '¿')
-            .replace(/\\\'a1/g, '¡')
             // Comillas y otros símbolos
             .replace(/\\\'94/g, '"')
             .replace(/\\\'93/g, '"')
@@ -75,11 +66,11 @@ function rtfToHtml(rtfContent) {
             .replace(/\\\'85/g, '...')
             .replace(/\\\'96/g, '-')
             .replace(/\\\'97/g, '--')
-            .replace(/\\\'b7/g, '•')
+            .replace(/\\\'95/g, '•')
             
             // Convertir formatos RTF a HTML
-            .replace(/\\pard\\plain\\sa160\\sl252\\slmult1\\f0\\fs22\s*/g, '<p class="MsoNormal">')
-            .replace(/\\pard\\plain\\f0\\fs22\s*/g, '<p>')
+            .replace(/\\pard\\plain\\sa160\\sl252\\slmult1\\qj\\f0\\fs22\s*/g, '<p class="MsoNormal">')
+            .replace(/\\pard\\plain\\qj\\f0\\fs22\s*/g, '<p>')
             .replace(/\\par\s*/g, '</p>')
             .replace(/\{\\b\s+([^}]+)\}/g, '<b>$1</b>')
             .replace(/\{\\i\s+([^}]+)\}/g, '<i>$1</i>')
@@ -87,7 +78,7 @@ function rtfToHtml(rtfContent) {
             .replace(/\\line\s*/g, '<br>')
             
             // Procesar listas
-            .replace(/\\pard\{\\\*\\pn\\pnlvlblt\\pnf3\\pnindent0\{\\pntxtb\\\'b7\}\}\\fi-360\\li720\\sa160\\sl252\\slmult1\\f0\\fs22\s*/g, '<ul>')
+            .replace(/\\pard\{\\\*\\pn\\pnlvlblt\\pnf2\\pnindent0\{\\pntxtb\\\'95\}\}\\fi-360\\li720\\sa160\\sl252\\slmult1\\f0\\fs22\s*/g, '<ul>')
             .replace(/\\pard\\plain\\f0\\fs22\s*(?=<\/p>)/g, '</ul>')
             
             // Procesar enlaces
@@ -102,11 +93,6 @@ function rtfToHtml(rtfContent) {
             .replace(/\{|\}/g, '')
             .replace(/\s+/g, ' ')
             .trim();
-
-        // Envolver el contenido en un div con los estilos necesarios
-        htmlContent = `<div id="termsPreview" class="terms-preview p-3" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.25rem;" bis_skin_checked="1">
-            ${htmlContent}
-        </div>`;
 
         return htmlContent;
     } catch (error) {

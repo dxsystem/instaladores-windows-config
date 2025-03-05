@@ -13,20 +13,20 @@ function htmlToRtf(htmlContent) {
         tempDiv.innerHTML = htmlContent;
         const contentDiv = tempDiv.querySelector('#termsPreview') || tempDiv;
         
-        // Encabezado RTF con configuración para español
-        let rtfContent = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang3082{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}{\\f1\\fnil\\fcharset0 Times New Roman;}}\n';
-        rtfContent += '{\\*\\generator Riched20 10.0.19041}{\\*\\mmathPr\\mdispDef1\\mwrapIndent1440 }\\viewkind4\\uc1\n';
+        // Encabezado RTF con configuración específica para español
+        let rtfContent = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\\deflang3082{\\fonttbl{\\f0\\fnil\\fcharset0 Segoe UI;}{\\f1\\fnil\\fcharset0 Times New Roman;}{\\f2\\fnil\\fcharset0 Calibri;}}\n';
+        rtfContent += '{\\*\\generator Riched20 10.0.19041}\\viewkind4\\uc1\n';
         
         // Tabla de colores
-        rtfContent += '{\\colortbl ;\\red0\\green0\\blue0;\\red255\\green255\\blue255;}\n';
+        rtfContent += '{\\colortbl;\\red0\\green0\\blue0;\\red255\\green255\\blue255;}\n';
         
         // Configuración de listas
-        rtfContent += '{\\*\\listtable{\\list\\listtemplateid1\\listhybrid{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1{\\leveltext\\leveltemplateid1\\\'01\\bullet;}{\\levelnumbers;}\\f3\\fbias0 \\fi-360\\li720\\lin720 }\\listname ;\\listid1}}\n';
+        rtfContent += '{\\*\\listtable{\\list\\listtemplateid1\\listhybrid{\\listlevel\\levelnfc23\\levelnfcn23\\leveljc0\\leveljcn0\\levelfollow0\\levelstartat1{\\leveltext\\leveltemplateid1\\\'95;}{\\levelnumbers;}\\f2\\fs22\\fbias0 \\fi-360\\li720\\lin720}\\listname ;\\listid1}}\n';
         rtfContent += '{\\*\\listoverridetable{\\listoverride\\listid1\\listoverridecount0\\ls1}}\n';
 
         // Configuración de estilos
-        rtfContent += '{\\stylesheet{\\ql \\li0\\ri0\\widctlpar\\wrapdefault\\aspalpha\\aspnum\\faauto\\adjustright\\rin0\\lin0\\itap0 \\rtlch\\fcs1 \\af0\\afs22\\alang1025 \\ltrch\\fcs0 \\fs22\\lang3082\\langfe3082\\cgrid\\langnp3082\\langfenp3082 \\snext0 Normal;}\n';
-        rtfContent += '{\\s15\\ql \\li0\\ri0\\widctlpar\\wrapdefault\\aspalpha\\aspnum\\faauto\\adjustright\\rin0\\lin0\\itap0 \\rtlch\\fcs1 \\af0\\afs22\\alang1025 \\ltrch\\fcs0 \\fs22\\lang3082\\langfe3082\\cgrid\\langnp3082\\langfenp3082 \\sbasedon0 \\snext15 Normal (Web);}}\n';
+        rtfContent += '{\\*\\stylesheet{\\s0\\widctlpar\\f0\\fs22 Normal;}{\\*\\cs10 Default Paragraph Font;}}\n';
+        rtfContent += '{\\*\\mmathPr\\mdispDef1\\mwrapIndent1440}\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440\\gutter0\n';
 
         // Convertir el contenido
         let mainContent = procesarContenidoHtml(contentDiv);
@@ -67,44 +67,32 @@ function procesarContenidoHtml(elemento) {
                 .replace(/í/g, '\\\'ed')
                 .replace(/ó/g, '\\\'f3')
                 .replace(/ú/g, '\\\'fa')
-                // Vocales con diéresis
-                .replace(/ä/g, '\\\'e4')
-                .replace(/ë/g, '\\\'eb')
-                .replace(/ï/g, '\\\'ef')
-                .replace(/ö/g, '\\\'f6')
-                .replace(/ü/g, '\\\'fc')
-                // Vocales con acento grave
-                .replace(/à/g, '\\\'e0')
-                .replace(/è/g, '\\\'e8')
-                .replace(/ì/g, '\\\'ec')
-                .replace(/ò/g, '\\\'f2')
-                .replace(/ù/g, '\\\'f9')
-                // Vocales con circunflejo
-                .replace(/â/g, '\\\'e2')
-                .replace(/ê/g, '\\\'ea')
-                .replace(/î/g, '\\\'ee')
-                .replace(/ô/g, '\\\'f4')
-                .replace(/û/g, '\\\'fb')
-                // Otros caracteres especiales
+                .replace(/Á/g, '\\\'c1')
+                .replace(/É/g, '\\\'c9')
+                .replace(/Í/g, '\\\'cd')
+                .replace(/Ó/g, '\\\'d3')
+                .replace(/Ú/g, '\\\'da')
+                // Caracteres especiales españoles
                 .replace(/ñ/g, '\\\'f1')
                 .replace(/Ñ/g, '\\\'d1')
+                .replace(/¿/g, '\\\'bf')
+                .replace(/¡/g, '\\\'a1')
+                // Símbolos especiales
                 .replace(/©/g, '\\\'a9')
                 .replace(/®/g, '\\\'ae')
                 .replace(/™/g, '\\\'99')
                 .replace(/€/g, '\\\'80')
                 .replace(/£/g, '\\\'a3')
                 .replace(/°/g, '\\\'b0')
-                .replace(/¿/g, '\\\'bf')
-                .replace(/¡/g, '\\\'a1')
                 // Comillas y otros símbolos
-                .replace(/"/g, '\\\'94')
                 .replace(/"/g, '\\\'93')
-                .replace(/'/g, '\\\'92')
+                .replace(/"/g, '\\\'94')
                 .replace(/'/g, '\\\'91')
+                .replace(/'/g, '\\\'92')
                 .replace(/…/g, '\\\'85')
                 .replace(/–/g, '\\\'96')
                 .replace(/—/g, '\\\'97')
-                .replace(/•/g, '\\\'b7');
+                .replace(/•/g, '\\\'95');
         } else if (nodo.nodeType === Node.ELEMENT_NODE) {
             switch (nodo.tagName.toLowerCase()) {
                 case 'div':
@@ -112,9 +100,9 @@ function procesarContenidoHtml(elemento) {
                     break;
                 case 'p':
                     if (nodo.className === 'MsoNormal') {
-                        rtfContent += '\\pard\\plain\\sa160\\sl252\\slmult1\\f0\\fs22 ';
+                        rtfContent += '\\pard\\plain\\sa160\\sl252\\slmult1\\qj\\f0\\fs22 ';
                     } else {
-                        rtfContent += '\\pard\\plain\\f0\\fs22 ';
+                        rtfContent += '\\pard\\plain\\qj\\f0\\fs22 ';
                     }
                     rtfContent += procesarContenidoHtml(nodo);
                     rtfContent += '\\par\n';
@@ -148,7 +136,7 @@ function procesarContenidoHtml(elemento) {
                     }
                     break;
                 case 'ul':
-                    rtfContent += '\\pard{\\*\\pn\\pnlvlblt\\pnf3\\pnindent0{\\pntxtb\\\'b7}}\\fi-360\\li720\\sa160\\sl252\\slmult1\\f0\\fs22 ';
+                    rtfContent += '\\pard{\\*\\pn\\pnlvlblt\\pnf2\\pnindent0{\\pntxtb\\\'95}}\\fi-360\\li720\\sa160\\sl252\\slmult1\\f0\\fs22 ';
                     for (let li of nodo.children) {
                         if (li.tagName.toLowerCase() === 'li') {
                             rtfContent += procesarContenidoHtml(li);
