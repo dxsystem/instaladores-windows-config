@@ -1430,236 +1430,107 @@ async function refreshData() {
 async function syncAllConfigurations() {
     try {
         showLoading('Iniciando sincronización completa...');
-        updateLoadingProgress(0);
-        
+        updateLoadingProgress(10);
+
         // Verificar que spGraph esté disponible
         if (!spGraph) {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
-        
-        // Paso 1: Obtener archivos de la carpeta exe
-        showLoading('Obteniendo archivos de SharePoint...');
+
+        // Paso 1: Cargar descripciones primero
+        showLoading('Cargando diccionario de descripciones...');
         updateLoadingProgress(20);
-        const executableFiles = await spGraph.getExeFiles();
-        console.log(`Se encontraron ${executableFiles.length} archivos ejecutables (.exe y .bat) en la carpeta principal exe`);
-        
-        // Log detallado de los archivos encontrados
-        console.log('Detalle de archivos encontrados:', {
-            total: executableFiles.length,
-            extensiones: [...new Set(executableFiles.map(file => 
-                file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : ''))],
-            primeros10: executableFiles.slice(0, 10).map(file => ({
-                nombre: file.name,
-                tamaño: file.size,
-                id: file.id
-            }))
-        });
-        
-        // Verificación adicional para asegurar que solo se procesen archivos .exe y .bat
-        const validExecutableFiles = executableFiles.filter(file => {
-            const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
-            return extension === 'exe' || extension === 'bat';
-        });
-        
-        if (validExecutableFiles.length !== executableFiles.length) {
-            console.warn(`Se filtraron ${executableFiles.length - validExecutableFiles.length} archivos que no son .exe o .bat`);
-        }
-        
-        console.log(`Se procesarán ${validExecutableFiles.length} archivos ejecutables válidos`);
-        
-        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
-        
-        // Paso 2: Cargar y actualizar aplicaciones
-        showLoading('Procesando aplicaciones...');
-        updateLoadingProgress(40);
-        
-        // Si no hay configuración o no hay aplicaciones, crear una configuración inicial
-        if (allApps.length === 0) {
-            console.log('No hay configuración de aplicaciones, creando una inicial basada en los archivos encontrados');
-            
-            // Crear aplicaciones a partir de los archivos encontrados
-            allApps = validExecutableFiles.map((file, index) => {
-                // Extraer extensión y nombre base
-                const fileName = file.name;
-                const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
-                const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
-                
-                // Determinar categoría basada en la extensión
-                let category = 'General';
-                if (extension === 'exe') category = 'Aplicación';
-                else if (extension === 'bat') category = 'Script';
-                
-                // Agregar categoría al conjunto
-                categories.add(category);
-                
-                return {
-                    id: file.id,
-                    name: baseName,
-                    fileName: fileName,
-                    category: category,
-                    description: `Software profesional ${baseName}`,
-                    version: '',
-                    size: file.size || 0,
-                    lastModified: file.lastModified ? new Date(file.lastModified) : new Date(),
-                    installationOrder: index + 1,
-                    icon: DEFAULT_ICON_URL
-                };
-            });
-            
-            // Ordenar por nombre
-            allApps.sort((a, b) => a.name.localeCompare(b.name));
-        } else {
-            // Actualizar información de archivos existentes
-            allApps.forEach(app => {
-                const file = validExecutableFiles.find(f => f.name === app.fileName);
-                if (file) {
-                    app.size = file.size || app.size;
-                    app.lastModified = file.lastModified ? new Date(file.lastModified) : app.lastModified;
-                }
-            });
-            
-            // Agregar archivos nuevos
-            const configuredFileNames = allApps.map(app => app.fileName);
-            const newFiles = validExecutableFiles.filter(file => !configuredFileNames.includes(file.name));
-            
-            if (newFiles.length > 0) {
-                console.log(`Se encontraron ${newFiles.length} archivos nuevos que no están en la configuración`);
-                
-                // Agregar los nuevos archivos a la lista de aplicaciones
-                const newApps = newFiles.map((file, index) => {
-                    // Extraer extensión y nombre base
-                    const fileName = file.name;
-                    const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
-                    const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
-                    
-                    // Determinar categoría basada en la extensión
-                    let category = 'General';
-                    if (extension === 'exe') category = 'Aplicación';
-                    else if (extension === 'bat') category = 'Script';
-                    
-                    // Agregar categoría al conjunto
-                    categories.add(category);
-                    
-                    return {
-                        id: file.id,
-                        name: baseName,
-                        fileName: fileName,
-                        category: category,
-                        description: `Software profesional ${baseName}`,
-                        version: '',
-                        size: file.size || 0,
-                        lastModified: file.lastModified ? new Date(file.lastModified) : new Date(),
-                        installationOrder: allApps.length + index + 1,
-                        icon: DEFAULT_ICON_URL
-                    };
-                });
-                
-                // Agregar las nuevas aplicaciones a la lista
-                allApps = [...allApps, ...newApps];
-                
-                // Ordenar por nombre
-                allApps.sort((a, b) => a.name.localeCompare(b.name));
-            }
-        }
-        
-        // Actualizar la tabla de aplicaciones
-        updateAppsTable();
-        
-        // Actualizar el selector de categorías
-        updateCategoryFilter();
-        
-        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
-        
-        // Paso 3: Cargar y actualizar descripciones
-        showLoading('Cargando descripciones de aplicaciones...');
-        updateLoadingProgress(60);
         await loadDescriptions();
-        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
         
-        // Paso 4: Sincronizar configuración ELITE
-        showLoading('Sincronizando configuración ELITE...');
+        if (!allDescriptions || allDescriptions.length === 0) {
+            throw new Error('No se pudo cargar el diccionario de descripciones');
+        }
+
+        // Paso 2: Cargar todas las aplicaciones
+        showLoading('Cargando aplicaciones...');
+        updateLoadingProgress(40);
+        await loadApps();
+
+        // Paso 3: Actualizar descripciones desde el diccionario
+        showLoading('Actualizando descripciones desde el diccionario...');
+        updateLoadingProgress(60);
+
+        allApps = allApps.map(app => {
+            const appCopy = { ...app };
+            
+            // Normalizar el nombre de la aplicación
+            let baseName = app.name
+                .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
+                .replace(/\d+(\.\d+)*/, '') // Remover números de versión
+                .replace(/\s+/g, ' ') // Normalizar espacios
+                .trim();
+
+            // Buscar coincidencia exacta
+            const exactMatch = allDescriptions.find(d => 
+                d.name.toLowerCase() === baseName.toLowerCase()
+            );
+            
+            if (exactMatch) {
+                appCopy.description = exactMatch.description;
+                appCopy.category = exactMatch.category;
+                console.log(`[Sync] Coincidencia exacta encontrada para ${app.name}`);
+            } else {
+                // Buscar coincidencia parcial
+                const partialMatch = allDescriptions.find(d => 
+                    d.name.toLowerCase().includes(baseName.toLowerCase()) ||
+                    baseName.toLowerCase().includes(d.name.toLowerCase())
+                );
+                
+                if (partialMatch) {
+                    appCopy.description = partialMatch.description;
+                    appCopy.category = partialMatch.category;
+                    console.log(`[Sync] Coincidencia parcial encontrada para ${app.name}`);
+                } else {
+                    // Si no hay coincidencia, mantener descripción actual o usar genérica
+                    if (!appCopy.description) {
+                        appCopy.description = `Software ${app.name}`;
+                        appCopy.category = 'General';
+                        console.log(`[Sync] No se encontró descripción para ${app.name}, usando genérica`);
+                    }
+                }
+            }
+            
+            return appCopy;
+        });
+
+        // Paso 4: Guardar configuración ELITE
+        showLoading('Guardando configuración ELITE...');
         updateLoadingProgress(70);
         
-        // Filtrar allApps para asegurar que solo se incluyan archivos .exe y .bat
-        const validApps = allApps.filter(app => {
-            const extension = app.fileName.includes('.') ? app.fileName.split('.').pop().toLowerCase() : '';
-            return extension === 'exe' || extension === 'bat';
-        });
-        
-        console.log(`Filtrando aplicaciones para configuración ELITE: ${allApps.length} totales -> ${validApps.length} válidas (.exe y .bat)`);
-        
-        // Crear configuración ELITE solo con aplicaciones válidas
         const eliteConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: validApps.map(app => {
-                // Asegurarse de que lastModified sea un objeto Date válido
-                let lastModifiedDate;
-                if (app.lastModified) {
-                    if (typeof app.lastModified === 'string') {
-                        lastModifiedDate = new Date(app.lastModified);
-                    } else if (app.lastModified instanceof Date) {
-                        lastModifiedDate = app.lastModified;
-                    } else {
-                        lastModifiedDate = new Date(); // Valor por defecto
-                    }
-                } else {
-                    lastModifiedDate = new Date(); // Valor por defecto
-                }
-                
-                return {
-                    sharePointId: app.id,
-                    name: app.name,
-                    fileName: app.fileName,
-                    category: app.category,
-                    description: app.description,
-                    version: app.version,
-                    size: app.size,
-                    lastModified: lastModifiedDate.toISOString(),
-                    installationOrder: app.installationOrder
-                };
-            })
+            applications: allApps.map(app => ({
+                sharePointId: app.id,
+                name: app.name,
+                fileName: app.fileName,
+                category: app.category,
+                description: app.description,
+                version: app.version,
+                size: app.size,
+                lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
+                installationOrder: app.installationOrder || 0
+            }))
         };
-        
-        // Log detallado de la configuración ELITE
-        console.log('Configuración ELITE a guardar:', {
-            totalApps: eliteConfig.applications.length,
-            firstApp: eliteConfig.applications[0],
-            lastApp: eliteConfig.applications[eliteConfig.applications.length - 1],
-            appFileNames: eliteConfig.applications.map(app => app.fileName).slice(0, 5) // Mostrar los primeros 5 nombres de archivo
-        });
-        
-        // Guardar configuración ELITE
+
         await spGraph.saveFileContent('elite_apps_config.json', JSON.stringify(eliteConfig, null, 2));
-        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
-        
-        // Paso 5: Crear configuración PRO (60% de las apps)
-        showLoading('Generando configuración PRO...');
+
+        // Paso 5: Guardar configuración PRO
+        showLoading('Guardando configuración PRO...');
         updateLoadingProgress(80);
-        const proAppsCount = Math.floor(validApps.length * 0.6);
-        // Ordenar aleatoriamente y tomar el 60%
-        const proApps = [...validApps]
-            .sort(() => 0.5 - Math.random())
-            .slice(0, proAppsCount);
         
-        // Crear configuración PRO
+        const totalApps = allApps.length;
+        const proAppsCount = Math.ceil(totalApps * 0.67); // 67% del total
+        
         const proConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: proApps.map(app => {
-                // Asegurarse de que lastModified sea un objeto Date válido
-                let lastModifiedDate;
-                if (app.lastModified) {
-                    if (typeof app.lastModified === 'string') {
-                        lastModifiedDate = new Date(app.lastModified);
-                    } else if (app.lastModified instanceof Date) {
-                        lastModifiedDate = app.lastModified;
-                    } else {
-                        lastModifiedDate = new Date(); // Valor por defecto
-                    }
-                } else {
-                    lastModifiedDate = new Date(); // Valor por defecto
-                }
-                
-                return {
+            applications: allApps
+                .slice(0, proAppsCount)
+                .map(app => ({
                     sharePointId: app.id,
                     name: app.name,
                     fileName: app.fileName,
@@ -1667,52 +1538,24 @@ async function syncAllConfigurations() {
                     description: app.description,
                     version: app.version,
                     size: app.size,
-                    lastModified: lastModifiedDate.toISOString(),
-                    installationOrder: app.installationOrder
-                };
-            })
+                    lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
+                    installationOrder: app.installationOrder || 0
+                }))
         };
-        
-        // Log detallado de la configuración PRO
-        console.log('Configuración PRO a guardar:', {
-            totalApps: proConfig.applications.length,
-            firstApp: proConfig.applications[0],
-            lastApp: proConfig.applications[proConfig.applications.length - 1],
-            appFileNames: proConfig.applications.map(app => app.fileName).slice(0, 5) // Mostrar los primeros 5 nombres de archivo
-        });
-        
-        // Guardar configuración PRO
+
         await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
-        await new Promise(resolve => setTimeout(resolve, 300)); // Simular delay
-        
-        // Paso 6: Crear configuración Gratuita (30 apps aleatorias o menos)
-        showLoading('Generando configuración Gratuita...');
+
+        // Paso 6: Guardar configuración FREE
+        showLoading('Guardando configuración FREE...');
         updateLoadingProgress(90);
-        const freeAppsCount = Math.min(30, validApps.length);
-        // Ordenar aleatoriamente y tomar hasta 30 apps
-        const freeApps = [...validApps]
-            .sort(() => 0.5 - Math.random())
-            .slice(0, freeAppsCount);
         
-        // Crear configuración Gratuita
+        const freeAppsCount = Math.min(30, totalApps);
+        
         const freeConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: freeApps.map(app => {
-                // Asegurarse de que lastModified sea un objeto Date válido
-                let lastModifiedDate;
-                if (app.lastModified) {
-                    if (typeof app.lastModified === 'string') {
-                        lastModifiedDate = new Date(app.lastModified);
-                    } else if (app.lastModified instanceof Date) {
-                        lastModifiedDate = app.lastModified;
-                    } else {
-                        lastModifiedDate = new Date(); // Valor por defecto
-                    }
-                } else {
-                    lastModifiedDate = new Date(); // Valor por defecto
-                }
-                
-                return {
+            applications: allApps
+                .slice(0, freeAppsCount)
+                .map(app => ({
                     sharePointId: app.id,
                     name: app.name,
                     fileName: app.fileName,
@@ -1720,38 +1563,22 @@ async function syncAllConfigurations() {
                     description: app.description,
                     version: app.version,
                     size: app.size,
-                    lastModified: lastModifiedDate.toISOString(),
-                    installationOrder: app.installationOrder
-                };
-            })
+                    lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
+                    installationOrder: app.installationOrder || 0
+                }))
         };
-        
-        // Log detallado de la configuración Gratuita
-        console.log('Configuración GRATUITA a guardar:', {
-            totalApps: freeConfig.applications.length,
-            firstApp: freeConfig.applications[0],
-            lastApp: freeConfig.applications[freeConfig.applications.length - 1],
-            appFileNames: freeConfig.applications.map(app => app.fileName).slice(0, 5) // Mostrar los primeros 5 nombres de archivo
-        });
-        
-        // Guardar configuración Gratuita
+
         await spGraph.saveFileContent('free_apps_config.json', JSON.stringify(freeConfig, null, 2));
-        
-        // Paso 7: Guardar descripciones
-        showLoading('Guardando descripciones de aplicaciones...');
-        updateLoadingProgress(95);
-        await saveAllDescriptions();
-        
-        // Paso 8: Guardar aplicaciones obligatorias
-        if (requiredAppsLoaded) {
-            await saveRequiredApps();
-        }
-        
-        // Paso 9: Verificar los archivos guardados
-        showLoading('Verificando archivos guardados...');
-        updateLoadingProgress(98);
-        await verifyConfigFiles();
-        
+
+        // Paso 7: Actualizar la interfaz
+        updateAppsTable();
+        updateCategoryFilter();
+        updateCounters();
+
+        if (eliteAppsLoaded) updateEliteAppsList();
+        if (proAppsLoaded) updateProAppsList();
+        if (freeAppsLoaded) updateFreeAppsList();
+
         updateLoadingProgress(100);
         hideLoading();
         
