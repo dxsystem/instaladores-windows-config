@@ -236,6 +236,16 @@ class UserImporter {
             const validationError = this.validateUserData(user);
             if (validationError) {
                 user.error = validationError;
+            } else {
+                // Si la validación es exitosa, asegurarse de que el tipo de suscripción esté normalizado
+                if (user.subscriptionType.toUpperCase().includes('ELITE')) {
+                    user.newSubscriptionType = 'ELITE';
+                } else if (user.subscriptionType.toUpperCase().includes('PRO')) {
+                    user.newSubscriptionType = 'PRO';
+                } else if (user.subscriptionType.toUpperCase().includes('GRATIS') || 
+                         user.subscriptionType.toUpperCase().includes('GRATUITA')) {
+                    user.newSubscriptionType = 'Gratuita';
+                }
             }
 
             return user;
@@ -627,7 +637,7 @@ class UserImporter {
                         </span>
                     </td>
                     <td>${existingUser ? this.escapeHtml(existingUser.subscriptionType || '-') : '-'}</td>
-                    <td>${this.escapeHtml(user.subscriptionType || '-')}</td>
+                    <td>${this.escapeHtml(user.newSubscriptionType || '-')}</td>
                     <td>${existingUser ? (existingUser.startDate ? `${this.formatDate(existingUser.startDate)} - ${this.formatDate(existingUser.endDate)}` : '-') : '-'}</td>
                     <td>${this.formatDate(user.startDate)} - ${this.formatDate(user.endDate)}</td>
                     <td>
