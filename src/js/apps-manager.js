@@ -201,17 +201,9 @@ async function loadApps() {
             iconUrl: DEFAULT_ICON_URL
         }));
         
-        console.log(`Total de aplicaciones cargadas en memoria: ${allApps.length}`);
-        
         // Extraer categorías únicas
         categories = new Set();
-        allApps.forEach(app => {
-            if (app.category) {
-                categories.add(app.category);
-            } else {
-                categories.add('General');
-            }
-        });
+        categories.add('General');
         
         // Asignar iconos a las aplicaciones
         if (iconService) {
@@ -226,22 +218,11 @@ async function loadApps() {
         updateCategoryFilter();
         updateCounters();
         
-        // Cargar descripciones primero
+        // Cargar datos de cada suscripción
         await loadDescriptions();
-        console.log(`Total de descripciones cargadas: ${allDescriptions.length}`);
-        
-        // Cargar ELITE primero para asignar descripciones
         await loadEliteApps();
-        console.log(`Total de aplicaciones ELITE: ${eliteApps.length}`);
-        
-        // Luego cargar PRO y FREE que heredarán las descripciones de ELITE
         await loadProApps();
-        console.log(`Total de aplicaciones PRO: ${proApps.length}`);
-        
         await loadFreeApps();
-        console.log(`Total de aplicaciones GRATUITAS: ${freeApps.length}`);
-        
-        // Cargar aplicaciones obligatorias al final
         await loadRequiredApps();
         
         updateLoadingProgress(100);
@@ -1366,13 +1347,8 @@ async function syncAllConfigurations() {
         // Paso 2: Cargar todas las aplicaciones
         showLoading('Cargando aplicaciones...');
         updateLoadingProgress(40);
-        await loadApps();
 
-        // Paso 3: Actualizar descripciones desde el diccionario
-        showLoading('Actualizando descripciones desde el diccionario...');
-        updateLoadingProgress(60);
-
-        // Primero, convertir allDescriptions a un formato más fácil de buscar
+        // Crear mapa de descripciones para búsqueda eficiente
         const descriptionsMap = {};
         allDescriptions.forEach(desc => {
             descriptionsMap[desc.name.toLowerCase()] = {
@@ -1381,142 +1357,92 @@ async function syncAllConfigurations() {
             };
         });
 
-        allApps = allApps.map(app => {
-            const appCopy = { ...app };
-            
-            // Normalizar el nombre de la aplicación
-            let baseName = app.name
-                .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
-                .replace(/\d+(\.\d+)*/, '') // Remover números de versión
-                .replace(/\s+/g, ' ') // Normalizar espacios
-                .trim();
+        console.log(`Diccionario de descripciones cargado: ${Object.keys(descriptionsMap).length} entradas`);
 
-            // Buscar coincidencia exacta
-            let found = descriptionsMap[baseName.toLowerCase()];
-            
-            if (found) {
-                appCopy.description = found.description;
-                appCopy.category = found.category;
-                console.log(`[Sync] Coincidencia exacta encontrada para ${app.name}`);
-            } else {
-                // Buscar coincidencia parcial
-                const partialMatch = Object.entries(descriptionsMap).find(([key, value]) => 
-                    key.includes(baseName.toLowerCase()) ||
-                    baseName.toLowerCase().includes(key)
-                );
-                
-                if (partialMatch) {
-                    appCopy.description = partialMatch[1].description;
-                    appCopy.category = partialMatch[1].category;
-                    console.log(`[Sync] Coincidencia parcial encontrada para ${app.name}`);
-                } else {
-                    // Si no hay coincidencia, mantener descripción actual o usar genérica
-                    if (!appCopy.description) {
-                        appCopy.description = `Software ${app.name}`;
-                        appCopy.category = 'General';
-                        console.log(`[Sync] No se encontró descripción para ${app.name}, usando genérica`);
-                    }
-                }
-            }
-            
-            return appCopy;
-        });
+        // Paso 3: Asignar descripciones a las aplicaciones ELITE
+        showLoading('Asignando descripciones a ELITE...');
+        updateLoadingProgress(60);
 
-        // Paso 4: Guardar configuración ELITE
-        showLoading('Guardando configuración ELITE...');
-        updateLoadingProgress(70);
-        
         const eliteConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: allApps.map(app => ({
-                sharePointId: app.id,
-                name: app.name,
-                fileName: app.fileName,
-                category: app.category,
-                description: app.description,
-                version: app.version || 'N/A',
-                size: formatFileSize(app.size),
-                lastModified: app.lastModified ? 
-                    new Date(app.lastModified).toLocaleDateString('es-ES', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    }) : new Date().toLocaleDateString('es-ES'),
-                installationOrder: app.installationOrder || 0
-            }))
-        };
+            applications: allApps.map(app => {
+                // Normalizar el nombre de la aplicación
+                let baseName = app.name
+                    .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
+                    .replace(/\d+(\.\d+)*/, '') // Remover números de versión
+                    .replace(/\s+/g, ' ') // Normalizar espacios
+                    .trim();
 
-        await spGraph.saveFileContent('elite_apps_config.json', JSON.stringify(eliteConfig, null, 2));
+                // Buscar coincidencia exacta
+                let description = descriptionsMap[baseName.toLowerCase()];
+                
+                if (!description) {
+                    // Buscar coincidencia parcial
+                    const partialMatch = Object.entries(descriptionsMap).find(([key, value]) => 
+                        key.includes(baseName.toLowerCase()) ||
+                        baseName.toLowerCase().includes(key)
+                    );
+                    
+                    if (partialMatch) {
+                        description = partialMatch[1];
+                    }
+                }
 
-        // Paso 5: Guardar configuración PRO
-        showLoading('Guardando configuración PRO...');
-        updateLoadingProgress(80);
-        
-        const totalApps = allApps.length;
-        const proAppsCount = Math.ceil(totalApps * 0.67); // 67% del total
-        
-        const proConfig = {
-            lastUpdate: new Date().toISOString(),
-            applications: allApps
-                .slice(0, proAppsCount)
-                .map(app => ({
+                return {
                     sharePointId: app.id,
                     name: app.name,
                     fileName: app.fileName,
-                    category: app.category,
-                    description: app.description,
+                    category: description?.category || 'General',
+                    description: description?.description || `Software ${app.name}`,
                     version: app.version || 'N/A',
-                    size: formatFileSize(app.size),
-                    lastModified: app.lastModified ? 
-                        new Date(app.lastModified).toLocaleDateString('es-ES', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        }) : new Date().toLocaleDateString('es-ES'),
+                    size: app.size,
+                    lastModified: app.lastModified,
                     installationOrder: app.installationOrder || 0
-                }))
+                };
+            })
+        };
+
+        // Guardar configuración ELITE
+        await spGraph.saveFileContent('elite_apps_config.json', JSON.stringify(eliteConfig, null, 2));
+        console.log('Configuración ELITE guardada con éxito');
+
+        // Paso 4: Replicar a PRO (67% de las aplicaciones)
+        showLoading('Replicando configuración a PRO...');
+        updateLoadingProgress(80);
+
+        const totalApps = eliteConfig.applications.length;
+        const proAppsCount = Math.ceil(totalApps * 0.67);
+
+        const proConfig = {
+            lastUpdate: new Date().toISOString(),
+            applications: eliteConfig.applications.slice(0, proAppsCount)
         };
 
         await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
+        console.log('Configuración PRO guardada con éxito');
 
-        // Paso 6: Guardar configuración FREE
-        showLoading('Guardando configuración FREE...');
+        // Paso 5: Replicar a FREE (máximo 30 aplicaciones)
+        showLoading('Replicando configuración a FREE...');
         updateLoadingProgress(90);
-        
+
         const freeAppsCount = Math.min(30, totalApps);
-        
+
         const freeConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: allApps
-                .slice(0, freeAppsCount)
-                .map(app => ({
-                    sharePointId: app.id,
-                    name: app.name,
-                    fileName: app.fileName,
-                    category: app.category,
-                    description: app.description,
-                    version: app.version || 'N/A',
-                    size: formatFileSize(app.size),
-                    lastModified: app.lastModified ? 
-                        new Date(app.lastModified).toLocaleDateString('es-ES', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        }) : new Date().toLocaleDateString('es-ES'),
-                    installationOrder: app.installationOrder || 0
-                }))
+            applications: eliteConfig.applications.slice(0, freeAppsCount)
         };
 
         await spGraph.saveFileContent('free_apps_config.json', JSON.stringify(freeConfig, null, 2));
+        console.log('Configuración FREE guardada con éxito');
 
-        // Paso 7: Actualizar la interfaz
-        updateAppsTable();
-        updateCategoryFilter();
-        updateCounters();
-
-        if (eliteAppsLoaded) updateEliteAppsList();
-        if (proAppsLoaded) updateProAppsList();
-        if (freeAppsLoaded) updateFreeAppsList();
+        // Paso 6: Recargar datos
+        showLoading('Actualizando interfaz...');
+        updateLoadingProgress(95);
+        
+        // Recargar las aplicaciones de cada suscripción
+        if (eliteAppsLoaded) await loadEliteApps();
+        if (proAppsLoaded) await loadProApps();
+        if (freeAppsLoaded) await loadFreeApps();
 
         updateLoadingProgress(100);
         hideLoading();
@@ -2391,11 +2317,6 @@ async function loadEliteApps() {
             return false;
         }
         
-        // Cargar descripciones si no están cargadas
-        if (!descriptionsLoaded) {
-            await loadDescriptions();
-        }
-        
         // Obtener el contenido del archivo de configuración de aplicaciones ELITE
         let eliteAppsContent;
         try {
@@ -2403,68 +2324,32 @@ async function loadEliteApps() {
             console.log('Configuración de aplicaciones ELITE cargada correctamente');
         } catch (error) {
             console.warn('No se encontró el archivo de configuración de aplicaciones ELITE:', error);
-            eliteAppsContent = JSON.stringify({ eliteApps: [] });
+            eliteAppsContent = JSON.stringify({ applications: [] });
         }
         
         // Parsear la configuración
         let eliteAppsConfig;
         try {
-            eliteAppsConfig = JSON.parse(eliteAppsContent || '{"eliteApps":[]}');
+            eliteAppsConfig = JSON.parse(eliteAppsContent || '{"applications":[]}');
         } catch (parseError) {
             console.error('Error al parsear la configuración de aplicaciones ELITE:', parseError);
-            eliteAppsConfig = { eliteApps: [] };
+            eliteAppsConfig = { applications: [] };
         }
         
-        // Limpiar las colecciones
-        availableEliteApps = [];
-        eliteApps = [];
-        
-        // Para ELITE, procesar todas las aplicaciones y buscar sus descripciones
-        eliteApps = allApps.map(app => {
-            const appCopy = { ...app };
-            
-            // Buscar descripción en el diccionario
-            if (allDescriptions && allDescriptions.length > 0) {
-                // Normalizar el nombre de la aplicación
-                let baseName = app.name
-                    .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
-                    .replace(/\d+(\.\d+)*/, '') // Remover números de versión
-                    .replace(/\s+/g, ' ') // Normalizar espacios
-                    .trim();
-                
-                // Buscar coincidencia exacta
-                const exactMatch = allDescriptions.find(d => 
-                    d.name.toLowerCase() === baseName.toLowerCase()
-                );
-                
-                if (exactMatch) {
-                    appCopy.description = exactMatch.description;
-                    appCopy.category = exactMatch.category;
-                    console.log(`[ELITE] Coincidencia exacta encontrada para ${app.name}`);
-                } else {
-                    // Buscar coincidencia parcial
-                    const partialMatch = allDescriptions.find(d => 
-                        d.name.toLowerCase().includes(baseName.toLowerCase()) ||
-                        baseName.toLowerCase().includes(d.name.toLowerCase())
-                    );
-                    
-                    if (partialMatch) {
-                        appCopy.description = partialMatch.description;
-                        appCopy.category = partialMatch.category;
-                        console.log(`[ELITE] Coincidencia parcial encontrada para ${app.name}`);
-                    } else {
-                        // Si no hay coincidencia, mantener descripción actual o usar genérica
-                        if (!appCopy.description) {
-                            appCopy.description = `Software ${app.name}`;
-                            appCopy.category = 'General';
-                            console.log(`[ELITE] No se encontró descripción para ${app.name}, usando genérica`);
-                        }
-                    }
-                }
-            }
-            
-            return appCopy;
-        });
+        // Mapear las aplicaciones ELITE
+        eliteApps = eliteAppsConfig.applications.map(app => ({
+            id: app.sharePointId,
+            name: app.name,
+            fileName: app.fileName,
+            category: app.category,
+            description: app.description,
+            version: app.version,
+            size: app.size,
+            lastModified: app.lastModified,
+            installationOrder: app.installationOrder,
+            icon: DEFAULT_ICON_URL,
+            iconUrl: DEFAULT_ICON_URL
+        }));
         
         // Ordenar las listas por nombre
         eliteApps.sort((a, b) => a.name.localeCompare(b.name));
