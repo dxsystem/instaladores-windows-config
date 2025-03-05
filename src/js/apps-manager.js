@@ -1961,14 +1961,19 @@ function updateAvailableFreeAppsList() {
         
         appItem.innerHTML = `
             <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center flex-grow-1">
                     <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div>
-                        <h6 class="mb-0">${app.name}</h6>
-                        <small class="text-muted">${app.category || 'General'}</small>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${app.name}</h6>
+                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
+                        <div class="app-details small">
+                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
+                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
+                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-outline-primary add-free-app-btn" title="Agregar a Gratuita">
+                <button class="btn btn-sm btn-outline-primary add-free-app-btn ms-3" title="Agregar a Gratuita">
                     <i class="bi bi-plus-circle"></i>
                 </button>
             </div>
@@ -2046,14 +2051,19 @@ function updateFreeAppsList() {
         
         appItem.innerHTML = `
             <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center flex-grow-1">
                     <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div>
-                        <h6 class="mb-0">${app.name}</h6>
-                        <small class="text-muted">${app.category || 'General'}</small>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${app.name}</h6>
+                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
+                        <div class="app-details small">
+                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
+                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
+                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-outline-danger remove-free-app-btn" title="Quitar de Gratuita">
+                <button class="btn btn-sm btn-outline-danger remove-free-app-btn ms-3" title="Quitar de Gratuita">
                     <i class="bi bi-x-circle"></i>
                 </button>
             </div>
@@ -2334,14 +2344,19 @@ function updateAvailableProAppsList() {
         
         appItem.innerHTML = `
             <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center flex-grow-1">
                     <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div>
-                        <h6 class="mb-0">${app.name}</h6>
-                        <small class="text-muted">${app.category || 'General'}</small>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${app.name}</h6>
+                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
+                        <div class="app-details small">
+                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
+                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
+                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-outline-primary add-pro-app-btn" title="Agregar a PRO">
+                <button class="btn btn-sm btn-outline-primary add-pro-app-btn ms-3" title="Agregar a PRO">
                     <i class="bi bi-plus-circle"></i>
                 </button>
             </div>
@@ -2379,7 +2394,7 @@ function updateProAppsList() {
     // Verificar si hay aplicaciones PRO
     if (!proApps || !Array.isArray(proApps) || proApps.length === 0) {
         console.log('No hay aplicaciones PRO para mostrar');
-        proAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones para PRO</div>';
+        proAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones PRO</div>';
         return;
     }
     
@@ -2396,14 +2411,19 @@ function updateProAppsList() {
         
         appItem.innerHTML = `
             <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center flex-grow-1">
                     <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div>
-                        <h6 class="mb-0">${app.name}</h6>
-                        <small class="text-muted">${app.category || 'General'}</small>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${app.name}</h6>
+                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
+                        <div class="app-details small">
+                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
+                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
+                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-outline-danger remove-pro-app-btn" title="Quitar de PRO">
+                <button class="btn btn-sm btn-outline-danger remove-pro-app-btn ms-3" title="Quitar de PRO">
                     <i class="bi bi-x-circle"></i>
                 </button>
             </div>
@@ -2417,6 +2437,12 @@ function updateProAppsList() {
             removeButton.addEventListener('click', () => moveToAvailableProApps(app.id));
         }
     });
+    
+    // Actualizar contador
+    const proAppsCounter = document.getElementById('proAppsCounter');
+    if (proAppsCounter) {
+        proAppsCounter.textContent = `${proApps.length} aplicaciones PRO`;
+    }
 }
 
 /**
@@ -2632,6 +2658,7 @@ async function loadEliteApps() {
         hideLoading();
         return false;
     }
+    }
 }
 
 /**
@@ -2667,11 +2694,16 @@ function updateEliteAppsList() {
         
         appItem.innerHTML = `
             <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center flex-grow-1">
                     <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div>
-                        <h6 class="mb-0">${app.name}</h6>
-                        <small class="text-muted">${app.category || 'General'}</small>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${app.name}</h6>
+                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
+                        <div class="app-details small">
+                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
+                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
+                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
             </div>
