@@ -1,6 +1,6 @@
 /**
  * Conversor de RTF a HTML
- * Versión: 1.2.2
+ * Versión: 1.2.3
  * 
  * Este archivo contiene funciones para convertir contenido RTF a HTML.
  * Incluye correcciones para manejar caracteres especiales y viñetas.
@@ -12,6 +12,8 @@
  * - Soporte para caracteres acentuados
  * - Mejora en la detección de encabezados
  * - Eliminación de "Segoe UI; Segoe UI;;;" en el texto
+ * - Mejora en el manejo de espacios entre palabras en mayúsculas
+ * - Corrección de espaciado después de negritas y entre párrafos
  */
 
 // Convertir RTF a HTML
@@ -42,9 +44,11 @@ function rtfToHtml(rtf) {
         rtf = rtf.replace(/Segoe UI;\s*Segoe UI;+/g, '');
         rtf = rtf.replace(/Segoe U I;+/g, '');
         
-        // Corregir problemas con espacios entre letras mayúsculas
-        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2$3');
-        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2');
+        // Insertar espacios entre palabras en mayúsculas
+        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/g, '$1 $2');
+        
+        // Asegurar espacios entre palabras en mayúsculas
+        rtf = rtf.replace(/([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})/g, '$1 $2');
         
         let html = '';
         let isInList = false;
@@ -175,8 +179,10 @@ function rtfToHtml(rtf) {
                 .replace(/d\s+(\d+)\./g, '$1.') // Eliminar 'd' antes de números
                 .replace(/Segoe UI;\s*Segoe UI;+/g, '') // Eliminar "Segoe UI; Segoe UI;;;"
                 .replace(/Segoe U I;+/g, '') // Eliminar "Segoe U I;;;"
-                .replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2$3') // Corregir espacios entre mayúsculas
-                .replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2') // Corregir espacios entre mayúsculas
+                // Insertar espacios entre palabras en mayúsculas
+                .replace(/([A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/g, '$1 $2')
+                // Asegurar espacios entre palabras en mayúsculas
+                .replace(/([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})/g, '$1 $2')
                 .trim();
             
             return `<p>${plainText}</p>`;
@@ -255,21 +261,32 @@ function extractCleanText(rtfText) {
     // Corregir problemas con espacios entre palabras
     text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
     
+    // Corregir problemas con palabras pegadas como "deResponsabilidad"
+    text = text.replace(/([a-z])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+    
     // Corregir problemas con dos puntos sin espacio
     text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ]):([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1: $2');
     
     // Corregir problemas con puntos sin espacio
     text = text.replace(/([a-zA-ZáéíóúÁÉÍÓÚñÑ])\.([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1. $2');
     
-    // NUEVO: Eliminar espacios entre letras mayúsculas consecutivas
-    text = text.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2$3');
-    text = text.replace(/([A-ZÁÉÍÓÚÑ])\s+([A-ZÁÉÍÓÚÑ])/g, '$1$2');
+    // Insertar espacios entre palabras en mayúsculas
+    text = text.replace(/([A-ZÁÉÍÓÚÑ]{2,})([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/g, '$1 $2');
+    
+    // Asegurar espacios entre palabras en mayúsculas
+    text = text.replace(/([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})/g, '$1 $2');
     
     // Corregir problema específico de duplicación en el punto 4
     text = text.replace(/(4\.\s+Descargo\s+de\s*Responsabilidad.*?)\s+\1/s, '$1');
     
     // Corregir problema de espaciado antes del punto 5
     text = text.replace(/Â\s+(\d+\.\s+Propiedad)/g, '\n$1');
+    
+    // Asegurar espacio después de negritas
+    text = text.replace(/\\b0\s*([A-Za-záéíóúÁÉÍÓÚÑñ])/g, '\\b0 $1');
+    
+    // Asegurar espacio después de números de sección
+    text = text.replace(/(\d+)\.\s*([A-Za-záéíóúÁÉÍÓÚÑñ])/g, '$1. $2');
     
     // Eliminar códigos de viñeta
     text = text
