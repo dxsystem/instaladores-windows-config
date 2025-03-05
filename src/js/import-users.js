@@ -272,8 +272,17 @@ class UserImporter {
         const startDate = new Date(startDateObj);
         const endDate = new Date(startDateObj);
         
+        // Si no hay duración, usar 6 meses por defecto
+        if (!durationText) {
+            endDate.setMonth(endDate.getMonth() + 6);
+            return {
+                startDate: this.formatDate(startDate),
+                endDate: this.formatDate(endDate)
+            };
+        }
+        
         // Extraer números y unidades del texto de duración
-        const durationMatch = durationText.match(/(\d+)\s*(día|dias|día|dias|semana|semanas|mes|meses|año|años|year|years|month|months|week|weeks|day|days)/i);
+        const durationMatch = String(durationText).toLowerCase().match(/(\d+)\s*(día|dias|día|dias|semana|semanas|mes|meses|año|años|year|years|month|months|week|weeks|day|days)/i);
         
         if (durationMatch) {
             const amount = parseInt(durationMatch[1]);
@@ -289,8 +298,21 @@ class UserImporter {
                 endDate.setDate(endDate.getDate() + amount);
             }
         } else {
-            // Si no se puede interpretar, usar 1 año por defecto
-            endDate.setFullYear(endDate.getFullYear() + 1);
+            // Si no se puede interpretar, usar 6 meses por defecto
+            console.warn(`No se pudo interpretar la duración: "${durationText}", usando 6 meses por defecto`);
+            endDate.setMonth(endDate.getMonth() + 6);
+        }
+        
+        // Asegurarse de que las fechas sean válidas
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            console.error('Error al calcular fechas, usando fechas por defecto');
+            const defaultStart = new Date();
+            const defaultEnd = new Date();
+            defaultEnd.setMonth(defaultEnd.getMonth() + 6);
+            return {
+                startDate: this.formatDate(defaultStart),
+                endDate: this.formatDate(defaultEnd)
+            };
         }
         
         return {
@@ -327,15 +349,48 @@ class UserImporter {
 
     // Valida los datos de un usuario
     validateUserData(user) {
-        if (!user.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
-            return 'Email inválido';
+        // Validar email
+        if (!user.email) {
+            return 'Email es requerido';
         }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
+            return 'Formato de email inválido';
+        }
+
+        // Validar tipo de suscripción
         if (!user.subscriptionType) {
             return 'Tipo de suscripción es requerido';
         }
-        if (!user.startDate || !user.endDate) {
-            return 'Fecha de inicio y fin son requeridas';
+        const validSubscriptions = ['ELITE', 'PRO', 'Gratuita'];
+        if (!validSubscriptions.includes(user.subscriptionType)) {
+            return `Tipo de suscripción debe ser: ${validSubscriptions.join(', ')}`;
         }
+
+        // Validar fechas
+        if (!user.startDate) {
+            return 'Fecha de inicio es requerida';
+        }
+        if (!user.endDate) {
+            return 'Fecha de fin es requerida';
+        }
+
+        // Convertir fechas a objetos Date si son strings
+        const startDate = typeof user.startDate === 'string' ? new Date(user.startDate) : user.startDate;
+        const endDate = typeof user.endDate === 'string' ? new Date(user.endDate) : user.endDate;
+
+        // Verificar que las fechas sean válidas
+        if (!(startDate instanceof Date) || isNaN(startDate.getTime())) {
+            return 'Fecha de inicio inválida';
+        }
+        if (!(endDate instanceof Date) || isNaN(endDate.getTime())) {
+            return 'Fecha de fin inválida';
+        }
+
+        // Verificar que la fecha de fin sea posterior a la de inicio
+        if (endDate <= startDate) {
+            return 'La fecha de fin debe ser posterior a la fecha de inicio';
+        }
+
         return null;
     }
 
