@@ -160,65 +160,29 @@ class UserImporter {
             throw new Error('El archivo está vacío o no contiene datos válidos.');
         }
 
-        // Obtener los encabezados para identificar las columnas
-        const headers = data[0].map(h => String(h || '').toLowerCase().trim());
-        
-        // Buscar índices de columnas basados en los encabezados
-        const emailIndex = this.findColumnIndex(headers, ['email', 'correo', 'correo electrónico', 'e-mail']);
-        const subscriptionIndex = this.findColumnIndex(headers, ['tipo de suscripción', 'suscripcion', 'tipo', 'subscription', 'subscriptiontype', 'nueva suscripción', 'nueva suscripcion']);
-        const durationIndex = this.findColumnIndex(headers, ['duración', 'duracion', 'vigencia', 'duration']);
-        const statusIndex = this.findColumnIndex(headers, ['estado', 'status', 'activo', 'active']);
-        
-        console.log('Datos del Excel:', {
-            headers: headers,
-            firstRow: data[1],
-            allData: data
-        });
-        
-        console.log('Índices encontrados:', {
-            email: emailIndex,
-            subscription: subscriptionIndex,
-            duration: durationIndex,
-            status: statusIndex
-        });
-        
-        // Si no se encuentran los encabezados específicos, usar posiciones por defecto
-        const useDefaultPositions = emailIndex === -1;
-        
         const today = new Date();
+        
+        // Usar siempre posiciones fijas para las columnas:
+        // Columna 0 (A): Email
+        // Columna 1 (B): Tipo de Suscripción
+        // Columna 2 (C): Duración
+        // Columna 3 (D): Estado (opcional)
         
         return data.slice(1).map((row, index) => {
             // Verificar que la fila tenga al menos una celda con datos
             if (!row || row.length === 0 || !row[0]) return null;
             
-            let email, subscriptionType, duration, isActive;
+            // Obtener datos por posición fija
+            const email = row[0] ? String(row[0]).trim() : '';
+            const subscriptionType = row.length > 1 ? String(row[1] || '').trim() : '';
+            const duration = row.length > 2 ? String(row[2] || '').trim() : '';
             
-            if (useDefaultPositions) {
-                // Usar posiciones por defecto (formato simple)
-                email = row[0] ? String(row[0]).trim() : '';
-                subscriptionType = row.length > 1 ? String(row[1] || '').trim() : '';
-                duration = row.length > 2 ? String(row[2] || '').trim() : '';
-                
-                // Leer estado (activo/inactivo) si está disponible (columna 4)
-                isActive = true; // Por defecto activo
-                if (row.length > 3 && row[3] !== undefined) {
-                    const activeText = String(row[3]).toLowerCase().trim();
-                    isActive = !(activeText === 'no' || activeText === 'false' || activeText === '0' || 
-                               activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
-                }
-            } else {
-                // Usar posiciones basadas en encabezados
-                email = emailIndex >= 0 && row.length > emailIndex ? String(row[emailIndex] || '').trim() : '';
-                subscriptionType = subscriptionIndex >= 0 && row.length > subscriptionIndex ? String(row[subscriptionIndex] || '').trim() : '';
-                duration = durationIndex >= 0 && row.length > durationIndex ? String(row[durationIndex] || '').trim() : '';
-                
-                // Parsear estado
-                isActive = true; // Por defecto activo
-                if (statusIndex >= 0 && row.length > statusIndex && row[statusIndex] !== undefined) {
-                    const activeText = String(row[statusIndex]).toLowerCase().trim();
-                    isActive = !(activeText === 'no' || activeText === 'false' || activeText === '0' || 
-                               activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
-                }
+            // Leer estado (activo/inactivo) si está disponible (columna 4)
+            let isActive = true; // Por defecto activo
+            if (row.length > 3 && row[3] !== undefined) {
+                const activeText = String(row[3]).toLowerCase().trim();
+                isActive = !(activeText === 'no' || activeText === 'false' || activeText === '0' || 
+                           activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
             }
             
             // Calcular fechas basadas en la duración
