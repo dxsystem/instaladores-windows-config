@@ -1504,38 +1504,22 @@ async function syncAllConfigurations() {
         
         const eliteConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: allApps.map(app => {
-                // Formatear el tamaño para que sea legible
-                const formattedSize = formatFileSize(app.size);
-                // Formatear la fecha para que sea legible
-                const formattedDate = app.lastModified ? 
+            applications: allApps.map(app => ({
+                sharePointId: app.id,
+                name: app.name,
+                fileName: app.fileName,
+                category: app.category,
+                description: app.description,
+                version: app.version || 'N/A',
+                size: formatFileSize(app.size),
+                lastModified: app.lastModified ? 
                     new Date(app.lastModified).toLocaleDateString('es-ES', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
-                    }) : new Date().toLocaleDateString('es-ES');
-
-                return {
-                    sharePointId: app.id,
-                    name: app.name,
-                    fileName: app.fileName,
-                    category: app.category,
-                    description: app.description,
-                    displayInfo: {
-                        title: app.name,
-                        description: app.description,
-                        version: `Versión: ${app.version || 'N/A'}`,
-                        size: `Tamaño: ${formattedSize}`,
-                        lastUpdate: `Última actualización: ${formattedDate}`
-                    },
-                    version: app.version,
-                    size: app.size,
-                    formattedSize: formattedSize,
-                    lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
-                    formattedLastModified: formattedDate,
-                    installationOrder: app.installationOrder || 0
-                };
-            })
+                    }) : new Date().toLocaleDateString('es-ES'),
+                installationOrder: app.installationOrder || 0
+            }))
         };
 
         await spGraph.saveFileContent('elite_apps_config.json', JSON.stringify(eliteConfig, null, 2));
@@ -1551,38 +1535,22 @@ async function syncAllConfigurations() {
             lastUpdate: new Date().toISOString(),
             applications: allApps
                 .slice(0, proAppsCount)
-                .map(app => {
-                    // Formatear el tamaño para que sea legible
-                    const formattedSize = formatFileSize(app.size);
-                    // Formatear la fecha para que sea legible
-                    const formattedDate = app.lastModified ? 
+                .map(app => ({
+                    sharePointId: app.id,
+                    name: app.name,
+                    fileName: app.fileName,
+                    category: app.category,
+                    description: app.description,
+                    version: app.version || 'N/A',
+                    size: formatFileSize(app.size),
+                    lastModified: app.lastModified ? 
                         new Date(app.lastModified).toLocaleDateString('es-ES', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'
-                        }) : new Date().toLocaleDateString('es-ES');
-
-                    return {
-                        sharePointId: app.id,
-                        name: app.name,
-                        fileName: app.fileName,
-                        category: app.category,
-                        description: app.description,
-                        displayInfo: {
-                            title: app.name,
-                            description: app.description,
-                            version: `Versión: ${app.version || 'N/A'}`,
-                            size: `Tamaño: ${formattedSize}`,
-                            lastUpdate: `Última actualización: ${formattedDate}`
-                        },
-                        version: app.version,
-                        size: app.size,
-                        formattedSize: formattedSize,
-                        lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
-                        formattedLastModified: formattedDate,
-                        installationOrder: app.installationOrder || 0
-                    };
-                })
+                        }) : new Date().toLocaleDateString('es-ES'),
+                    installationOrder: app.installationOrder || 0
+                }))
         };
 
         await spGraph.saveFileContent('pro_apps_config.json', JSON.stringify(proConfig, null, 2));
@@ -1597,38 +1565,22 @@ async function syncAllConfigurations() {
             lastUpdate: new Date().toISOString(),
             applications: allApps
                 .slice(0, freeAppsCount)
-                .map(app => {
-                    // Formatear el tamaño para que sea legible
-                    const formattedSize = formatFileSize(app.size);
-                    // Formatear la fecha para que sea legible
-                    const formattedDate = app.lastModified ? 
+                .map(app => ({
+                    sharePointId: app.id,
+                    name: app.name,
+                    fileName: app.fileName,
+                    category: app.category,
+                    description: app.description,
+                    version: app.version || 'N/A',
+                    size: formatFileSize(app.size),
+                    lastModified: app.lastModified ? 
                         new Date(app.lastModified).toLocaleDateString('es-ES', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'
-                        }) : new Date().toLocaleDateString('es-ES');
-
-                    return {
-                        sharePointId: app.id,
-                        name: app.name,
-                        fileName: app.fileName,
-                        category: app.category,
-                        description: app.description,
-                        displayInfo: {
-                            title: app.name,
-                            description: app.description,
-                            version: `Versión: ${app.version || 'N/A'}`,
-                            size: `Tamaño: ${formattedSize}`,
-                            lastUpdate: `Última actualización: ${formattedDate}`
-                        },
-                        version: app.version,
-                        size: app.size,
-                        formattedSize: formattedSize,
-                        lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
-                        formattedLastModified: formattedDate,
-                        installationOrder: app.installationOrder || 0
-                    };
-                })
+                        }) : new Date().toLocaleDateString('es-ES'),
+                    installationOrder: app.installationOrder || 0
+                }))
         };
 
         await spGraph.saveFileContent('free_apps_config.json', JSON.stringify(freeConfig, null, 2));
