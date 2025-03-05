@@ -1363,6 +1363,12 @@ async function syncAllConfigurations() {
         showLoading('Asignando descripciones a ELITE...');
         updateLoadingProgress(60);
 
+        // Asignar orden de instalación incremental
+        allApps.sort((a, b) => a.name.localeCompare(b.name));
+        allApps.forEach((app, index) => {
+            app.installationOrder = index + 1;
+        });
+
         const eliteConfig = {
             lastUpdate: new Date().toISOString(),
             applications: allApps.map(app => {
@@ -1388,16 +1394,23 @@ async function syncAllConfigurations() {
                     }
                 }
 
+                // Formatear la descripción para la aplicación de escritorio
+                const formattedDescription = `${app.name}\n${description?.description || `Software ${app.name}`}\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })}`;
+
                 return {
                     sharePointId: app.id,
                     name: app.name,
                     fileName: app.fileName,
                     category: description?.category || 'General',
-                    description: description?.description || `Software ${app.name}`,
+                    description: formattedDescription,
                     version: app.version || 'N/A',
                     size: app.size,
                     lastModified: app.lastModified,
-                    installationOrder: app.installationOrder || 0
+                    installationOrder: app.installationOrder
                 };
             })
         };
@@ -1737,66 +1750,24 @@ function moveToFreeApps(appId) {
  */
 function updateFreeAppsList() {
     const freeAppsList = document.getElementById('freeAppsList');
-    if (!freeAppsList) {
-        console.warn('Elemento freeAppsList no encontrado en el DOM');
-        return;
-    }
+    if (!freeAppsList) return;
     
     // Limpiar lista
     freeAppsList.innerHTML = '';
     
-    // Verificar si hay aplicaciones Gratuitas
-    if (!freeApps || !Array.isArray(freeApps) || freeApps.length === 0) {
-        console.log('No hay aplicaciones Gratuitas para mostrar');
-        freeAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones Gratuitas</div>';
-        return;
-    }
-    
     // Agregar aplicaciones
     freeApps.forEach(app => {
-        if (!app || !app.id) {
-            console.warn('Aplicación inválida encontrada en freeApps:', app);
-            return;
-        }
-        
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item';
+        appItem.className = 'app-list-item d-flex align-items-center';
         appItem.dataset.id = app.id;
         
         appItem.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center flex-grow-1">
-                    <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">${app.name}</h6>
-                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
-                        <div class="app-details small">
-                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
-                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
-                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
-                        </div>
-                    </div>
-                </div>
-                <button class="btn btn-sm btn-outline-danger remove-free-app-btn ms-3" title="Quitar de Gratuita">
-                    <i class="bi bi-x-circle"></i>
-                </button>
-            </div>
+            <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px;">
+            <div class="app-name">${app.name}</div>
         `;
         
         freeAppsList.appendChild(appItem);
-        
-        // Agregar evento al botón de quitar
-        const removeButton = appItem.querySelector('.remove-free-app-btn');
-        if (removeButton) {
-            removeButton.addEventListener('click', () => moveToAvailableFreeApps(app.id));
-        }
     });
-    
-    // Actualizar contador
-    const freeAppsCounter = document.getElementById('freeAppsCounter');
-    if (freeAppsCounter) {
-        freeAppsCounter.textContent = `${freeApps.length} aplicaciones Gratuitas`;
-    }
 }
 
 /**
@@ -2091,66 +2062,24 @@ function updateAvailableProAppsList() {
  */
 function updateProAppsList() {
     const proAppsList = document.getElementById('proAppsList');
-    if (!proAppsList) {
-        console.warn('Elemento proAppsList no encontrado en el DOM');
-        return;
-    }
+    if (!proAppsList) return;
     
     // Limpiar lista
     proAppsList.innerHTML = '';
     
-    // Verificar si hay aplicaciones PRO
-    if (!proApps || !Array.isArray(proApps) || proApps.length === 0) {
-        console.log('No hay aplicaciones PRO para mostrar');
-        proAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones PRO</div>';
-        return;
-    }
-    
     // Agregar aplicaciones
     proApps.forEach(app => {
-        if (!app || !app.id) {
-            console.warn('Aplicación inválida encontrada en proApps:', app);
-            return;
-        }
-        
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item';
+        appItem.className = 'app-list-item d-flex align-items-center';
         appItem.dataset.id = app.id;
         
         appItem.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center flex-grow-1">
-                    <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">${app.name}</h6>
-                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
-                        <div class="app-details small">
-                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
-                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
-                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
-                        </div>
-                    </div>
-                </div>
-                <button class="btn btn-sm btn-outline-danger remove-pro-app-btn ms-3" title="Quitar de PRO">
-                    <i class="bi bi-x-circle"></i>
-                </button>
-            </div>
+            <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px;">
+            <div class="app-name">${app.name}</div>
         `;
         
         proAppsList.appendChild(appItem);
-        
-        // Agregar evento al botón de quitar
-        const removeButton = appItem.querySelector('.remove-pro-app-btn');
-        if (removeButton) {
-            removeButton.addEventListener('click', () => moveToAvailableProApps(app.id));
-        }
     });
-    
-    // Actualizar contador
-    const proAppsCounter = document.getElementById('proAppsCounter');
-    if (proAppsCounter) {
-        proAppsCounter.textContent = `${proApps.length} aplicaciones PRO`;
-    }
 }
 
 /**
@@ -2377,63 +2306,24 @@ async function loadEliteApps() {
  */
 function updateEliteAppsList() {
     const eliteAppsList = document.getElementById('eliteAppsList');
-    if (!eliteAppsList) {
-        console.warn('Elemento eliteAppsList no encontrado en el DOM');
-        return;
-    }
+    if (!eliteAppsList) return;
     
     // Limpiar lista
     eliteAppsList.innerHTML = '';
     
-    // Verificar si hay aplicaciones ELITE
-    if (!eliteApps || !Array.isArray(eliteApps) || eliteApps.length === 0) {
-        console.log('No hay aplicaciones ELITE para mostrar');
-        eliteAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones para ELITE</div>';
-        return;
-    }
-    
     // Agregar aplicaciones
     eliteApps.forEach(app => {
-        if (!app || !app.id) {
-            console.warn('Aplicación inválida encontrada en eliteApps:', app);
-            return;
-        }
-        
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item';
+        appItem.className = 'app-list-item d-flex align-items-center';
         appItem.dataset.id = app.id;
         
-        // Formatear la fecha de última actualización
-        const lastUpdateFormatted = app.lastModified ? 
-            new Date(app.lastModified).toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }) : 'N/A';
-        
         appItem.innerHTML = `
-            <div class="d-flex align-items-start p-3">
-                <img src="${app.icon || 'img/default-app-icon.png'}" alt="${app.name}" class="app-icon me-3" style="width: 48px; height: 48px; object-fit: contain;">
-                <div class="flex-grow-1">
-                    <h5 class="app-name mb-2">${app.name}</h5>
-                    <p class="app-description mb-2">${app.description || 'Sin descripción'}</p>
-                    <div class="app-details small text-muted">
-                        <div class="mb-1">Versión: ${app.version || 'N/A'}</div>
-                        <div class="mb-1">Tamaño: ${formatFileSize(app.size) || 'N/A'}</div>
-                        <div>Última actualización: ${lastUpdateFormatted}</div>
-                    </div>
-                </div>
-            </div>
+            <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px;">
+            <div class="app-name">${app.name}</div>
         `;
         
         eliteAppsList.appendChild(appItem);
     });
-    
-    // Actualizar contador
-    const eliteAppsCounter = document.getElementById('eliteAppsCounter');
-    if (eliteAppsCounter) {
-        eliteAppsCounter.textContent = `${eliteApps.length} aplicaciones ELITE`;
-    }
 }
 
 /**
