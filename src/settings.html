@@ -249,6 +249,11 @@
                     <i class="bi bi-play-circle me-1"></i> Videos Importantes
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="updates-tab" data-bs-toggle="tab" data-bs-target="#updates" type="button" role="tab">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Actualizaciones
+                </button>
+            </li>
         </ul>
 
         <!-- Contenido de las pestañas -->
@@ -361,6 +366,68 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Pestaña: Actualizaciones -->
+            <div class="tab-pane fade w-100" id="updates" role="tabpanel">
+                <div class="card w-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-cloud-arrow-up me-2"></i>Gestión de Actualizaciones</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="updateForm">
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0">Archivo de Actualización</h6>
+                                    <button type="button" class="btn btn-primary" id="selectUpdateFileBtn">
+                                        <i class="bi bi-folder2-open me-1"></i>
+                                        Seleccionar Archivo
+                                    </button>
+                                </div>
+                                <div class="alert alert-info" id="selectedFileInfo">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    No se ha seleccionado ningún archivo
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="newVersionInput" class="form-label">Nueva Versión</label>
+                                <input type="text" class="form-control" id="newVersionInput" placeholder="Ejemplo: 1.0.0" required>
+                                <div class="form-text">Ingrese el número de la nueva versión en formato X.Y.Z</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="releaseNotesInput" class="form-label">Notas de la Versión</label>
+                                <textarea class="form-control" id="releaseNotesInput" rows="6" required></textarea>
+                                <div class="form-text">Describa los cambios y mejoras de esta versión</div>
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-primary" id="uploadUpdateBtn">
+                                    <i class="bi bi-cloud-arrow-up me-1"></i>
+                                    Subir Actualización
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Estado de carga para actualizaciones -->
+                        <div id="updateLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center d-none" style="z-index: 1060; background-color: rgba(255, 255, 255, 0.9);">
+                            <div class="card shadow" style="width: 400px;">
+                                <div class="card-body text-center">
+                                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <h5 class="card-title" id="updateLoadingTitle">Subiendo actualización</h5>
+                                    <p class="card-text" id="updateLoadingMessage">Procesando archivo...</p>
+                                    <div class="progress mt-3" style="height: 15px;">
+                                        <div id="updateProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <p id="updateProgressText" class="mt-2 text-muted">Preparando...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -369,10 +436,11 @@
     <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
     <script src="js/sharepoint-auth.js"></script>
     <script src="js/sharepoint-graph.js"></script>
+    <script src="js/update-manager.js"></script>
     
     <script>
         // Variables globales
-        let auth, spGraph;
+        let auth, spGraph, updateManager;
         let appSettings = null;
         
         // Referencias DOM
@@ -642,6 +710,9 @@
                     // Inicializar componentes
                     spGraph = new SharePointGraph(auth);
                     window.spGraph = spGraph; // Hacer disponible globalmente
+                    
+                    // Inicializar gestor de actualizaciones
+                    updateManager = new UpdateManager(spGraph);
                     
                     // Cargar configuración
                     await loadConfiguration();
