@@ -20,9 +20,9 @@ function rtfToHtml(rtfContent) {
         // Procesar caracteres especiales y codificación
         let htmlContent = rtfText
             // Reemplazar caracteres especiales RTF
-            .replace(/\\\'/(\d+)/g, (match, code) => String.fromCharCode(code))
+            .replace(/\\\'(\d+)/g, (match, code) => String.fromCharCode(code))
             .replace(/\\u(\d+)\?/g, (match, code) => String.fromCharCode(code))
-            .replace(/\\\u(\d+)/g, (match, code) => String.fromCharCode(code))
+            .replace(/\\u(\d+)/g, (match, code) => String.fromCharCode(code))
             .replace(/\\par/g, '</p><p class="MsoNormal">')
             .replace(/\\pard/g, '')
             .replace(/\\plain/g, '')

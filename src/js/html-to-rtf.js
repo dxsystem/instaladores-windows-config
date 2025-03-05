@@ -89,7 +89,7 @@ function procesarContenidoHtml(elemento) {
                 case 'ul':
                     for (let li of nodo.children) {
                         if (li.tagName.toLowerCase() === 'li') {
-                            rtfContent += '{\\pntext\\f3\\'b7\\tab}';
+                            rtfContent += '{\\pntext\\f3\\\'b7\\tab}';
                             rtfContent += procesarContenidoHtml(li);
                             rtfContent += '\\par\n';
                         }
