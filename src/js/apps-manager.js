@@ -2830,23 +2830,87 @@ async function saveEliteApps() {
         if (!spGraph) {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
-        
+
+        // Cargar descripciones si no están cargadas
+        if (!descriptionsLoaded) {
+            await loadDescriptions();
+        }
+
         // Para ELITE, todas las aplicaciones están disponibles automáticamente
-        // Obtener los IDs de todas las aplicaciones
-        const eliteAppIds = allApps.map(app => app.id);
+        const appsToSave = allApps.map(app => {
+            const appCopy = { ...app };
+            
+            // Buscar descripción en el diccionario
+            if (allDescriptions && allDescriptions.length > 0) {
+                // Normalizar el nombre de la aplicación
+                let baseName = app.name
+                    .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
+                    .replace(/\d+(\.\d+)*/, '') // Remover números de versión
+                    .replace(/\s+/g, ' ') // Normalizar espacios
+                    .trim();
+
+                // Buscar coincidencia exacta
+                const exactMatch = allDescriptions.find(d => 
+                    d.name.toLowerCase() === baseName.toLowerCase()
+                );
+                
+                if (exactMatch) {
+                    appCopy.description = exactMatch.description;
+                    appCopy.category = exactMatch.category;
+                    console.log(`[ELITE Save] Coincidencia exacta encontrada para ${app.name}`);
+                } else {
+                    // Buscar coincidencia parcial
+                    const partialMatch = allDescriptions.find(d => 
+                        d.name.toLowerCase().includes(baseName.toLowerCase()) ||
+                        baseName.toLowerCase().includes(d.name.toLowerCase())
+                    );
+                    
+                    if (partialMatch) {
+                        appCopy.description = partialMatch.description;
+                        appCopy.category = partialMatch.category;
+                        console.log(`[ELITE Save] Coincidencia parcial encontrada para ${app.name}`);
+                    } else {
+                        // Si no hay coincidencia, mantener descripción actual o usar genérica
+                        if (!appCopy.description) {
+                            appCopy.description = `Software ${app.name}`;
+                            appCopy.category = 'General';
+                            console.log(`[ELITE Save] No se encontró descripción para ${app.name}, usando genérica`);
+                        }
+                    }
+                }
+            }
+            
+            return {
+                sharePointId: appCopy.id,
+                name: appCopy.name,
+                fileName: appCopy.fileName,
+                category: appCopy.category,
+                description: appCopy.description,
+                version: appCopy.version,
+                size: appCopy.size,
+                lastModified: appCopy.lastModified ? new Date(appCopy.lastModified).toISOString() : new Date().toISOString(),
+                installationOrder: appCopy.installationOrder || 0
+            };
+        });
+
+        updateLoadingProgress(50);
         
         // Crear objeto de configuración
         const eliteAppsConfig = {
             lastUpdate: new Date().toISOString(),
-            eliteApps: eliteAppIds
+            applications: appsToSave
         };
+
+        // Log detallado de la configuración
+        console.log('Configuración ELITE a guardar:', {
+            totalApps: eliteAppsConfig.applications.length,
+            firstApp: eliteAppsConfig.applications[0],
+            lastApp: eliteAppsConfig.applications[eliteAppsConfig.applications.length - 1],
+            appFileNames: eliteAppsConfig.applications.map(app => app.fileName).slice(0, 5)
+        });
         
-        updateLoadingProgress(50);
-        
-        // Convertir a JSON
+        // Convertir a JSON y guardar
         const eliteAppsJson = JSON.stringify(eliteAppsConfig, null, 2);
-        
-        // Subir archivo
         await spGraph.saveFileContent('elite_apps_config.json', eliteAppsJson);
         
         updateLoadingProgress(100);
