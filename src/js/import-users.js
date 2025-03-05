@@ -349,6 +349,13 @@ class UserImporter {
 
     // Valida los datos de un usuario
     validateUserData(user) {
+        console.log('Validando usuario:', {
+            email: user.email,
+            subscriptionType: user.subscriptionType,
+            startDate: user.startDate,
+            endDate: user.endDate
+        });
+
         // Validar email
         if (!user.email) {
             return 'Email es requerido';
@@ -361,9 +368,24 @@ class UserImporter {
         if (!user.subscriptionType) {
             return 'Tipo de suscripción es requerido';
         }
-        const validSubscriptions = ['ELITE', 'PRO', 'Gratuita'];
-        if (!validSubscriptions.includes(user.subscriptionType)) {
-            return `Tipo de suscripción debe ser: ${validSubscriptions.join(', ')}`;
+        
+        // Normalizar el tipo de suscripción para la comparación
+        const normalizedType = user.subscriptionType.toUpperCase().trim();
+        const validSubscriptions = ['ELITE', 'PRO', 'GRATUITA'];
+        
+        if (!validSubscriptions.includes(normalizedType)) {
+            console.warn(`Tipo de suscripción "${user.subscriptionType}" no coincide exactamente con los valores permitidos:`, validSubscriptions);
+            
+            // Intentar hacer coincidir con variaciones comunes
+            if (normalizedType.includes('ELITE') || normalizedType === 'ÉLITE') {
+                user.subscriptionType = 'ELITE';
+            } else if (normalizedType.includes('PRO')) {
+                user.subscriptionType = 'PRO';
+            } else if (normalizedType.includes('GRATIS') || normalizedType.includes('GRATUITA') || normalizedType === 'FREE') {
+                user.subscriptionType = 'Gratuita';
+            } else {
+                return `Tipo de suscripción debe ser: ${validSubscriptions.join(', ')}`;
+            }
         }
 
         // Validar fechas
@@ -375,19 +397,39 @@ class UserImporter {
         }
 
         // Convertir fechas a objetos Date si son strings
-        const startDate = typeof user.startDate === 'string' ? new Date(user.startDate) : user.startDate;
-        const endDate = typeof user.endDate === 'string' ? new Date(user.endDate) : user.endDate;
+        let startDate = user.startDate;
+        let endDate = user.endDate;
+
+        if (typeof startDate === 'string') {
+            if (startDate === '-') {
+                return 'Fecha de inicio inválida';
+            }
+            startDate = new Date(startDate);
+        }
+
+        if (typeof endDate === 'string') {
+            if (endDate === '-') {
+                return 'Fecha de fin inválida';
+            }
+            endDate = new Date(endDate);
+        }
 
         // Verificar que las fechas sean válidas
         if (!(startDate instanceof Date) || isNaN(startDate.getTime())) {
+            console.error('Fecha de inicio inválida:', user.startDate);
             return 'Fecha de inicio inválida';
         }
         if (!(endDate instanceof Date) || isNaN(endDate.getTime())) {
+            console.error('Fecha de fin inválida:', user.endDate);
             return 'Fecha de fin inválida';
         }
 
         // Verificar que la fecha de fin sea posterior a la de inicio
         if (endDate <= startDate) {
+            console.error('La fecha de fin debe ser posterior a la fecha de inicio:', {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString()
+            });
             return 'La fecha de fin debe ser posterior a la fecha de inicio';
         }
 
