@@ -125,13 +125,26 @@ class UserImporter {
                         const jsonData = lines.map(line => line.split(','));
                         resolve(jsonData);
                     } else {
-                        // Procesar como Excel
+                        // Procesar como Excel (xlsx o xls)
                         const workbook = XLSX.read(data, { type: 'array' });
                         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                        resolve(jsonData);
+                        
+                        // Convertir a array de arrays manteniendo el formato de las celdas
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
+                            header: 1,
+                            raw: false, // Esto mantendrá el formato de las fechas
+                            dateNF: 'yyyy-mm-dd' // Formato de fecha deseado
+                        });
+                        
+                        // Filtrar filas vacías
+                        const filteredData = jsonData.filter(row => 
+                            row.some(cell => cell !== undefined && cell !== null && cell !== '')
+                        );
+                        
+                        resolve(filteredData);
                     }
                 } catch (error) {
+                    console.error('Error al procesar archivo:', error);
                     reject(new Error('El archivo no es un archivo Excel o CSV válido.'));
                 }
             };
@@ -151,13 +164,12 @@ class UserImporter {
         const headers = data[0].map(h => String(h || '').toLowerCase().trim());
         
         // Buscar índices de columnas basados en los encabezados
-        const emailIndex = this.findColumnIndex(headers, ['email', 'correo', 'e-mail']);
+        const emailIndex = this.findColumnIndex(headers, ['email', 'correo', 'correo electrónico', 'e-mail']);
         const subscriptionIndex = this.findColumnIndex(headers, ['tipo de suscripción', 'suscripcion', 'tipo', 'subscription', 'subscriptiontype']);
-        const startDateIndex = this.findColumnIndex(headers, ['fecha inicio', 'inicio', 'start date', 'startdate']);
-        const endDateIndex = this.findColumnIndex(headers, ['fecha fin', 'fin', 'end date', 'enddate']);
+        const durationIndex = this.findColumnIndex(headers, ['duración', 'duracion', 'vigencia', 'duration']);
         const statusIndex = this.findColumnIndex(headers, ['estado', 'status', 'activo', 'active']);
         
-        // Si no se encuentran los encabezados, usar posiciones por defecto
+        // Si no se encuentran los encabezados específicos, usar posiciones por defecto
         const useDefaultPositions = emailIndex === -1;
         
         const today = new Date();
@@ -166,39 +178,26 @@ class UserImporter {
             // Verificar que la fila tenga al menos una celda con datos
             if (!row || row.length === 0 || !row[0]) return null;
             
-            let email, subscriptionType, startDate, endDate, isActive;
+            let email, subscriptionType, duration, isActive;
             
             if (useDefaultPositions) {
-                // Usar posiciones por defecto (formato antiguo)
-                email = row[0] || '';
-                subscriptionType = row.length > 1 ? row[1] || '' : '';
-                const durationText = row.length > 2 ? (row[2] ? String(row[2]).toLowerCase() : '') : '';
+                // Usar posiciones por defecto (formato simple)
+                email = row[0] ? String(row[0]).trim() : '';
+                subscriptionType = row.length > 1 ? String(row[1] || '').trim() : '';
+                duration = row.length > 2 ? String(row[2] || '').trim() : '';
                 
-                // Leer estado (activo/inactivo) si está disponible (columna 3)
+                // Leer estado (activo/inactivo) si está disponible (columna 4)
                 isActive = true; // Por defecto activo
                 if (row.length > 3 && row[3] !== undefined) {
                     const activeText = String(row[3]).toLowerCase().trim();
                     isActive = !(activeText === 'no' || activeText === 'false' || activeText === '0' || 
                                activeText === 'inactivo' || activeText === 'inactive' || activeText === 'falso');
                 }
-                
-                // Calcular fechas basadas en la duración
-                const dates = this.calculateDates(durationText, today);
-                startDate = dates.startDate;
-                endDate = dates.endDate;
             } else {
-                // Usar posiciones basadas en encabezados (formato nuevo - CSV descargado)
-                email = emailIndex >= 0 && row.length > emailIndex ? row[emailIndex] || '' : '';
-                subscriptionType = subscriptionIndex >= 0 && row.length > subscriptionIndex ? row[subscriptionIndex] || '' : '';
-                
-                // Parsear fechas directamente
-                if (startDateIndex >= 0 && row.length > startDateIndex && row[startDateIndex]) {
-                    startDate = this.parseDate(row[startDateIndex]);
-                }
-                
-                if (endDateIndex >= 0 && row.length > endDateIndex && row[endDateIndex]) {
-                    endDate = this.parseDate(row[endDateIndex]);
-                }
+                // Usar posiciones basadas en encabezados
+                email = emailIndex >= 0 && row.length > emailIndex ? String(row[emailIndex] || '').trim() : '';
+                subscriptionType = subscriptionIndex >= 0 && row.length > subscriptionIndex ? String(row[subscriptionIndex] || '').trim() : '';
+                duration = durationIndex >= 0 && row.length > durationIndex ? String(row[durationIndex] || '').trim() : '';
                 
                 // Parsear estado
                 isActive = true; // Por defecto activo
@@ -209,12 +208,15 @@ class UserImporter {
                 }
             }
             
+            // Calcular fechas basadas en la duración
+            const dates = this.calculateDates(duration, today);
+            
             const user = {
                 email: email,
                 password: null, // Siempre null para usuarios nuevos
                 subscriptionType: subscriptionType,
-                startDate: startDate,
-                endDate: endDate,
+                startDate: dates.startDate,
+                endDate: dates.endDate,
                 isActive: isActive,
                 selected: true,
                 rowIndex: index + 2,
