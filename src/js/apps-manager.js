@@ -2610,6 +2610,11 @@ async function loadEliteApps() {
             return false;
         }
         
+        // Cargar descripciones si no están cargadas
+        if (!descriptionsLoaded) {
+            await loadDescriptions();
+        }
+        
         // Obtener el contenido del archivo de configuración de aplicaciones ELITE
         let eliteAppsContent;
         try {
@@ -2617,7 +2622,6 @@ async function loadEliteApps() {
             console.log('Configuración de aplicaciones ELITE cargada correctamente');
         } catch (error) {
             console.warn('No se encontró el archivo de configuración de aplicaciones ELITE:', error);
-            // Continuar con listas vacías
             eliteAppsContent = JSON.stringify({ eliteApps: [] });
         }
         
@@ -2634,8 +2638,52 @@ async function loadEliteApps() {
         availableEliteApps = [];
         eliteApps = [];
         
-        // Para ELITE, todas las aplicaciones están disponibles automáticamente
-        eliteApps = [...allApps];
+        // Para ELITE, procesar todas las aplicaciones y buscar sus descripciones
+        eliteApps = allApps.map(app => {
+            const appCopy = { ...app };
+            
+            // Buscar descripción en el diccionario
+            if (allDescriptions && allDescriptions.length > 0) {
+                // Normalizar el nombre de la aplicación
+                let baseName = app.name
+                    .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
+                    .replace(/\d+(\.\d+)*/, '') // Remover números de versión
+                    .replace(/\s+/g, ' ') // Normalizar espacios
+                    .trim();
+                
+                // Buscar coincidencia exacta
+                const exactMatch = allDescriptions.find(d => 
+                    d.name.toLowerCase() === baseName.toLowerCase()
+                );
+                
+                if (exactMatch) {
+                    appCopy.description = exactMatch.description;
+                    appCopy.category = exactMatch.category;
+                    console.log(`[ELITE] Coincidencia exacta encontrada para ${app.name}`);
+                } else {
+                    // Buscar coincidencia parcial
+                    const partialMatch = allDescriptions.find(d => 
+                        d.name.toLowerCase().includes(baseName.toLowerCase()) ||
+                        baseName.toLowerCase().includes(d.name.toLowerCase())
+                    );
+                    
+                    if (partialMatch) {
+                        appCopy.description = partialMatch.description;
+                        appCopy.category = partialMatch.category;
+                        console.log(`[ELITE] Coincidencia parcial encontrada para ${app.name}`);
+                    } else {
+                        // Si no hay coincidencia, mantener descripción actual o usar genérica
+                        if (!appCopy.description) {
+                            appCopy.description = `Software ${app.name}`;
+                            appCopy.category = 'General';
+                            console.log(`[ELITE] No se encontró descripción para ${app.name}, usando genérica`);
+                        }
+                    }
+                }
+            }
+            
+            return appCopy;
+        });
         
         // Ordenar las listas por nombre
         eliteApps.sort((a, b) => a.name.localeCompare(b.name));
@@ -2649,13 +2697,10 @@ async function loadEliteApps() {
         // Marcar como cargado
         eliteAppsLoaded = true;
         
-        updateLoadingProgress(100);
         hideLoading();
         return true;
     } catch (error) {
         console.error('Error al cargar aplicaciones ELITE:', error);
-        console.warn('Continuando sin cargar aplicaciones ELITE');
-        eliteAppsLoaded = false;
         hideLoading();
         return false;
     }
@@ -2692,18 +2737,30 @@ function updateEliteAppsList() {
         appItem.className = 'app-list-item';
         appItem.dataset.id = app.id;
         
+        // Formatear la fecha de última actualización
+        const lastUpdateFormatted = app.lastModified ? 
+            new Date(app.lastModified).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }) : 'N/A';
+        
         appItem.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center flex-grow-1">
-                    <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">${app.name}</h6>
-                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
-                        <div class="app-details small">
-                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
-                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
-                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
-                        </div>
+            <div class="app-item-content p-3">
+                <h5 class="app-name mb-2">${app.name}</h5>
+                <p class="app-description mb-2">${app.description || 'Sin descripción'}</p>
+                <div class="app-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Versión:</span>
+                        <span class="detail-value">${app.version || 'N/A'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Tamaño:</span>
+                        <span class="detail-value">${formatFileSize(app.size) || 'N/A'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Última actualización:</span>
+                        <span class="detail-value">${lastUpdateFormatted}</span>
                     </div>
                 </div>
             </div>
@@ -2711,6 +2768,12 @@ function updateEliteAppsList() {
         
         eliteAppsList.appendChild(appItem);
     });
+    
+    // Actualizar contador
+    const eliteAppsCounter = document.getElementById('eliteAppsCounter');
+    if (eliteAppsCounter) {
+        eliteAppsCounter.textContent = `${eliteApps.length} aplicaciones ELITE`;
+    }
 }
 
 /**
