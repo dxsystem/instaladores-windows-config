@@ -2746,21 +2746,15 @@ function updateEliteAppsList() {
             }) : 'N/A';
         
         appItem.innerHTML = `
-            <div class="app-item-content p-3">
-                <h5 class="app-name mb-2">${app.name}</h5>
-                <p class="app-description mb-2">${app.description || 'Sin descripción'}</p>
-                <div class="app-details">
-                    <div class="detail-item">
-                        <span class="detail-label">Versión:</span>
-                        <span class="detail-value">${app.version || 'N/A'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Tamaño:</span>
-                        <span class="detail-value">${formatFileSize(app.size) || 'N/A'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Última actualización:</span>
-                        <span class="detail-value">${lastUpdateFormatted}</span>
+            <div class="d-flex align-items-start p-3">
+                <img src="${app.icon || 'img/default-app-icon.png'}" alt="${app.name}" class="app-icon me-3" style="width: 48px; height: 48px; object-fit: contain;">
+                <div class="flex-grow-1">
+                    <h5 class="app-name mb-2">${app.name}</h5>
+                    <p class="app-description mb-2">${app.description || 'Sin descripción'}</p>
+                    <div class="app-details small text-muted">
+                        <div class="mb-1">Versión: ${app.version || 'N/A'}</div>
+                        <div class="mb-1">Tamaño: ${formatFileSize(app.size) || 'N/A'}</div>
+                        <div>Última actualización: ${lastUpdateFormatted}</div>
                     </div>
                 </div>
             </div>
