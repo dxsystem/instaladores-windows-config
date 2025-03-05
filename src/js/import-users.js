@@ -25,6 +25,9 @@ class UserImporter {
         this.errorCount = document.getElementById('errorCount');
         this.errorList = document.getElementById('errorList');
         this.errorDetails = document.getElementById('errorDetails');
+        
+        // Crear y agregar el overlay de carga
+        this.createLoadingOverlay();
     }
     
     // Inicializa el importador
@@ -691,6 +694,33 @@ class UserImporter {
         this.importButton.disabled = this.selectedUsers.size === 0;
     }
 
+    // Muestra el estado de carga
+    showLoading(message, showOverlay = false) {
+        if (showOverlay) {
+            this.loadingOverlayTitle.textContent = message;
+            this.loadingOverlay.classList.remove('d-none');
+            this.loadingOverlayProgress.style.width = '0%';
+            this.loadingOverlayDetails.textContent = '';
+        } else {
+            this.loadingMessage.textContent = message;
+            this.loadingState.classList.remove('d-none');
+        }
+    }
+
+    // Oculta el estado de carga
+    hideLoading() {
+        this.loadingState.classList.add('d-none');
+        this.loadingOverlay.classList.add('d-none');
+    }
+
+    // Actualiza el progreso en el overlay
+    updateLoadingProgress(current, total, userEmail) {
+        const progress = (current / total) * 100;
+        this.loadingOverlayProgress.style.width = `${progress}%`;
+        this.loadingOverlayProgress.setAttribute('aria-valuenow', progress);
+        this.loadingOverlayDetails.textContent = `Procesando: ${userEmail} (${current}/${total})`;
+    }
+
     // Importa los usuarios seleccionados
     async importSelectedUsers() {
         if (this.selectedUsers.size === 0) {
@@ -698,7 +728,7 @@ class UserImporter {
             return;
         }
 
-        this.showLoading('Importando usuarios...');
+        this.showLoading('Importando usuarios...', true);
         this.importButton.disabled = true;
         
         const results = {
@@ -707,29 +737,27 @@ class UserImporter {
             errors: []
         };
 
-        for (const index of this.selectedUsers) {
+        const selectedUsersArray = Array.from(this.selectedUsers);
+        const totalUsers = selectedUsersArray.length;
+
+        for (let i = 0; i < selectedUsersArray.length; i++) {
+            const index = selectedUsersArray[i];
             const user = this.users[index];
+            
             try {
-                // Verificar si el usuario ya existe (usando el objeto existingUser que ya tenemos)
+                this.updateLoadingProgress(i + 1, totalUsers, user.email);
+
                 if (user.estado === 'Actualizar' && user.existingUser && user.existingUser.id) {
-                    console.log(`Actualizando usuario existente: ${user.email} (ID: ${user.existingUser.id})`);
-                    
-                    // Usar el ID del usuario existente para la actualización
                     await this.userManager.updateUser({
-                        id: user.existingUser.id,  // Asegurarse de incluir el ID
+                        id: user.existingUser.id,
                         email: user.email,
                         subscriptionType: user.subscriptionType,
                         startDate: user.startDate,
                         endDate: user.endDate,
                         isActive: user.isActive !== undefined ? user.isActive : true
                     });
-                    
-                    console.log(`Usuario actualizado correctamente: ${user.email}`);
                     results.updated++;
                 } else {
-                    console.log(`Creando nuevo usuario: ${user.email}`);
-                    
-                    // Crear nuevo usuario
                     await this.userManager.createUser({
                         email: user.email,
                         subscriptionType: user.subscriptionType,
@@ -737,8 +765,6 @@ class UserImporter {
                         endDate: user.endDate,
                         isActive: user.isActive !== undefined ? user.isActive : true
                     });
-                    
-                    console.log(`Usuario creado correctamente: ${user.email}`);
                     results.success++;
                 }
             } catch (error) {
@@ -831,17 +857,6 @@ class UserImporter {
         }, 5000);
     }
 
-    // Muestra el estado de carga
-    showLoading(message) {
-        this.loadingMessage.textContent = message;
-        this.loadingState.classList.remove('d-none');
-    }
-
-    // Oculta el estado de carga
-    hideLoading() {
-        this.loadingState.classList.add('d-none');
-    }
-
     // Escapa caracteres HTML para prevenir XSS
     escapeHtml(unsafe) {
         return unsafe
@@ -853,6 +868,64 @@ class UserImporter {
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;")
             : '';
+    }
+
+    // Método para crear el overlay de carga
+    createLoadingOverlay() {
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay d-none';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        `;
+
+        const content = document.createElement('div');
+        content.className = 'loading-content bg-white p-4 rounded shadow-lg';
+        content.style.maxWidth = '400px';
+
+        const spinner = document.createElement('div');
+        spinner.className = 'spinner-border text-primary mb-3';
+        spinner.setAttribute('role', 'status');
+
+        const title = document.createElement('h4');
+        title.className = 'mb-3';
+        title.id = 'loadingOverlayTitle';
+        title.textContent = 'Procesando...';
+
+        const progress = document.createElement('div');
+        progress.className = 'progress mb-3';
+        progress.style.height = '20px';
+        
+        const progressBar = document.createElement('div');
+        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+        progressBar.id = 'loadingOverlayProgress';
+        progressBar.style.width = '0%';
+        progressBar.setAttribute('role', 'progressbar');
+        
+        const details = document.createElement('p');
+        details.className = 'mb-0 text-muted';
+        details.id = 'loadingOverlayDetails';
+        
+        progress.appendChild(progressBar);
+        content.appendChild(spinner);
+        content.appendChild(title);
+        content.appendChild(progress);
+        content.appendChild(details);
+        overlay.appendChild(content);
+        
+        document.body.appendChild(overlay);
+        this.loadingOverlay = overlay;
+        this.loadingOverlayTitle = title;
+        this.loadingOverlayProgress = progressBar;
+        this.loadingOverlayDetails = details;
     }
 }
 
