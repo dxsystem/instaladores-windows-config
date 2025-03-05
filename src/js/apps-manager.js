@@ -1395,7 +1395,7 @@ async function syncAllConfigurations() {
                 }
 
                 // Formatear la descripción para la aplicación de escritorio
-                const formattedDescription = `${description?.description || `Software ${app.name}`}\n\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
+                const formattedDescription = `${app.name}\n${description?.description || `Software ${app.name}`}\n\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
@@ -1660,50 +1660,44 @@ async function loadFreeApps() {
  */
 function updateAvailableFreeAppsList() {
     const availableFreeAppsList = document.getElementById('availableFreeAppsList');
-    if (!availableFreeAppsList) {
-        console.warn('Elemento availableFreeAppsList no encontrado en el DOM');
-        return;
-    }
+    if (!availableFreeAppsList) return;
     
     // Limpiar lista
     availableFreeAppsList.innerHTML = '';
     
-    // Verificar si hay aplicaciones disponibles
-    if (!availableFreeApps || !Array.isArray(availableFreeApps) || availableFreeApps.length === 0) {
-        console.log('No hay aplicaciones disponibles para Gratuita');
-        availableFreeAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones disponibles</div>';
-        return;
-    }
+    // Filtrar aplicaciones según el texto de búsqueda
+    const searchInput = document.getElementById('availableFreeAppsSearchInput');
+    const searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    const filteredApps = availableFreeApps.filter(app => 
+        app.name.toLowerCase().includes(searchText) ||
+        (app.category && app.category.toLowerCase().includes(searchText)) ||
+        (app.description && app.description.toLowerCase().includes(searchText))
+    );
     
     // Agregar aplicaciones
-    availableFreeApps.forEach(app => {
-        if (!app || !app.id) {
-            console.warn('Aplicación inválida encontrada en availableFreeApps:', app);
-            return;
-        }
-        
+    filteredApps.forEach(app => {
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item';
+        appItem.className = 'app-list-item d-flex align-items-center justify-content-between';
         appItem.dataset.id = app.id;
         
+        // Asignar icono desde iconService si está disponible
+        let iconUrl = app.icon || DEFAULT_ICON_URL;
+        if (iconService) {
+            const appIcon = iconService.getIconForApp(app);
+            if (appIcon) {
+                iconUrl = appIcon;
+            }
+        }
+        
         appItem.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center flex-grow-1">
-                    <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">${app.name}</h6>
-                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
-                        <div class="app-details small">
-                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
-                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
-                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
-                        </div>
-                    </div>
-                </div>
-                <button class="btn btn-sm btn-outline-primary add-free-app-btn ms-3" title="Agregar a Gratuita">
-                    <i class="bi bi-plus-circle"></i>
-                </button>
+            <div class="d-flex align-items-center">
+                <img src="${iconUrl}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
+                <div class="app-name">${app.name}</div>
             </div>
+            <button class="btn btn-sm btn-outline-primary add-free-app-btn" title="Agregar a Gratuita">
+                <i class="bi bi-plus-circle"></i>
+            </button>
         `;
         
         availableFreeAppsList.appendChild(appItem);
@@ -1718,7 +1712,7 @@ function updateAvailableFreeAppsList() {
     // Actualizar contador
     const availableFreeAppsCounter = document.getElementById('availableFreeAppsCounter');
     if (availableFreeAppsCounter) {
-        availableFreeAppsCounter.textContent = `${availableFreeApps.length} aplicaciones disponibles`;
+        availableFreeAppsCounter.textContent = `${filteredApps.length} aplicaciones disponibles`;
     }
 }
 
@@ -1758,22 +1752,38 @@ function updateFreeAppsList() {
     // Agregar aplicaciones
     freeApps.forEach(app => {
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item d-flex align-items-center';
+        appItem.className = 'app-list-item d-flex align-items-center justify-content-between';
         appItem.dataset.id = app.id;
         
+        // Asignar icono desde iconService si está disponible
+        let iconUrl = app.icon || DEFAULT_ICON_URL;
+        if (iconService) {
+            const appIcon = iconService.getIconForApp(app);
+            if (appIcon) {
+                iconUrl = appIcon;
+            }
+        }
+        
         appItem.innerHTML = `
-            <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px;">
-            <div class="app-name">${app.name}</div>
+            <div class="d-flex align-items-center">
+                <img src="${iconUrl}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
+                <div class="app-name">${app.name}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger remove-free-app-btn" title="Quitar de Gratuita">
+                <i class="bi bi-x-circle"></i>
+            </button>
         `;
         
         freeAppsList.appendChild(appItem);
+        
+        // Agregar evento al botón de quitar
+        const removeButton = appItem.querySelector('.remove-free-app-btn');
+        if (removeButton) {
+            removeButton.addEventListener('click', () => moveToAvailableFreeApps(app.id));
+        }
     });
-}
-
-/**
- * Actualiza los contadores de las listas de aplicaciones Gratuitas
- */
-function updateFreeListCounters() {
+    
+    // Actualizar contador
     const freeAppsCounter = document.getElementById('freeAppsCounter');
     if (freeAppsCounter) {
         freeAppsCounter.textContent = `${freeApps.length} aplicaciones Gratuitas`;
@@ -1995,50 +2005,44 @@ async function loadProApps() {
  */
 function updateAvailableProAppsList() {
     const availableProAppsList = document.getElementById('availableProAppsList');
-    if (!availableProAppsList) {
-        console.warn('Elemento availableProAppsList no encontrado en el DOM');
-        return;
-    }
+    if (!availableProAppsList) return;
     
     // Limpiar lista
     availableProAppsList.innerHTML = '';
     
-    // Verificar si hay aplicaciones disponibles
-    if (!availableProApps || !Array.isArray(availableProApps) || availableProApps.length === 0) {
-        console.log('No hay aplicaciones disponibles para PRO');
-        availableProAppsList.innerHTML = '<div class="text-center text-muted p-3">No hay aplicaciones disponibles</div>';
-        return;
-    }
+    // Filtrar aplicaciones según el texto de búsqueda
+    const searchInput = document.getElementById('availableProAppsSearchInput');
+    const searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    const filteredApps = availableProApps.filter(app => 
+        app.name.toLowerCase().includes(searchText) ||
+        (app.category && app.category.toLowerCase().includes(searchText)) ||
+        (app.description && app.description.toLowerCase().includes(searchText))
+    );
     
     // Agregar aplicaciones
-    availableProApps.forEach(app => {
-        if (!app || !app.id) {
-            console.warn('Aplicación inválida encontrada en availableProApps:', app);
-            return;
-        }
-        
+    filteredApps.forEach(app => {
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item';
+        appItem.className = 'app-list-item d-flex align-items-center justify-content-between';
         appItem.dataset.id = app.id;
         
+        // Asignar icono desde iconService si está disponible
+        let iconUrl = app.icon || DEFAULT_ICON_URL;
+        if (iconService) {
+            const appIcon = iconService.getIconForApp(app);
+            if (appIcon) {
+                iconUrl = appIcon;
+            }
+        }
+        
         appItem.innerHTML = `
-            <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center flex-grow-1">
-                    <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="app-icon me-3">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">${app.name}</h6>
-                        <p class="mb-1 text-muted small">${app.description || 'Sin descripción'}</p>
-                        <div class="app-details small">
-                            <span class="me-3">Versión: ${app.version || 'N/A'}</span>
-                            <span class="me-3">Tamaño: ${formatFileSize(app.size) || 'N/A'}</span>
-                            <span>Última actualización: ${app.lastModified ? new Date(app.lastModified).toLocaleDateString() : 'N/A'}</span>
-                        </div>
-                    </div>
-                </div>
-                <button class="btn btn-sm btn-outline-primary add-pro-app-btn ms-3" title="Agregar a PRO">
-                    <i class="bi bi-plus-circle"></i>
-                </button>
+            <div class="d-flex align-items-center">
+                <img src="${iconUrl}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
+                <div class="app-name">${app.name}</div>
             </div>
+            <button class="btn btn-sm btn-outline-primary add-pro-app-btn" title="Agregar a PRO">
+                <i class="bi bi-plus-circle"></i>
+            </button>
         `;
         
         availableProAppsList.appendChild(appItem);
@@ -2053,7 +2057,7 @@ function updateAvailableProAppsList() {
     // Actualizar contador
     const availableProAppsCounter = document.getElementById('availableProAppsCounter');
     if (availableProAppsCounter) {
-        availableProAppsCounter.textContent = `${availableProApps.length} aplicaciones disponibles`;
+        availableProAppsCounter.textContent = `${filteredApps.length} aplicaciones disponibles`;
     }
 }
 
@@ -2070,16 +2074,39 @@ function updateProAppsList() {
     // Agregar aplicaciones
     proApps.forEach(app => {
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item d-flex align-items-center';
+        appItem.className = 'app-list-item d-flex align-items-center justify-content-between';
         appItem.dataset.id = app.id;
         
+        // Asignar icono desde iconService si está disponible
+        let iconUrl = app.icon || DEFAULT_ICON_URL;
+        if (iconService) {
+            const appIcon = iconService.getIconForApp(app);
+            if (appIcon) {
+                iconUrl = appIcon;
+            }
+        }
+        
         appItem.innerHTML = `
-            <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px;">
-            <div class="app-name">${app.name}</div>
+            <div class="d-flex align-items-center">
+                <img src="${iconUrl}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
+                <div class="app-name">${app.name}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger remove-pro-app-btn" title="Quitar de PRO">
+                <i class="bi bi-x-circle"></i>
+            </button>
         `;
         
         proAppsList.appendChild(appItem);
+        
+        // Agregar evento al botón de quitar
+        const removeButton = appItem.querySelector('.remove-pro-app-btn');
+        if (removeButton) {
+            removeButton.addEventListener('click', () => moveToAvailableProApps(app.id));
+        }
     });
+    
+    // Actualizar contador
+    updateProListCounters();
 }
 
 /**
@@ -2314,16 +2341,30 @@ function updateEliteAppsList() {
     // Agregar aplicaciones
     eliteApps.forEach(app => {
         const appItem = document.createElement('div');
-        appItem.className = 'app-list-item d-flex align-items-center';
+        appItem.className = 'app-list-item d-flex align-items-center justify-content-between';
         appItem.dataset.id = app.id;
         
+        // Asignar icono desde iconService si está disponible
+        let iconUrl = app.icon || DEFAULT_ICON_URL;
+        if (iconService) {
+            const appIcon = iconService.getIconForApp(app);
+            if (appIcon) {
+                iconUrl = appIcon;
+            }
+        }
+        
         appItem.innerHTML = `
-            <img src="${app.icon || DEFAULT_ICON_URL}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px;">
-            <div class="app-name">${app.name}</div>
+            <div class="d-flex align-items-center">
+                <img src="${iconUrl}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
+                <div class="app-name">${app.name}</div>
+            </div>
         `;
         
         eliteAppsList.appendChild(appItem);
     });
+    
+    // Actualizar contador
+    updateEliteListCounters();
 }
 
 /**
