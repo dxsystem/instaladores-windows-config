@@ -357,6 +357,22 @@ function updateCounters() {
         categoriesCount.textContent = categories.size;
     }
     
+    // Contadores de planes
+    const eliteAppsCount = document.getElementById('eliteAppsCount');
+    if (eliteAppsCount) {
+        eliteAppsCount.textContent = eliteApps.length;
+    }
+    
+    const proAppsCount = document.getElementById('proAppsCount');
+    if (proAppsCount) {
+        proAppsCount.textContent = proApps.length;
+    }
+    
+    const freeAppsCount = document.getElementById('freeAppsCount');
+    if (freeAppsCount) {
+        freeAppsCount.textContent = freeApps.length;
+    }
+    
     // Contadores de listas
     updateListCounters();
 }
