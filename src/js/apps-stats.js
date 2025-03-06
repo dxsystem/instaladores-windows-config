@@ -6,39 +6,60 @@
 // Función para actualizar los contadores de aplicaciones
 async function updateAppStatistics() {
     try {
+        // Verificar que spGraph esté inicializado
+        if (!spGraph) {
+            console.warn('El cliente de SharePoint Graph no está inicializado');
+            showToast('Error: Cliente de SharePoint no inicializado', 'error');
+            return;
+        }
+
+        // Mostrar estado de carga
+        showLoading('Cargando estadísticas de aplicaciones...');
+        
         // Obtener todas las aplicaciones disponibles
         const allApps = await getAllApplications();
         
-        // Obtener configuraciones de suscripciones
-        const eliteConfig = await getSubscriptionConfig('ELITE');
-        const proConfig = await getSubscriptionConfig('PRO');
-        const freeConfig = await getSubscriptionConfig('Gratuita');
+        // Obtener configuraciones de suscripciones en paralelo
+        const [eliteConfig, proConfig, freeConfig, requiredCount] = await Promise.all([
+            getSubscriptionConfig('ELITE'),
+            getSubscriptionConfig('PRO'),
+            getSubscriptionConfig('Gratuita'),
+            getRequiredAppsCount()
+        ]);
         
         // Calcular aplicaciones sin sincronizar (total - elite)
-        const unsyncedCount = allApps.length - eliteConfig.applications.length;
+        const unsyncedCount = Math.max(0, allApps.length - (eliteConfig.Applications ? eliteConfig.Applications.length : 0));
         
         // Actualizar contadores en la interfaz
-        document.getElementById('totalAppsCount').textContent = allApps.length;
-        document.getElementById('requiredAppsCount').textContent = await getRequiredAppsCount();
-        document.getElementById('unsyncedAppsCount').textContent = unsyncedCount > 0 ? unsyncedCount : 0;
-        document.getElementById('eliteAppsTotal').textContent = eliteConfig.applications.length;
-        document.getElementById('proAppsTotal').textContent = proConfig.applications.length;
-        document.getElementById('freeAppsTotal').textContent = freeConfig.applications.length;
+        const updateElement = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = value;
+        };
         
+        updateElement('totalAppsCount', allApps.length);
+        updateElement('requiredAppsCount', requiredCount);
+        updateElement('unsyncedAppsCount', unsyncedCount);
+        updateElement('eliteAppsTotal', eliteConfig.Applications ? eliteConfig.Applications.length : 0);
+        updateElement('proAppsTotal', proConfig.Applications ? proConfig.Applications.length : 0);
+        updateElement('freeAppsTotal', freeConfig.Applications ? freeConfig.Applications.length : 0);
+        
+        hideLoading();
     } catch (error) {
         console.error('Error al actualizar estadísticas de aplicaciones:', error);
         showToast('Error al cargar estadísticas de aplicaciones', 'error');
+        hideLoading();
     }
 }
 
 // Obtener todas las aplicaciones disponibles
 async function getAllApplications() {
     try {
-        const response = await fetch('/api/apps/list');
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+        if (!spGraph) {
+            console.warn('El cliente de SharePoint Graph no está inicializado');
+            return [];
         }
-        return await response.json();
+        const allApps = await spGraph.getAllApps();
+        return allApps || [];
     } catch (error) {
         console.error('Error al obtener aplicaciones:', error);
         return [];
@@ -48,26 +69,29 @@ async function getAllApplications() {
 // Obtener configuración de suscripción
 async function getSubscriptionConfig(type) {
     try {
-        const response = await fetch(`/api/subscription/${type}`);
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+        if (!spGraph) {
+            console.warn('El cliente de SharePoint Graph no está inicializado');
+            return { Applications: [] };
         }
-        return await response.json();
+        const configFileName = `${type.toLowerCase()}_apps_config.json`;
+        const configContent = await spGraph.getFileContent(configFileName);
+        return JSON.parse(configContent || '{"Applications":[]}');
     } catch (error) {
         console.error(`Error al obtener configuración ${type}:`, error);
-        return { applications: [] };
+        return { Applications: [] };
     }
 }
 
 // Obtener conteo de aplicaciones obligatorias
 async function getRequiredAppsCount() {
     try {
-        const response = await fetch('/api/apps/required');
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+        if (!spGraph) {
+            console.warn('El cliente de SharePoint Graph no está inicializado');
+            return 0;
         }
-        const requiredApps = await response.json();
-        return requiredApps.length;
+        const requiredConfig = await spGraph.getFileContent('required_apps_config.json');
+        const config = JSON.parse(requiredConfig || '{"Applications":[]}');
+        return config.Applications ? config.Applications.length : 0;
     } catch (error) {
         console.error('Error al obtener aplicaciones obligatorias:', error);
         return 0;
