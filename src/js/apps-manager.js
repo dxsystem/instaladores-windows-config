@@ -373,6 +373,13 @@ function updateCounters() {
         freeAppsCount.textContent = freeApps.length;
     }
     
+    // Contador de aplicaciones sin sincronizar
+    const unsyncAppsCount = document.getElementById('unsyncAppsCount');
+    if (unsyncAppsCount) {
+        const unsyncCount = allApps.length - eliteApps.length;
+        unsyncAppsCount.textContent = unsyncCount;
+    }
+    
     // Contadores de listas
     updateListCounters();
 }
