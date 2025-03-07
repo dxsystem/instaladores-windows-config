@@ -36,7 +36,17 @@
         }
         
         /* Estilos para las tarjetas de estadísticas */
+        .card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
         .card .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             transition: all 0.3s ease;
         }
         
@@ -44,123 +54,13 @@
             transform: translateY(-5px);
         }
         
-        /* Estilos para los botones de acción en la tabla */
-        .btn-action {
-            width: 36px;
-            height: 36px;
-            padding: 6px;
-            margin: 0 3px;
-            border-radius: 50%;
+        .display-4 {
+            margin-bottom: 0;
+            line-height: 1.2;
         }
         
-        /* Animación para el botón de actualizar */
-        #refreshButton .bi-arrow-clockwise {
-            transition: transform 0.5s ease;
-        }
-        
-        #refreshButton:hover .bi-arrow-clockwise {
-            transform: rotate(180deg);
-        }
-
-        /* Estilos para las pestañas */
-        .nav-tabs .nav-link {
-            color: #495057;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            margin-right: 5px;
-            border-radius: 4px 4px 0 0;
-        }
-
-        .nav-tabs .nav-link.active {
-            color: #0078d4;
-            background-color: #fff;
-            border-bottom-color: transparent;
-            font-weight: 600;
-        }
-
-        /* Estilos para las tarjetas de aplicaciones */
-        .app-card {
-            transition: all 0.3s ease;
-            cursor: pointer;
-            border-radius: 8px;
-            overflow: hidden;
-            height: 100%;
-        }
-
-        .app-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-
-        .app-icon {
-            width: 48px;
-            height: 48px;
-            object-fit: contain;
-        }
-
-        .app-description {
-            max-height: 80px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-        }
-
-        /* Estilos para el editor de descripciones */
-        .description-editor {
-            min-height: 150px;
-            resize: vertical;
-        }
-
-        /* Estilos para las listas de aplicaciones */
-        .app-list {
-            height: 500px;
-            overflow-y: auto;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 10px;
-        }
-
-        .app-list-item {
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .app-list-item:hover {
-            background-color: rgba(0, 120, 212, 0.1);
-        }
-
-        .app-list-item.selected {
-            background-color: rgba(0, 120, 212, 0.2);
-            border-left: 3px solid #0078d4;
-        }
-
-        /* Estilos para el contador de aplicaciones */
-        .app-counter {
-            font-size: 14px;
-            color: #6c757d;
-            margin-bottom: 10px;
-        }
-
-        /* Estilos para el buscador */
-        .search-container {
-            position: relative;
-            margin-bottom: 15px;
-        }
-
-        .search-container .bi-search {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            color: #6c757d;
-        }
-
-        .search-input {
-            padding-left: 35px;
+        .text-muted {
+            margin-bottom: 0;
         }
     </style>
 </head>
@@ -260,16 +160,16 @@
                         <h5 class="card-title"><i class="bi bi-layers-fill text-success me-2"></i>Aplicaciones por Plan</h5>
                         <div class="d-flex justify-content-around align-items-center mt-2 mb-2">
                             <div class="text-center">
-                                <h2 class="display-4 fw-bold" id="eliteAppsCount">0</h3>
-                                <p class="text-muted">ELITE</small>
+                                <h2 class="display-4 fw-bold" id="eliteAppsCount">0</h2>
+                                <p class="text-muted">ELITE</p>
                             </div>
                             <div class="text-center">
-                                <h2 class="display-4 fw-bold" id="proAppsCount">0</h3>
-                                <p class="text-muted">PRO</small>
+                                <h2 class="display-4 fw-bold" id="proAppsCount">0</h2>
+                                <p class="text-muted">PRO</p>
                             </div>
                             <div class="text-center">
-                                <h2 class="display-4 fw-bold" id="freeAppsCount">0</h3>
-                                <p class="text-muted">GRATUITA</small>
+                                <h2 class="display-4 fw-bold" id="freeAppsCount">0</h2>
+                                <p class="text-muted">GRATUITA</p>
                             </div>
                         </div>
                     </div>
