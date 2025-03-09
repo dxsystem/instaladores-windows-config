@@ -572,6 +572,22 @@
                     showAlert('success', 'Configuración cargada correctamente');
                 }, 500);
                 
+                // Añadir event listeners
+                saveConfigButton.addEventListener('click', saveConfiguration);
+                refreshButton.addEventListener('click', loadConfiguration);
+                
+                // Añadir event listeners para actualizar vistas previas
+                courseTitle.addEventListener('input', updateCoursePreview);
+                courseVideoUrl.addEventListener('input', updateCoursePreview);
+                courseDescription.addEventListener('input', updateCoursePreview);
+                paymentUrl.addEventListener('input', updateCoursePreview);
+                whatsappUrl.addEventListener('input', updateCoursePreview);
+                
+                defenderVideoTitle.addEventListener('input', updateVideosPreview);
+                defenderVideoUrl.addEventListener('input', updateVideosPreview);
+                esetVideoTitle.addEventListener('input', updateVideosPreview);
+                esetVideoUrl.addEventListener('input', updateVideosPreview);
+                
             } catch (error) {
                 console.error('Error al cargar la configuración:', error);
                 showLoading(false);
