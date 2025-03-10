@@ -1885,37 +1885,24 @@ function moveToAvailableFreeApps(appId) {
  * Filtra las aplicaciones disponibles para Gratuita
  */
 function filterAvailableFreeApps() {
-    const searchInput = document.getElementById('availableFreeAppsSearchInput');
-    if (!searchInput) return;
+    // Simplemente llamamos a la función de actualización de la lista
+    // que ya tiene la lógica de filtrado incorporada
+    updateAvailableFreeAppsList();
     
-    const searchTerm = searchInput.value.toLowerCase();
-    const availableFreeAppsList = document.getElementById('availableFreeAppsList');
-    if (!availableFreeAppsList) return;
-    
-    const appItems = availableFreeAppsList.querySelectorAll('.app-list-item');
-    
-    let visibleCount = 0;
-    
-    appItems.forEach(item => {
-        // Buscar el nombre de la aplicación en el elemento .app-name
-        const appNameElement = item.querySelector('.app-name');
-        if (!appNameElement) return;
-        
-        const appName = appNameElement.textContent.toLowerCase();
-        
-        if (appName.includes(searchTerm)) {
-            item.style.display = '';
-            visibleCount++;
-        } else {
-            item.style.display = 'none';
-        }
-    });
-    
-    // Actualizar contador
+    // Actualizar contador con el número correcto de aplicaciones visibles
     const availableFreeAppsCounter = document.getElementById('availableFreeAppsCounter');
+    const searchInput = document.getElementById('availableFreeAppsSearchInput');
+    const searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    
     if (availableFreeAppsCounter) {
-        if (searchTerm) {
-            availableFreeAppsCounter.textContent = `${visibleCount} de ${availableFreeApps.length} aplicaciones disponibles`;
+        if (searchText) {
+            const filteredCount = availableFreeApps.filter(app => 
+                app.name.toLowerCase().includes(searchText) ||
+                (app.category && app.category.toLowerCase().includes(searchText)) ||
+                (app.description && app.description.toLowerCase().includes(searchText))
+            ).length;
+            
+            availableFreeAppsCounter.textContent = `${filteredCount} de ${availableFreeApps.length} aplicaciones disponibles`;
         } else {
             availableFreeAppsCounter.textContent = `${availableFreeApps.length} aplicaciones disponibles`;
         }
@@ -2254,37 +2241,24 @@ function moveToAvailableProApps(appId) {
  * Filtra las aplicaciones disponibles para PRO
  */
 function filterAvailableProApps() {
-    const searchInput = document.getElementById('availableProAppsSearchInput');
-    if (!searchInput) return;
+    // Simplemente llamamos a la función de actualización de la lista
+    // que ya tiene la lógica de filtrado incorporada
+    updateAvailableProAppsList();
     
-    const searchTerm = searchInput.value.toLowerCase();
-    const availableProAppsList = document.getElementById('availableProAppsList');
-    if (!availableProAppsList) return;
-    
-    const appItems = availableProAppsList.querySelectorAll('.app-list-item');
-    
-    let visibleCount = 0;
-    
-    appItems.forEach(item => {
-        // Buscar el nombre de la aplicación en el elemento .app-name
-        const appNameElement = item.querySelector('.app-name');
-        if (!appNameElement) return;
-        
-        const appName = appNameElement.textContent.toLowerCase();
-        
-        if (appName.includes(searchTerm)) {
-            item.style.display = '';
-            visibleCount++;
-        } else {
-            item.style.display = 'none';
-        }
-    });
-    
-    // Actualizar contador
+    // Actualizar contador con el número correcto de aplicaciones visibles
     const availableProAppsCounter = document.getElementById('availableProAppsCounter');
+    const searchInput = document.getElementById('availableProAppsSearchInput');
+    const searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    
     if (availableProAppsCounter) {
-        if (searchTerm) {
-            availableProAppsCounter.textContent = `${visibleCount} de ${availableProApps.length} aplicaciones disponibles`;
+        if (searchText) {
+            const filteredCount = availableProApps.filter(app => 
+                app.name.toLowerCase().includes(searchText) ||
+                (app.category && app.category.toLowerCase().includes(searchText)) ||
+                (app.description && app.description.toLowerCase().includes(searchText))
+            ).length;
+            
+            availableProAppsCounter.textContent = `${filteredCount} de ${availableProApps.length} aplicaciones disponibles`;
         } else {
             availableProAppsCounter.textContent = `${availableProApps.length} aplicaciones disponibles`;
         }
@@ -2403,6 +2377,7 @@ async function loadEliteApps() {
         
         // Actualizar listas en la interfaz
         updateEliteAppsList();
+        updateAvailableEliteAppsList();
         
         // Actualizar contadores
         updateEliteListCounters();
@@ -2449,9 +2424,18 @@ function updateEliteAppsList() {
                 <img src="${iconUrl}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
                 <div class="app-name">${app.name}</div>
             </div>
+            <button class="btn btn-sm btn-outline-danger remove-elite-app-btn" title="Quitar de ELITE">
+                <i class="bi bi-dash-circle"></i>
+            </button>
         `;
         
         eliteAppsList.appendChild(appItem);
+        
+        // Agregar evento al botón de eliminar
+        const removeButton = appItem.querySelector('.remove-elite-app-btn');
+        if (removeButton) {
+            removeButton.addEventListener('click', () => moveToAvailableEliteApps(app.id));
+        }
     });
     
     // Actualizar contador
@@ -2630,6 +2614,144 @@ function updateFreeListCounters() {
     if (freeAppsCounter) {
         freeAppsCounter.textContent = `${freeApps.length} aplicaciones para Gratuita`;
     }
+}
+
+/**
+ * Actualiza la lista de aplicaciones disponibles para ELITE
+ */
+function updateAvailableEliteAppsList() {
+    const availableEliteAppsList = document.getElementById('availableEliteAppsList');
+    if (!availableEliteAppsList) return;
+    
+    // Limpiar lista
+    availableEliteAppsList.innerHTML = '';
+    
+    // Filtrar aplicaciones según el texto de búsqueda
+    const searchInput = document.getElementById('availableEliteAppsSearchInput');
+    const searchText = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    const filteredApps = allApps.filter(app => 
+        !eliteApps.some(eliteApp => eliteApp.id === app.id) &&
+        (
+            app.name.toLowerCase().includes(searchText) ||
+            (app.category && app.category.toLowerCase().includes(searchText)) ||
+            (app.description && app.description.toLowerCase().includes(searchText))
+        )
+    );
+    
+    // Agregar aplicaciones
+    filteredApps.forEach(app => {
+        const appItem = document.createElement('div');
+        appItem.className = 'app-list-item d-flex align-items-center justify-content-between';
+        appItem.dataset.id = app.id;
+        
+        // Asignar icono desde iconService si está disponible
+        let iconUrl = app.icon || DEFAULT_ICON_URL;
+        if (iconService) {
+            // Usar directamente app.icon en lugar de getIconForApp
+            if (app.icon) {
+                iconUrl = app.icon;
+            }
+        }
+        
+        appItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                <img src="${iconUrl}" alt="${app.name}" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
+                <div class="app-name">${app.name}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-primary add-elite-app-btn" title="Agregar a ELITE">
+                <i class="bi bi-plus-circle"></i>
+            </button>
+        `;
+        
+        availableEliteAppsList.appendChild(appItem);
+        
+        // Agregar evento al botón de agregar
+        const addButton = appItem.querySelector('.add-elite-app-btn');
+        if (addButton) {
+            addButton.addEventListener('click', () => moveToEliteApps(app.id));
+        }
+    });
+    
+    // Actualizar contador
+    const availableEliteAppsCounter = document.getElementById('availableEliteAppsCounter');
+    if (availableEliteAppsCounter) {
+        if (searchText) {
+            availableEliteAppsCounter.textContent = `${filteredApps.length} de ${allApps.length - eliteApps.length} aplicaciones disponibles`;
+        } else {
+            availableEliteAppsCounter.textContent = `${allApps.length - eliteApps.length} aplicaciones disponibles`;
+        }
+    }
+}
+
+/**
+ * Filtra las aplicaciones disponibles para ELITE
+ */
+function filterAvailableEliteApps() {
+    // Simplemente llamamos a la función de actualización de la lista
+    // que ya tiene la lógica de filtrado incorporada
+    updateAvailableEliteAppsList();
+}
+
+/**
+ * Mueve una aplicación de disponibles a ELITE
+ */
+function moveToEliteApps(appId) {
+    // Buscar aplicación en todas las aplicaciones
+    const app = allApps.find(app => app.id === appId);
+    if (!app) return;
+    
+    // Verificar que no esté ya en ELITE
+    if (eliteApps.some(eliteApp => eliteApp.id === appId)) return;
+    
+    // Crear copia de la aplicación para ELITE
+    const eliteApp = {
+        id: app.id,
+        name: app.name,
+        fileName: app.fileName,
+        category: app.category,
+        description: app.description,
+        version: app.version,
+        size: app.size,
+        lastModified: app.lastModified,
+        installationOrder: app.installationOrder,
+        icon: app.icon || DEFAULT_ICON_URL,
+        iconUrl: app.iconUrl || DEFAULT_ICON_URL
+    };
+    
+    // Agregar a ELITE
+    eliteApps.push(eliteApp);
+    
+    // Ordenar por nombre
+    eliteApps.sort((a, b) => a.name.localeCompare(b.name));
+    
+    // Actualizar listas
+    updateEliteAppsList();
+    updateAvailableEliteAppsList();
+    
+    // Actualizar contadores
+    updateEliteListCounters();
+    updateCounters();
+}
+
+/**
+ * Mueve una aplicación de ELITE a disponibles
+ */
+function moveToAvailableEliteApps(appId) {
+    // Buscar aplicación
+    const appIndex = eliteApps.findIndex(app => app.id === appId);
+    if (appIndex === -1) return;
+    
+    // Eliminar de ELITE
+    eliteApps.splice(appIndex, 1);
+    
+    // Actualizar listas
+    updateEliteAppsList();
+    updateAvailableEliteAppsList();
+    
+    // Actualizar contadores
+    updateEliteListCounters();
+    updateCounters();
 }
 
 // Hacer disponible globalmente la función de inicialización
