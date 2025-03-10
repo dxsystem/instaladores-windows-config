@@ -1566,25 +1566,61 @@ async function loadFreeApps() {
         }
         
         // Obtener la configuración de aplicaciones gratuitas
-        const freeAppsConfig = await spGraph.getFreeAppsConfig();
+        let freeAppsContent;
+        try {
+            freeAppsContent = await spGraph.getFileContent('free_apps_config.json');
+            console.log('Configuración de aplicaciones gratuitas cargada correctamente');
+        } catch (error) {
+            console.warn('No se encontró el archivo de configuración de aplicaciones gratuitas:', error);
+            freeAppsContent = JSON.stringify({ applications: [] });
+        }
+        
+        // Parsear la configuración
+        let freeAppsConfig;
+        try {
+            freeAppsConfig = JSON.parse(freeAppsContent || '{"applications":[]}');
+            console.log('Configuración parseada:', freeAppsConfig);
+        } catch (parseError) {
+            console.error('Error al parsear la configuración de aplicaciones gratuitas:', parseError);
+            freeAppsConfig = { applications: [] };
+        }
         
         // Obtener todas las aplicaciones
-        const allApps = await spGraph.getApps();
+        const allApps = await spGraph.getExeFiles();
+        console.log('Aplicaciones obtenidas:', allApps);
         
         // Limpiar arrays
         freeApps = [];
         availableFreeApps = [];
         
-        // Procesar aplicaciones gratuitas
-        if (freeAppsConfig && freeAppsConfig.apps && Array.isArray(freeAppsConfig.apps)) {
-            // Mapear IDs a objetos de aplicación completos
-            freeApps = freeAppsConfig.apps
-                .map(appId => allApps.find(app => app.id === appId))
-                .filter(app => app !== undefined); // Filtrar aplicaciones que no existen
+        // Procesar aplicaciones gratuitas - manejar ambos formatos posibles
+        let freeAppIds = [];
+        
+        // Formato 1: { apps: [id1, id2, ...] }
+        if (freeAppsConfig.apps && Array.isArray(freeAppsConfig.apps)) {
+            freeAppIds = freeAppsConfig.apps;
+            console.log('Usando formato apps:', freeAppIds);
+        } 
+        // Formato 2: { applications: [{ sharePointId: id1 }, { sharePointId: id2 }, ...] }
+        else if (freeAppsConfig.applications && Array.isArray(freeAppsConfig.applications)) {
+            freeAppIds = freeAppsConfig.applications.map(app => app.sharePointId);
+            console.log('Usando formato applications:', freeAppIds);
         }
         
+        // Mapear IDs a objetos de aplicación completos
+        freeApps = freeAppIds
+            .map(appId => {
+                const app = allApps.find(a => a.id === appId);
+                if (!app) console.warn(`No se encontró la aplicación con ID ${appId}`);
+                return app;
+            })
+            .filter(app => app !== undefined); // Filtrar aplicaciones que no existen
+        
+        console.log('Aplicaciones gratuitas procesadas:', freeApps);
+        
         // Determinar aplicaciones disponibles (las que no están en la lista de gratuitas)
-        availableFreeApps = allApps.filter(app => !freeApps.some(freeApp => freeApp.id === app.id));
+        availableFreeApps = allApps.filter(app => !freeAppIds.includes(app.id));
+        console.log('Aplicaciones disponibles:', availableFreeApps);
         
         updateLoadingProgress(70);
         
@@ -1879,25 +1915,61 @@ async function loadProApps() {
         }
         
         // Obtener la configuración de aplicaciones PRO
-        const proAppsConfig = await spGraph.getProAppsConfig();
+        let proAppsContent;
+        try {
+            proAppsContent = await spGraph.getFileContent('pro_apps_config.json');
+            console.log('Configuración de aplicaciones PRO cargada correctamente');
+        } catch (error) {
+            console.warn('No se encontró el archivo de configuración de aplicaciones PRO:', error);
+            proAppsContent = JSON.stringify({ applications: [] });
+        }
+        
+        // Parsear la configuración
+        let proAppsConfig;
+        try {
+            proAppsConfig = JSON.parse(proAppsContent || '{"applications":[]}');
+            console.log('Configuración parseada:', proAppsConfig);
+        } catch (parseError) {
+            console.error('Error al parsear la configuración de aplicaciones PRO:', parseError);
+            proAppsConfig = { applications: [] };
+        }
         
         // Obtener todas las aplicaciones
-        const allApps = await spGraph.getApps();
+        const allApps = await spGraph.getExeFiles();
+        console.log('Aplicaciones obtenidas:', allApps);
         
         // Limpiar arrays
         proApps = [];
         availableProApps = [];
         
-        // Procesar aplicaciones PRO
-        if (proAppsConfig && proAppsConfig.apps && Array.isArray(proAppsConfig.apps)) {
-            // Mapear IDs a objetos de aplicación completos
-            proApps = proAppsConfig.apps
-                .map(appId => allApps.find(app => app.id === appId))
-                .filter(app => app !== undefined); // Filtrar aplicaciones que no existen
+        // Procesar aplicaciones PRO - manejar ambos formatos posibles
+        let proAppIds = [];
+        
+        // Formato 1: { apps: [id1, id2, ...] }
+        if (proAppsConfig.apps && Array.isArray(proAppsConfig.apps)) {
+            proAppIds = proAppsConfig.apps;
+            console.log('Usando formato apps:', proAppIds);
+        } 
+        // Formato 2: { applications: [{ sharePointId: id1 }, { sharePointId: id2 }, ...] }
+        else if (proAppsConfig.applications && Array.isArray(proAppsConfig.applications)) {
+            proAppIds = proAppsConfig.applications.map(app => app.sharePointId);
+            console.log('Usando formato applications:', proAppIds);
         }
         
+        // Mapear IDs a objetos de aplicación completos
+        proApps = proAppIds
+            .map(appId => {
+                const app = allApps.find(a => a.id === appId);
+                if (!app) console.warn(`No se encontró la aplicación con ID ${appId}`);
+                return app;
+            })
+            .filter(app => app !== undefined); // Filtrar aplicaciones que no existen
+        
+        console.log('Aplicaciones PRO procesadas:', proApps);
+        
         // Determinar aplicaciones disponibles (las que no están en la lista de PRO)
-        availableProApps = allApps.filter(app => !proApps.some(proApp => proApp.id === app.id));
+        availableProApps = allApps.filter(app => !proAppIds.includes(app.id));
+        console.log('Aplicaciones disponibles:', availableProApps);
         
         updateLoadingProgress(70);
         
