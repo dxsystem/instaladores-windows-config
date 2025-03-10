@@ -1897,10 +1897,13 @@ function filterAvailableFreeApps() {
     let visibleCount = 0;
     
     appItems.forEach(item => {
-        const appName = item.querySelector('h6').textContent.toLowerCase();
-        const appCategory = item.querySelector('small').textContent.toLowerCase();
+        // Buscar el nombre de la aplicación en el elemento .app-name
+        const appNameElement = item.querySelector('.app-name');
+        if (!appNameElement) return;
         
-        if (appName.includes(searchTerm) || appCategory.includes(searchTerm)) {
+        const appName = appNameElement.textContent.toLowerCase();
+        
+        if (appName.includes(searchTerm)) {
             item.style.display = '';
             visibleCount++;
         } else {
@@ -2263,10 +2266,13 @@ function filterAvailableProApps() {
     let visibleCount = 0;
     
     appItems.forEach(item => {
-        const appName = item.querySelector('h6').textContent.toLowerCase();
-        const appCategory = item.querySelector('small').textContent.toLowerCase();
+        // Buscar el nombre de la aplicación en el elemento .app-name
+        const appNameElement = item.querySelector('.app-name');
+        if (!appNameElement) return;
         
-        if (appName.includes(searchTerm) || appCategory.includes(searchTerm)) {
+        const appName = appNameElement.textContent.toLowerCase();
+        
+        if (appName.includes(searchTerm)) {
             item.style.display = '';
             visibleCount++;
         } else {
@@ -2478,10 +2484,13 @@ function filterAvailableEliteApps() {
     let visibleCount = 0;
     
     appItems.forEach(item => {
-        const appName = item.querySelector('h6').textContent.toLowerCase();
-        const appCategory = item.querySelector('small').textContent.toLowerCase();
+        // Buscar el nombre de la aplicación en el elemento .app-name
+        const appNameElement = item.querySelector('.app-name');
+        if (!appNameElement) return;
         
-        if (appName.includes(searchTerm) || appCategory.includes(searchTerm)) {
+        const appName = appNameElement.textContent.toLowerCase();
+        
+        if (appName.includes(searchTerm)) {
             item.style.display = '';
             visibleCount++;
         } else {
