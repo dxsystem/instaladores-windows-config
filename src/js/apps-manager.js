@@ -102,6 +102,42 @@ function setupEventListeners() {
         });
     }
     
+    // Configurar eventos de búsqueda
+    const appSearchInput = document.getElementById('appSearchInput');
+    if (appSearchInput) {
+        appSearchInput.addEventListener('input', filterApps);
+    }
+    
+    const descriptionSearchInput = document.getElementById('descriptionSearchInput');
+    if (descriptionSearchInput) {
+        descriptionSearchInput.addEventListener('input', filterDescriptions);
+    }
+    
+    const availableAppsSearchInput = document.getElementById('availableAppsSearchInput');
+    if (availableAppsSearchInput) {
+        availableAppsSearchInput.addEventListener('input', filterAvailableApps);
+    }
+    
+    const availableEliteAppsSearchInput = document.getElementById('availableEliteAppsSearchInput');
+    if (availableEliteAppsSearchInput) {
+        availableEliteAppsSearchInput.addEventListener('input', filterAvailableEliteApps);
+    }
+    
+    const availableProAppsSearchInput = document.getElementById('availableProAppsSearchInput');
+    if (availableProAppsSearchInput) {
+        availableProAppsSearchInput.addEventListener('input', filterAvailableProApps);
+    }
+    
+    const availableFreeAppsSearchInput = document.getElementById('availableFreeAppsSearchInput');
+    if (availableFreeAppsSearchInput) {
+        availableFreeAppsSearchInput.addEventListener('input', filterAvailableFreeApps);
+    }
+    
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterApps);
+    }
+    
     // Eventos para la lista de aplicaciones disponibles para PRO
     const availableProAppsList = document.getElementById('availableProAppsList');
     if (availableProAppsList) {
@@ -2434,10 +2470,10 @@ function filterAvailableEliteApps() {
     if (!searchInput) return;
     
     const searchTerm = searchInput.value.toLowerCase();
-    const eliteAppsList = document.getElementById('eliteAppsList');
-    if (!eliteAppsList) return;
+    const availableEliteAppsList = document.getElementById('availableEliteAppsList');
+    if (!availableEliteAppsList) return;
     
-    const appItems = eliteAppsList.querySelectorAll('.app-list-item');
+    const appItems = availableEliteAppsList.querySelectorAll('.app-list-item');
     
     let visibleCount = 0;
     
@@ -2454,12 +2490,12 @@ function filterAvailableEliteApps() {
     });
     
     // Actualizar contador
-    const eliteAppsCounter = document.getElementById('eliteAppsCounter');
-    if (eliteAppsCounter) {
+    const availableEliteAppsCounter = document.getElementById('availableEliteAppsCounter');
+    if (availableEliteAppsCounter) {
         if (searchTerm) {
-            eliteAppsCounter.textContent = `${visibleCount} de ${eliteApps.length} aplicaciones para ELITE`;
+            availableEliteAppsCounter.textContent = `${visibleCount} de ${availableEliteApps.length} aplicaciones disponibles`;
         } else {
-            eliteAppsCounter.textContent = `${eliteApps.length} aplicaciones para ELITE`;
+            availableEliteAppsCounter.textContent = `${availableEliteApps.length} aplicaciones disponibles`;
         }
     }
 }

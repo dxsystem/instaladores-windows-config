@@ -763,13 +763,7 @@
                 document.getElementById('saveDescriptionButton').addEventListener('click', saveDescription);
                 
                 // Configurar eventos de búsqueda
-                document.getElementById('appSearchInput').addEventListener('input', filterApps);
-                document.getElementById('descriptionSearchInput').addEventListener('input', filterDescriptions);
-                document.getElementById('availableAppsSearchInput').addEventListener('input', filterAvailableApps);
-                document.getElementById('availableEliteAppsSearchInput').addEventListener('input', filterAvailableEliteApps);
-                document.getElementById('availableProAppsSearchInput').addEventListener('input', filterAvailableProApps);
-                document.getElementById('availableFreeAppsSearchInput').addEventListener('input', filterAvailableFreeApps);
-                document.getElementById('categoryFilter').addEventListener('change', filterApps);
+                // Los event listeners para los campos de búsqueda se configuran en la función setupEventListeners
                 
                 console.log('Aplicación inicializada correctamente');
             } catch (error) {
