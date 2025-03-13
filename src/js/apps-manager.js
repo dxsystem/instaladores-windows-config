@@ -2862,12 +2862,12 @@ async function exportToPdf() {
         const now = new Date();
         const dateTimeStr = now.toLocaleString('es-ES', {
             year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
+            month: 'long',
+            day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
             hour12: false
-        });
+        }).replace(',', '');
         
         // Agregar título y fecha
         doc.setFontSize(18);
@@ -2880,9 +2880,6 @@ async function exportToPdf() {
         const headers = [
             { header: 'Aplicación', dataKey: 'app' },
             { header: 'Descripción', dataKey: 'description' },
-            { header: 'Versión', dataKey: 'version' },
-            { header: 'Tamaño', dataKey: 'size' },
-            { header: 'Última modificación', dataKey: 'lastModified' },
             { header: 'Suscripción', dataKey: 'subscription' },
             { header: 'Obligatoria', dataKey: 'required' }
         ];
@@ -2893,9 +2890,6 @@ async function exportToPdf() {
                 name: app.name
             },
             description: app.description || '',
-            version: app.version || 'N/A',
-            size: formatFileSize(app.size),
-            lastModified: new Date(app.lastModified).toLocaleDateString('es-ES'),
             subscription: getSuscriptionType(app),
             required: requiredApps.some(reqApp => reqApp.id === app.id) ? 'Sí' : 'No'
         }));
@@ -2907,32 +2901,26 @@ async function exportToPdf() {
             body: data.map(row => [
                 row.app.name,
                 row.description,
-                row.version,
-                row.size,
-                row.lastModified,
                 row.subscription,
                 row.required
             ]),
             theme: 'grid',
             styles: {
-                fontSize: 8,
-                cellPadding: 2,
+                fontSize: 9,
+                cellPadding: 3,
                 overflow: 'linebreak',
                 halign: 'left'
             },
             columnStyles: {
-                0: { cellWidth: 40, cellPadding: { left: 12, top: 2, right: 2, bottom: 2 } }, // Menos padding para acercar el icono al texto
-                1: { cellWidth: 60 },
-                2: { cellWidth: 20 },
-                3: { cellWidth: 20 },
-                4: { cellWidth: 25 },
-                5: { cellWidth: 15 },
-                6: { cellWidth: 15 }
+                0: { cellWidth: 50, cellPadding: { left: 12, top: 3, right: 3, bottom: 3 } }, // Columna de Aplicación más ancha
+                1: { cellWidth: 90 }, // Columna de Descripción más ancha
+                2: { cellWidth: 30 }, // Columna de Suscripción
+                3: { cellWidth: 20 } // Columna de Obligatoria
             },
             headStyles: {
                 fillColor: [0, 120, 212],
                 textColor: 255,
-                fontSize: 9,
+                fontSize: 10,
                 fontStyle: 'bold'
             },
             alternateRowStyles: {
@@ -2944,7 +2932,7 @@ async function exportToPdf() {
                     const app = appsToExport[data.row.index];
                     if (app && app.icon) {
                         try {
-                            const iconSize = 8; // Aumentado a 8mm
+                            const iconSize = 8;
                             const x = data.cell.x + 2;
                             const y = data.cell.y + (data.cell.height - iconSize) / 2;
                             doc.addImage(app.icon, 'PNG', x, y, iconSize, iconSize);
