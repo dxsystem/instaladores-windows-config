@@ -2813,12 +2813,6 @@ async function exportToPdf() {
         const doc = new jsPDF('p', 'mm', 'a4');
         doc.setFont('helvetica');
         
-        // Agregar título y fecha
-        doc.setFontSize(18);
-        doc.text('Lista de Aplicaciones InstallWin#', 14, 20);
-        doc.setFontSize(12);
-        doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, 14, 30);
-        
         // Agregar selector de suscripción
         const subscriptionType = await new Promise(resolve => {
             const options = ['ELITE', 'PRO', 'FREE'];
@@ -2863,6 +2857,24 @@ async function exportToPdf() {
         } else if (subscriptionType === 'FREE') {
             appsToExport = freeApps;
         }
+
+        // Obtener la fecha y hora actual en formato español
+        const now = new Date();
+        const dateTimeStr = now.toLocaleString('es-ES', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+        
+        // Agregar título y fecha
+        doc.setFontSize(18);
+        const subscriptionText = subscriptionType === 'all' ? 'Todas las Suscripciones' : `Suscripción ${subscriptionType}`;
+        doc.text(`Lista de Aplicaciones InstallWin# - ${subscriptionText}`, 14, 20);
+        doc.setFontSize(12);
+        doc.text(`Fecha: ${dateTimeStr}`, 14, 30);
         
         // Preparar los datos para la tabla
         const headers = [
@@ -2904,12 +2916,12 @@ async function exportToPdf() {
             theme: 'grid',
             styles: {
                 fontSize: 8,
-                cellPadding: 2,
+                cellPadding: 3,
                 overflow: 'linebreak',
                 halign: 'left'
             },
             columnStyles: {
-                0: { cellWidth: 40 },
+                0: { cellWidth: 40, cellPadding: { left: 25, top: 3, right: 3, bottom: 3 } }, // Más espacio a la izquierda para el icono
                 1: { cellWidth: 60 },
                 2: { cellWidth: 20 },
                 3: { cellWidth: 20 },
@@ -2932,12 +2944,10 @@ async function exportToPdf() {
                     const app = appsToExport[data.row.index];
                     if (app && app.icon) {
                         try {
-                            const iconSize = 5;
-                            const x = data.cell.x + 2;
-                            const y = data.cell.y + 2;
+                            const iconSize = 4;
+                            const x = data.cell.x + 3;
+                            const y = data.cell.y + (data.cell.height - iconSize) / 2;
                             doc.addImage(app.icon, 'PNG', x, y, iconSize, iconSize);
-                            // Ajustar el texto para que no se superponga con el icono
-                            doc.text(data.cell.text, x + iconSize + 2, y + iconSize/2);
                         } catch (error) {
                             console.warn('Error al agregar icono:', error);
                         }
@@ -2955,8 +2965,7 @@ async function exportToPdf() {
         }
         
         // Generar y descargar el archivo
-        const subscriptionText = subscriptionType === 'all' ? 'Todas' : subscriptionType;
-        const fileName = `InstallWin_Aplicaciones_${subscriptionText}_${new Date().toISOString().split('T')[0]}.pdf`;
+        const fileName = `InstallWin_Aplicaciones_${subscriptionType === 'all' ? 'Todas' : subscriptionType}_${now.toISOString().split('.')[0].replace(/[:-]/g, '')}.pdf`;
         doc.save(fileName);
         
         hideLoading();
