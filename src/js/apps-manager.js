@@ -1922,59 +1922,23 @@ async function saveFreeApps() {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
-        // Cargar descripciones si no están cargadas
-        if (!descriptionsLoaded) {
-            await loadDescriptions();
+        // Verificar que ELITE esté cargado
+        if (!eliteAppsLoaded) {
+            await loadEliteApps();
         }
 
-        // Crear mapa de descripciones para búsqueda eficiente
-        const descriptionsMap = {};
-        allDescriptions.forEach(desc => {
-            descriptionsMap[desc.name.toLowerCase()] = {
-                description: desc.description,
-                category: desc.category
-            };
-        });
-        
         // Obtener las aplicaciones Gratuitas completas
         const freeAppsConfig = {
             lastUpdate: new Date().toISOString(),
             applications: freeApps.map(app => {
-                // Normalizar el nombre de la aplicación
-                let baseName = app.name
-                    .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
-                    .replace(/\d+(\.\d+)*/, '') // Remover números de versión
-                    .replace(/\s+/g, ' ') // Normalizar espacios
-                    .trim();
-
-                // Buscar coincidencia exacta
-                let description = descriptionsMap[baseName.toLowerCase()];
-                
-                if (!description) {
-                    // Buscar coincidencia parcial
-                    const partialMatch = Object.entries(descriptionsMap).find(([key, value]) => 
-                        key.includes(baseName.toLowerCase()) ||
-                        baseName.toLowerCase().includes(key)
-                    );
-                    
-                    if (partialMatch) {
-                        description = partialMatch[1];
-                    }
-                }
-
-                // Formatear la descripción
-                const formattedDescription = `${description?.description || app.description || `Software ${app.name}`}\n\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                })}`;
-
+                // Buscar la aplicación en ELITE para heredar su descripción
+                const eliteApp = eliteApps.find(e => e.id === app.id);
                 return {
                     sharePointId: app.id,
                     name: app.name,
                     fileName: app.fileName,
-                    category: description?.category || app.category || 'General',
-                    description: formattedDescription,
+                    category: eliteApp?.category || app.category || 'General',
+                    description: eliteApp?.description || app.description || `Software ${app.name}`,
                     version: app.version,
                     size: app.size,
                     lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
@@ -2331,59 +2295,23 @@ async function saveProApps() {
             throw new Error('El cliente de SharePoint Graph no está inicializado');
         }
         
-        // Cargar descripciones si no están cargadas
-        if (!descriptionsLoaded) {
-            await loadDescriptions();
+        // Verificar que ELITE esté cargado
+        if (!eliteAppsLoaded) {
+            await loadEliteApps();
         }
 
-        // Crear mapa de descripciones para búsqueda eficiente
-        const descriptionsMap = {};
-        allDescriptions.forEach(desc => {
-            descriptionsMap[desc.name.toLowerCase()] = {
-                description: desc.description,
-                category: desc.category
-            };
-        });
-        
         // Obtener las aplicaciones PRO completas
         const proAppsConfig = {
             lastUpdate: new Date().toISOString(),
             applications: proApps.map(app => {
-                // Normalizar el nombre de la aplicación
-                let baseName = app.name
-                    .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
-                    .replace(/\d+(\.\d+)*/, '') // Remover números de versión
-                    .replace(/\s+/g, ' ') // Normalizar espacios
-                    .trim();
-
-                // Buscar coincidencia exacta
-                let description = descriptionsMap[baseName.toLowerCase()];
-                
-                if (!description) {
-                    // Buscar coincidencia parcial
-                    const partialMatch = Object.entries(descriptionsMap).find(([key, value]) => 
-                        key.includes(baseName.toLowerCase()) ||
-                        baseName.toLowerCase().includes(key)
-                    );
-                    
-                    if (partialMatch) {
-                        description = partialMatch[1];
-                    }
-                }
-
-                // Formatear la descripción
-                const formattedDescription = `${description?.description || app.description || `Software ${app.name}`}\n\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                })}`;
-
+                // Buscar la aplicación en ELITE para heredar su descripción
+                const eliteApp = eliteApps.find(e => e.id === app.id);
                 return {
                     sharePointId: app.id,
                     name: app.name,
                     fileName: app.fileName,
-                    category: description?.category || app.category || 'General',
-                    description: formattedDescription,
+                    category: eliteApp?.category || app.category || 'General',
+                    description: eliteApp?.description || app.description || `Software ${app.name}`,
                     version: app.version,
                     size: app.size,
                     lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
@@ -2617,60 +2545,20 @@ async function saveEliteApps() {
             await loadDescriptions();
         }
 
-        // Crear mapa de descripciones para búsqueda eficiente
-        const descriptionsMap = {};
-        allDescriptions.forEach(desc => {
-            descriptionsMap[desc.name.toLowerCase()] = {
-                description: desc.description,
-                category: desc.category
-            };
-        });
-        
         // Obtener las aplicaciones ELITE completas
         const eliteAppsConfig = {
             lastUpdate: new Date().toISOString(),
-            applications: eliteApps.map(app => {
-                // Normalizar el nombre de la aplicación
-                let baseName = app.name
-                    .replace(/\([^)]*\)/g, '') // Remover contenido entre paréntesis
-                    .replace(/\d+(\.\d+)*/, '') // Remover números de versión
-                    .replace(/\s+/g, ' ') // Normalizar espacios
-                    .trim();
-
-                // Buscar coincidencia exacta
-                let description = descriptionsMap[baseName.toLowerCase()];
-                
-                if (!description) {
-                    // Buscar coincidencia parcial
-                    const partialMatch = Object.entries(descriptionsMap).find(([key, value]) => 
-                        key.includes(baseName.toLowerCase()) ||
-                        baseName.toLowerCase().includes(key)
-                    );
-                    
-                    if (partialMatch) {
-                        description = partialMatch[1];
-                    }
-                }
-
-                // Formatear la descripción
-                const formattedDescription = `${description?.description || app.description || `Software ${app.name}`}\n\nVersión: ${app.version || 'N/A'}\nTamaño: ${formatFileSize(app.size)}\nÚltima actualización: ${new Date(app.lastModified).toLocaleDateString('es-ES', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                })}`;
-
-                return {
-                    sharePointId: app.id,
-                    name: app.name,
-                    fileName: app.fileName,
-                    category: description?.category || app.category || 'General',
-                    description: formattedDescription,
-                    version: app.version,
-                    size: app.size,
-                    lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
-                    installationOrder: app.installationOrder || 0
-                };
-            })
+            applications: eliteApps.map(app => ({
+                sharePointId: app.id,
+                name: app.name,
+                fileName: app.fileName,
+                category: app.category || 'General',
+                description: app.description || `Software ${app.name}`,
+                version: app.version,
+                size: app.size,
+                lastModified: app.lastModified ? new Date(app.lastModified).toISOString() : new Date().toISOString(),
+                installationOrder: app.installationOrder || 0
+            }))
         };
 
         // Log detallado de la configuración
