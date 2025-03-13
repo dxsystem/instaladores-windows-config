@@ -193,6 +193,17 @@ function setupEventListeners() {
             }
         });
     }
+    
+    // Eventos para los botones de exportación
+    const exportExcelButton = document.getElementById('exportExcelButton');
+    if (exportExcelButton) {
+        exportExcelButton.addEventListener('click', exportToExcel);
+    }
+    
+    const exportPdfButton = document.getElementById('exportPdfButton');
+    if (exportPdfButton) {
+        exportPdfButton.addEventListener('click', exportToPdf);
+    }
 }
 
 /**
@@ -2739,6 +2750,136 @@ function moveToAvailableEliteApps(appId) {
     // Actualizar contadores
     updateEliteListCounters();
     updateCounters();
+}
+
+/**
+ * Exporta las aplicaciones a Excel
+ */
+async function exportToExcel() {
+    try {
+        showLoading('Generando archivo Excel...');
+        
+        // Crear un array con los datos de todas las aplicaciones
+        const appsData = allApps.map(app => ({
+            'Nombre': app.name,
+            'Categoría': app.category || 'General',
+            'Descripción': app.description || '',
+            'Versión': app.version || 'N/A',
+            'Tamaño': formatFileSize(app.size),
+            'Última Modificación': new Date(app.lastModified).toLocaleDateString('es-ES'),
+            'Orden de Instalación': app.installationOrder || 0,
+            'Suscripción': getSuscriptionType(app),
+            'Obligatoria': requiredApps.some(reqApp => reqApp.id === app.id) ? 'Sí' : 'No'
+        }));
+
+        // Convertir los datos a formato de hoja de cálculo
+        let worksheet = XLSX.utils.json_to_sheet(appsData);
+        
+        // Crear un libro de trabajo y agregar la hoja
+        let workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Aplicaciones');
+        
+        // Generar el archivo
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        // Descargar el archivo
+        const fileName = `InstallWin_Aplicaciones_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        hideLoading();
+        showInfoMessage('✅ Archivo Excel generado correctamente');
+    } catch (error) {
+        console.error('Error al exportar a Excel:', error);
+        showError('Error al generar archivo Excel: ' + error.message);
+        hideLoading();
+    }
+}
+
+/**
+ * Exporta las aplicaciones a PDF
+ */
+async function exportToPdf() {
+    try {
+        showLoading('Generando archivo PDF...');
+        
+        // Configurar el documento
+        const doc = new jsPDF('l', 'mm', 'a4');
+        doc.setFont('helvetica');
+        
+        // Agregar título
+        doc.setFontSize(18);
+        doc.text('Lista de Aplicaciones InstallWin#', 14, 20);
+        doc.setFontSize(12);
+        doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, 14, 30);
+        
+        // Preparar los datos para la tabla
+        const headers = ['Nombre', 'Categoría', 'Versión', 'Tamaño', 'Suscripción', 'Obligatoria'];
+        const data = allApps.map(app => [
+            app.name,
+            app.category || 'General',
+            app.version || 'N/A',
+            formatFileSize(app.size),
+            getSuscriptionType(app),
+            requiredApps.some(reqApp => reqApp.id === app.id) ? 'Sí' : 'No'
+        ]);
+        
+        // Generar la tabla
+        doc.autoTable({
+            startY: 40,
+            head: [headers],
+            body: data,
+            theme: 'grid',
+            styles: {
+                fontSize: 8,
+                cellPadding: 2
+            },
+            headStyles: {
+                fillColor: [0, 120, 212],
+                textColor: 255,
+                fontSize: 9,
+                fontStyle: 'bold'
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]
+            }
+        });
+        
+        // Agregar pie de página
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+        }
+        
+        // Generar y descargar el archivo
+        const fileName = `InstallWin_Aplicaciones_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+        
+        hideLoading();
+        showInfoMessage('✅ Archivo PDF generado correctamente');
+    } catch (error) {
+        console.error('Error al exportar a PDF:', error);
+        showError('Error al generar archivo PDF: ' + error.message);
+        hideLoading();
+    }
+}
+
+/**
+ * Determina el tipo de suscripción de una aplicación
+ */
+function getSuscriptionType(app) {
+    const types = [];
+    if (eliteApps.some(eliteApp => eliteApp.id === app.id)) types.push('ELITE');
+    if (proApps.some(proApp => proApp.id === app.id)) types.push('PRO');
+    if (freeApps.some(freeApp => freeApp.id === app.id)) types.push('FREE');
+    return types.length > 0 ? types.join(', ') : 'Sin asignar';
 }
 
 // Hacer disponible globalmente la función de inicialización
