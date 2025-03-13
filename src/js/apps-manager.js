@@ -2916,12 +2916,12 @@ async function exportToPdf() {
             theme: 'grid',
             styles: {
                 fontSize: 8,
-                cellPadding: 3,
+                cellPadding: 2,
                 overflow: 'linebreak',
                 halign: 'left'
             },
             columnStyles: {
-                0: { cellWidth: 40, cellPadding: { left: 25, top: 3, right: 3, bottom: 3 } }, // Más espacio a la izquierda para el icono
+                0: { cellWidth: 40, cellPadding: { left: 12, top: 2, right: 2, bottom: 2 } }, // Menos padding para acercar el icono al texto
                 1: { cellWidth: 60 },
                 2: { cellWidth: 20 },
                 3: { cellWidth: 20 },
@@ -2944,8 +2944,8 @@ async function exportToPdf() {
                     const app = appsToExport[data.row.index];
                     if (app && app.icon) {
                         try {
-                            const iconSize = 4;
-                            const x = data.cell.x + 3;
+                            const iconSize = 8; // Aumentado a 8mm
+                            const x = data.cell.x + 2;
                             const y = data.cell.y + (data.cell.height - iconSize) / 2;
                             doc.addImage(app.icon, 'PNG', x, y, iconSize, iconSize);
                         } catch (error) {
