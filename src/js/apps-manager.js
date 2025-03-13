@@ -2808,36 +2808,114 @@ async function exportToPdf() {
     try {
         showLoading('Generando archivo PDF...');
         
-        // Configurar el documento
-        const doc = new jsPDF('l', 'mm', 'a4');
+        // Inicializar jsPDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
         doc.setFont('helvetica');
         
-        // Agregar título
+        // Agregar título y fecha
         doc.setFontSize(18);
         doc.text('Lista de Aplicaciones InstallWin#', 14, 20);
         doc.setFontSize(12);
         doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, 14, 30);
         
+        // Agregar selector de suscripción
+        const subscriptionType = await new Promise(resolve => {
+            const options = ['ELITE', 'PRO', 'FREE'];
+            const select = document.createElement('select');
+            select.innerHTML = `
+                <option value="all">Todas las suscripciones</option>
+                ${options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+            `;
+            const dialog = document.createElement('div');
+            dialog.style.position = 'fixed';
+            dialog.style.top = '50%';
+            dialog.style.left = '50%';
+            dialog.style.transform = 'translate(-50%, -50%)';
+            dialog.style.backgroundColor = 'white';
+            dialog.style.padding = '20px';
+            dialog.style.borderRadius = '8px';
+            dialog.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+            dialog.style.zIndex = '10000';
+            dialog.innerHTML = `
+                <h4 style="margin-bottom: 15px;">Seleccionar Suscripción</h4>
+                ${select.outerHTML}
+                <button style="display: block; width: 100%; margin-top: 15px; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Generar PDF</button>
+            `;
+            document.body.appendChild(dialog);
+            
+            const button = dialog.querySelector('button');
+            button.onclick = () => {
+                const value = dialog.querySelector('select').value;
+                document.body.removeChild(dialog);
+                resolve(value);
+            };
+        });
+        
+        // Filtrar aplicaciones según la suscripción seleccionada
+        let appsToExport = [];
+        if (subscriptionType === 'all') {
+            appsToExport = allApps;
+        } else if (subscriptionType === 'ELITE') {
+            appsToExport = eliteApps;
+        } else if (subscriptionType === 'PRO') {
+            appsToExport = proApps;
+        } else if (subscriptionType === 'FREE') {
+            appsToExport = freeApps;
+        }
+        
         // Preparar los datos para la tabla
-        const headers = ['Nombre', 'Categoría', 'Versión', 'Tamaño', 'Suscripción', 'Obligatoria'];
-        const data = allApps.map(app => [
-            app.name,
-            app.category || 'General',
-            app.version || 'N/A',
-            formatFileSize(app.size),
-            getSuscriptionType(app),
-            requiredApps.some(reqApp => reqApp.id === app.id) ? 'Sí' : 'No'
-        ]);
+        const headers = [
+            { header: 'Aplicación', dataKey: 'app' },
+            { header: 'Descripción', dataKey: 'description' },
+            { header: 'Versión', dataKey: 'version' },
+            { header: 'Tamaño', dataKey: 'size' },
+            { header: 'Última modificación', dataKey: 'lastModified' },
+            { header: 'Suscripción', dataKey: 'subscription' },
+            { header: 'Obligatoria', dataKey: 'required' }
+        ];
+        
+        const data = appsToExport.map(app => ({
+            app: {
+                icon: app.icon || DEFAULT_ICON_URL,
+                name: app.name
+            },
+            description: app.description || '',
+            version: app.version || 'N/A',
+            size: formatFileSize(app.size),
+            lastModified: new Date(app.lastModified).toLocaleDateString('es-ES'),
+            subscription: getSuscriptionType(app),
+            required: requiredApps.some(reqApp => reqApp.id === app.id) ? 'Sí' : 'No'
+        }));
         
         // Generar la tabla
         doc.autoTable({
             startY: 40,
-            head: [headers],
-            body: data,
+            head: [headers.map(h => h.header)],
+            body: data.map(row => [
+                row.app.name,
+                row.description,
+                row.version,
+                row.size,
+                row.lastModified,
+                row.subscription,
+                row.required
+            ]),
             theme: 'grid',
             styles: {
                 fontSize: 8,
-                cellPadding: 2
+                cellPadding: 2,
+                overflow: 'linebreak',
+                halign: 'left'
+            },
+            columnStyles: {
+                0: { cellWidth: 40 },
+                1: { cellWidth: 60 },
+                2: { cellWidth: 20 },
+                3: { cellWidth: 20 },
+                4: { cellWidth: 25 },
+                5: { cellWidth: 15 },
+                6: { cellWidth: 15 }
             },
             headStyles: {
                 fillColor: [0, 120, 212],
@@ -2847,6 +2925,24 @@ async function exportToPdf() {
             },
             alternateRowStyles: {
                 fillColor: [245, 245, 245]
+            },
+            didDrawCell: function(data) {
+                // Agregar icono en la primera columna
+                if (data.section === 'body' && data.column.index === 0) {
+                    const app = appsToExport[data.row.index];
+                    if (app && app.icon) {
+                        try {
+                            const iconSize = 5;
+                            const x = data.cell.x + 2;
+                            const y = data.cell.y + 2;
+                            doc.addImage(app.icon, 'PNG', x, y, iconSize, iconSize);
+                            // Ajustar el texto para que no se superponga con el icono
+                            doc.text(data.cell.text, x + iconSize + 2, y + iconSize/2);
+                        } catch (error) {
+                            console.warn('Error al agregar icono:', error);
+                        }
+                    }
+                }
             }
         });
         
@@ -2859,7 +2955,8 @@ async function exportToPdf() {
         }
         
         // Generar y descargar el archivo
-        const fileName = `InstallWin_Aplicaciones_${new Date().toISOString().split('T')[0]}.pdf`;
+        const subscriptionText = subscriptionType === 'all' ? 'Todas' : subscriptionType;
+        const fileName = `InstallWin_Aplicaciones_${subscriptionText}_${new Date().toISOString().split('T')[0]}.pdf`;
         doc.save(fileName);
         
         hideLoading();
