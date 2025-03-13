@@ -2872,9 +2872,9 @@ async function exportToPdf() {
         // Agregar título y fecha
         doc.setFontSize(18);
         const subscriptionText = subscriptionType === 'all' ? 'Todas las Suscripciones' : `Suscripción ${subscriptionType}`;
-        doc.text(`Lista de Aplicaciones InstallWin# - ${subscriptionText}`, 14, 20);
+        doc.text(`Aplicaciones incluidas en InstallWin# - ${subscriptionText}`, 14, 20);
         doc.setFontSize(12);
-        doc.text(`Fecha: ${dateTimeStr}`, 14, 30);
+        doc.text(`Lista actualizada al ${dateTimeStr}`, 14, 30);
         
         // Preparar los datos para la tabla
         const headers = [
